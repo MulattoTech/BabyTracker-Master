@@ -5,7 +5,7 @@ import { executeExternalImport } from '@/src/lib/importers/execute';
 import { parseOcrPages } from './parser';
 import { isOcrDate } from './validation';
 import { OCR_LIMITS, acquireOcrSlot, identifyOcrUpload, recognizeOcrDocument } from './intake';
-import { OCR_PARSER_VERSION } from './types';
+import { OCR_PARSER_VERSION, type OcrCrop } from './types';
 import { openOcrState, sealOcrState } from './crypto';
 import { OcrError } from './errors';
 import { findOcrDuplicates, ocrScope, OriginalOcrState, readReviewRequest, reviewHash, reviewIssues, toSproutRecords } from './review';
@@ -18,6 +18,12 @@ const scope = (document: Pick<OcrDocument, 'id' | 'familyId'>, kind: string) => 
 export function ocrDocumentView(document: OcrDocument): OcrDocumentView {
   const original = openOcrState<OriginalOcrState>(document.originalState, scope(document, 'original'));
   const review = openOcrState<OcrReviewRequest>(document.reviewState, scope(document, 'review'));
+  let pages: number[] = [];
+  try {
+    pages = (JSON.parse(document.previewFiles || '[]') as { page: number }[]).map(p => p.page);
+  } catch {
+    pages = [];
+  }
   return {
     id: document.id, babyId: document.babyId, originalName: document.originalName,
     mimeType: document.mimeType, pageCount: document.pageCount, parserVersion: document.parserVersion,
@@ -27,6 +33,7 @@ export function ocrDocumentView(document: OcrDocument): OcrDocumentView {
     sourceExpiresAt: document.sourceExpiresAt.toISOString(), hasSource: !!document.sourceFile && document.sourceExpiresAt > new Date(),
     createdAt: document.createdAt.toISOString(),
     utcOffsets: review.utcOffsets, duplicateDecisions: review.duplicateDecisions,
+    pages,
   };
 }
 
@@ -41,6 +48,7 @@ export async function requireOcrDocument(db: Prisma.TransactionClient, actor: Oc
 export async function createOcrDocument(db: PrismaClient, actor: OcrActor, input: {
   bytes: Buffer; name: string; babyId: string; timeZone: string; defaultDate?: string;
   timeFormat: '24h' | '12h' | 'unknown'; rotation: number; retentionDays: number;
+  selectedPage?: number; crop?: OcrCrop;
   signal?: AbortSignal;
 }): Promise<OcrDocumentView> {
   const baby = await db.baby.findFirst({ where: { id: input.babyId, familyId: actor.familyId, deletedAt: null, inactive: false }, select: { id: true } });
@@ -59,7 +67,12 @@ export async function createOcrDocument(db: PrismaClient, actor: OcrActor, input
   const release = acquireOcrSlot(actor.familyId);
   const stored: string[] = [];
   try {
-    const pages = await recognizeOcrDocument(input.bytes, input.rotation, input.signal);
+    const pages = await recognizeOcrDocument(input.bytes, {
+      rotation: input.rotation,
+      selectedPage: input.selectedPage,
+      crop: input.crop,
+      signal: input.signal,
+    });
     const rows = parseOcrPages(pages, { defaultDate: input.defaultDate, timeFormat: input.timeFormat });
     if (rows.length > OCR_LIMITS.rows) throw new OcrError('More than 200 events were found. Upload a smaller section.');
     if (input.signal?.aborted) throw new OcrError('Recognition cancelled. No care records were created.', 499);
@@ -73,7 +86,7 @@ export async function createOcrDocument(db: PrismaClient, actor: OcrActor, input
     const previews = pages.map(page => ({ page: page.page, file: store(page.image) }));
     const originalState = sealOcrState({
       rows, pages: pages.map(({ image: _image, ...page }) => page),
-      options: { rotation: input.rotation, defaultDate: input.defaultDate, timeFormat: input.timeFormat },
+      options: { rotation: input.rotation, defaultDate: input.defaultDate, timeFormat: input.timeFormat, selectedPage: input.selectedPage, crop: input.crop },
     }, scope(reference, 'original'));
     const review: OcrReviewRequest = { rows, revision: 0, timeZone: input.timeZone, utcOffsets: {}, duplicateDecisions: {} };
     const document = await db.ocrDocument.create({ data: {
@@ -198,7 +211,16 @@ export async function readOcrSource(db: PrismaClient, actor: OcrActor, id: strin
     if (document.sourceFile) await purgeOcrSource(db, actor, id);
     throw new OcrError('The source retention period has ended. Import history is still available.', 410);
   }
-  const file = page === undefined ? document.sourceFile : (JSON.parse(document.previewFiles) as { page: number; file: string }[]).find(value => value.page === page)?.file;
+  const previews = JSON.parse(document.previewFiles || '[]') as { page: number; file: string }[];
+  let file: string | null = null;
+  if (page === undefined) {
+    file = document.sourceFile;
+  } else {
+    file = previews.find(value => value.page === page)?.file ?? null;
+    if (!file && previews.length === 1 && page === 1) {
+      file = previews[0].file;
+    }
+  }
   if (!file) throw new OcrError('Source file not found.', 404);
   if (!/^[a-f\d-]{36}\.enc$/i.test(file)) throw new OcrError('Invalid stored source reference.', 500);
   return { bytes: decryptFile(file, storageDir), mimeType: page === undefined ? document.mimeType : 'image/png' };

@@ -42,10 +42,13 @@ export default function SourcePanel({ document, page, onPage, busy, onPurge }: P
     } catch (reason) { setError(reason instanceof Error ? reason.message : t('Download failed.')); }
     finally { setDownloading(false); }
   };
+  const availablePages = document.pages && document.pages.length > 0
+    ? document.pages
+    : Array.from({ length: document.pageCount }, (_, index) => index + 1);
   return <section className="ocr-panel ocr-source" aria-label={t('Original source')}>
     <div className="ocr-panel-title"><FileText aria-hidden="true" /><div><h2>{t('Original source')}</h2><p className="ocr-filename">{document.originalName}</p></div></div>
     <div className="ocr-source-controls">
-      <ChoiceField label="Source page" value={String(page)} onChange={value => onPage(Number(value))} choices={Array.from({ length: document.pageCount }, (_, index) => [String(index + 1), `${t('Page')} ${index + 1}`] as const)} />
+      <ChoiceField label="Source page" value={String(page)} onChange={value => onPage(Number(value))} choices={availablePages.map(p => [String(p), `${t('Page')} ${p}`] as const)} />
       <Button type="button" variant="outline" size="sm" onClick={() => setZoom(value => !value)} aria-pressed={zoom} disabled={!url}>
         {zoom ? <ZoomOut aria-hidden="true" size={16} /> : <ZoomIn aria-hidden="true" size={16} />}{zoom ? t('Fit page') : t('Enlarge')}
       </Button>

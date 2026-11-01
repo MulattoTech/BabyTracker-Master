@@ -5,6 +5,14 @@ export type OcrEditableField =
   | 'eventType' | 'localDate' | 'localTime' | 'endLocalDate' | 'endLocalTime'
   | 'feedType' | 'bottleType' | 'amount' | 'unit' | 'diaperType' | 'sleepType' | 'notes';
 
+export interface OcrCrop {
+  readonly left: number;
+  readonly top: number;
+  readonly width: number;
+  readonly height: number;
+  readonly unit?: 'pixel' | 'percent';
+}
+
 export interface OcrSource {
   readonly page: number;
   readonly line: number;
@@ -15,6 +23,8 @@ export interface OcrSource {
   readonly confidence: number | null;
   readonly contextDate?: string;
   readonly contextDateOrigin?: 'user' | 'page-header';
+  readonly rotation?: number;
+  readonly crop?: OcrCrop;
 }
 
 export interface OcrCandidate {
@@ -42,6 +52,8 @@ export interface OcrPageText {
   readonly text: string;
   readonly confidence?: number | null;
   readonly engine?: string;
+  readonly rotation?: number;
+  readonly crop?: OcrCrop;
 }
 
 export interface OcrParseOptions {

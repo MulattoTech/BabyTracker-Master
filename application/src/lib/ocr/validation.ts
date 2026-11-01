@@ -1,5 +1,5 @@
 import {
-  OCR_MAX_NOTES, OCR_MAX_SOURCE_LINE, OcrCandidate, OcrEditableField,
+  OCR_MAX_NOTES, OCR_MAX_SOURCE_LINE, OcrCandidate, OcrCrop, OcrEditableField,
   OcrFieldOrigin, OcrTimeResolution, OcrValidationResult,
 } from './types';
 
@@ -113,13 +113,24 @@ export function validateOcrCandidate(
   }
 
   const source = object(value.source);
+  const rotationValid = source?.rotation === undefined || [0, 90, 180, 270].includes(source.rotation as number);
+  const cropObj = source?.crop ? object(source.crop) : null;
+  const cropValid = source?.crop === undefined || (
+    cropObj !== null
+    && Number.isFinite(cropObj.left) && Number(cropObj.left) >= 0
+    && Number.isFinite(cropObj.top) && Number(cropObj.top) >= 0
+    && Number.isFinite(cropObj.width) && Number(cropObj.width) > 0
+    && Number.isFinite(cropObj.height) && Number(cropObj.height) > 0
+    && (cropObj.unit === undefined || ['pixel', 'percent'].includes(String(cropObj.unit)))
+  );
   const sourceValid = source && ['page', 'line', 'slot'].every(key =>
     typeof source[key] === 'number' && Number.isInteger(source[key]) && Number(source[key]) >= (key === 'slot' ? 0 : 1) && Number(source[key]) <= 100000,
   ) && typeof source.rawText === 'string' && source.rawText.length <= OCR_MAX_SOURCE_LINE
     && typeof source.engine === 'string' && source.engine.length > 0 && source.engine.length <= 200
     && (source.confidence === null || (typeof source.confidence === 'number' && Number.isFinite(source.confidence) && source.confidence >= 0 && source.confidence <= 100))
     && (source.contextDate === undefined || isOcrDate(source.contextDate))
-    && (source.contextDateOrigin === undefined || ['user', 'page-header'].includes(String(source.contextDateOrigin)));
+    && (source.contextDateOrigin === undefined || ['user', 'page-header'].includes(String(source.contextDateOrigin)))
+    && rotationValid && cropValid;
   if (!sourceValid) errors.push('Invalid source reference.');
   const evidence = object(value.fieldSources);
   const fieldSources: Partial<Record<OcrEditableField, OcrFieldOrigin>> = {};
@@ -142,6 +153,11 @@ export function validateOcrCandidate(
       rawText: source.rawText as string, engine: source.engine as string, confidence: source.confidence as number | null,
       ...(source.contextDate ? { contextDate: source.contextDate as string } : {}),
       ...(source.contextDateOrigin ? { contextDateOrigin: source.contextDateOrigin as 'user' | 'page-header' } : {}),
+      ...(typeof source.rotation === 'number' ? { rotation: source.rotation as number } : {}),
+      ...(cropObj ? { crop: {
+        left: Number(cropObj.left), top: Number(cropObj.top), width: Number(cropObj.width), height: Number(cropObj.height),
+        ...(cropObj.unit ? { unit: cropObj.unit as 'pixel' | 'percent' } : {}),
+      } } : {}),
     },
     fieldSources, warnings: value.warnings as string[],
   };

@@ -24,7 +24,7 @@ export default function OcrImport() {
   const [bulkDate, setBulkDate] = useState('');
   const [showUpload, setShowUpload] = useState(true);
   const sourceRef = useRef<HTMLDivElement>(null);
-  useEffect(() => { setPage(1); setBulkDate(''); if (state.document) setShowUpload(false); }, [state.document?.id]);
+  useEffect(() => { setPage(state.document?.pages?.[0] ?? 1); setBulkDate(''); if (state.document) setShowUpload(false); }, [state.document?.id]);
   useEffect(() => { setShowUpload(true); }, [selectedBaby?.id]);
   const document = state.document?.babyId === selectedBaby?.id ? state.document : null;
   const locked = Boolean(state.busy || document?.committedAt);

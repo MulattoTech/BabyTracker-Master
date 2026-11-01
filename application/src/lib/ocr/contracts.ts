@@ -7,6 +7,7 @@ export interface OcrDocumentView {
   originalName: string;
   mimeType: string;
   pageCount: number;
+  pages?: number[];
   parserVersion: string;
   sourceTimezone: string;
   revision: number;
