@@ -6,9 +6,17 @@ import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 import { OcrError } from './errors';
+import type { OcrCrop } from './types';
 
 const exec = promisify(execFile);
-export const OCR_LIMITS = { bytes: 12 * 1024 * 1024, pages: 6, pixels: 24_000_000, rows: 200, text: 120_000 } as const;
+export const OCR_LIMITS = {
+  bytes: 12 * 1024 * 1024,
+  pages: 6,
+  maxPdfPages: 100,
+  pixels: 24_000_000,
+  rows: 200,
+  text: 120_000,
+} as const;
 export const OCR_MODEL_SHA256 = '7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2';
 const activeFamilies = new Set<string>();
 
@@ -29,12 +37,157 @@ export function identifyOcrUpload(bytes: Buffer): 'image/png' | 'image/jpeg' | '
   throw new OcrError('Supported documents are JPEG, PNG, WebP and unencrypted PDF. Convert HEIC photos before uploading.');
 }
 
+export interface OcrIntakeOptions {
+  readonly rotation?: number;
+  readonly selectedPage?: number;
+  readonly crop?: OcrCrop;
+  readonly signal?: AbortSignal;
+}
+
 export interface RecognizedPage {
   page: number;
   text: string;
   confidence: number | null;
   engine: string;
   image: Buffer;
+  rotation?: number;
+  crop?: OcrCrop;
+}
+
+export function validateOcrCrop(crop: OcrCrop): OcrCrop {
+  if (!Number.isFinite(crop.left) || !Number.isFinite(crop.top) || !Number.isFinite(crop.width) || !Number.isFinite(crop.height)) {
+    throw new OcrError('Crop coordinates must be finite numbers.');
+  }
+  if (crop.left < 0 || crop.top < 0) {
+    throw new OcrError('Crop coordinates cannot be negative.');
+  }
+  if (crop.width <= 0 || crop.height <= 0) {
+    throw new OcrError('Crop dimensions must be greater than zero.');
+  }
+  if (crop.unit === 'percent') {
+    if (crop.left > 100 || crop.top > 100 || crop.width > 100 || crop.height > 100) {
+      throw new OcrError('Percentage crop coordinates cannot exceed 100%.');
+    }
+    if (crop.left + crop.width > 100 || crop.top + crop.height > 100) {
+      throw new OcrError('Percentage crop extends beyond 100% of the image boundary.');
+    }
+  }
+  return {
+    left: crop.left,
+    top: crop.top,
+    width: crop.width,
+    height: crop.height,
+    ...(crop.unit ? { unit: crop.unit } : {}),
+  };
+}
+
+export function parseOcrCrop(input: unknown): OcrCrop {
+  if (typeof input === 'string') {
+    const trimmed = input.trim();
+    if (trimmed.startsWith('{')) {
+      try {
+        return parseOcrCrop(JSON.parse(trimmed));
+      } catch {
+        throw new OcrError('Invalid crop JSON.');
+      }
+    }
+    const parts = trimmed.split(/[\s,]+/).map(p => p.trim()).filter(Boolean);
+    if (parts.length === 4) {
+      const hasPercent = parts.some(p => p.endsWith('%'));
+      const nums = parts.map(p => Number(p.replace(/%$/, '')));
+      if (nums.some(n => !Number.isFinite(n))) throw new OcrError('Crop coordinates must be finite numbers.');
+      return validateOcrCrop({
+        left: nums[0],
+        top: nums[1],
+        width: nums[2],
+        height: nums[3],
+        unit: hasPercent ? 'percent' : 'pixel',
+      });
+    }
+    throw new OcrError('Crop must be specified as left,top,width,height or JSON object.');
+  }
+  if (input && typeof input === 'object' && !Array.isArray(input)) {
+    const obj = input as Record<string, unknown>;
+    const left = Number(obj.left);
+    const top = Number(obj.top);
+    const width = Number(obj.width);
+    const height = Number(obj.height);
+    const unit = obj.unit === 'percent' ? 'percent' : 'pixel';
+    return validateOcrCrop({ left, top, width, height, unit });
+  }
+  throw new OcrError('Invalid crop specification.');
+}
+
+export async function applyImageTransform(
+  input: Buffer,
+  options: { rotation?: number; crop?: OcrCrop } = {},
+): Promise<Buffer> {
+  const rotation = options.rotation ?? 0;
+  if (![0, 90, 180, 270].includes(rotation)) {
+    throw new OcrError('Choose a rotation of 0, 90, 180 or 270 degrees.');
+  }
+
+  try {
+    const metadata = await sharp(input, { limitInputPixels: OCR_LIMITS.pixels }).metadata();
+    if ((metadata.pages || 1) !== 1) {
+      throw new OcrError('Animated or multi-frame images are not supported.');
+    }
+
+    let pipeline = sharp(input, { limitInputPixels: OCR_LIMITS.pixels }).autoOrient();
+    if (rotation) {
+      pipeline = pipeline.rotate(rotation);
+    }
+
+    if (options.crop) {
+      const crop = validateOcrCrop(options.crop);
+      const orientedBuffer = await pipeline.toBuffer();
+      const orientedMeta = await sharp(orientedBuffer).metadata();
+      const imgWidth = orientedMeta.width || 0;
+      const imgHeight = orientedMeta.height || 0;
+
+      if (imgWidth === 0 || imgHeight === 0) {
+        throw new OcrError('The image has invalid dimensions.');
+      }
+
+      let left: number;
+      let top: number;
+      let width: number;
+      let height: number;
+
+      if (crop.unit === 'percent') {
+        left = Math.floor((crop.left / 100) * imgWidth);
+        top = Math.floor((crop.top / 100) * imgHeight);
+        width = Math.min(imgWidth - left, Math.round((crop.width / 100) * imgWidth));
+        height = Math.min(imgHeight - top, Math.round((crop.height / 100) * imgHeight));
+      } else {
+        left = Math.round(crop.left);
+        top = Math.round(crop.top);
+        width = Math.round(crop.width);
+        height = Math.round(crop.height);
+      }
+
+      if (left < 0 || top < 0 || width <= 0 || height <= 0 || left + width > imgWidth || top + height > imgHeight) {
+        throw new OcrError('The crop region must be within the image bounds.');
+      }
+      if (width < 10 || height < 10) {
+        throw new OcrError('Choose a crop area of at least 10x10 pixels.');
+      }
+
+      pipeline = sharp(orientedBuffer).extract({ left, top, width, height });
+    }
+
+    return await pipeline
+      .resize({ width: 2400, height: 2400, fit: 'inside', withoutEnlargement: true })
+      .flatten({ background: '#ffffff' })
+      .grayscale()
+      .normalize()
+      .sharpen()
+      .png()
+      .toBuffer();
+  } catch (error) {
+    if (error instanceof OcrError) throw error;
+    throw new OcrError('The image is invalid or exceeds the 24-megapixel limit.');
+  }
 }
 
 async function run(command: string, args: string[], signal?: AbortSignal): Promise<string> {
@@ -90,23 +243,45 @@ export function readTesseractTsv(tsv: string): { text: string; confidence: numbe
   };
 }
 
-export async function recognizeOcrDocument(bytes: Buffer, rotation = 0, signal?: AbortSignal): Promise<RecognizedPage[]> {
+export async function recognizeOcrDocument(
+  bytes: Buffer,
+  optionsOrRotation: number | OcrIntakeOptions = 0,
+  maybeSignal?: AbortSignal,
+): Promise<RecognizedPage[]> {
+  const options: OcrIntakeOptions = typeof optionsOrRotation === 'number'
+    ? { rotation: optionsOrRotation, signal: maybeSignal }
+    : optionsOrRotation;
+  const rotation = options.rotation ?? 0;
+  const signal = options.signal ?? maybeSignal;
+  const selectedPage = options.selectedPage;
+  const crop = options.crop;
+
   const mime = identifyOcrUpload(bytes);
   if (![0, 90, 180, 270].includes(rotation)) throw new OcrError('Choose a rotation of 0, 90, 180 or 270 degrees.');
   const engine = await verifiedEngine(signal);
   const dir = await mkdtemp(path.join(tmpdir(), 'babytracker-ocr-'));
   try {
-    let count = 1;
+    let targetPages: number[] = [1];
     const source = path.join(dir, 'source.pdf');
     if (mime === 'application/pdf') {
       await writeFile(source, bytes, { mode: 0o600 });
       const info = await run('pdfinfo', [source], signal);
       if (/^Encrypted:\s+yes/im.test(info)) throw new OcrError('Password-protected PDFs are not supported.');
-      count = Number(info.match(/^Pages:\s+(\d+)/m)?.[1]);
-      if (!Number.isInteger(count) || count < 1 || count > OCR_LIMITS.pages) throw new OcrError('Choose a PDF with 1 to 6 pages.');
+      const count = Number(info.match(/^Pages:\s+(\d+)/m)?.[1]);
+      if (!Number.isInteger(count) || count < 1) throw new OcrError('Choose a PDF with at least 1 page.');
+      if (count > OCR_LIMITS.maxPdfPages) throw new OcrError(`Choose a PDF with at most ${OCR_LIMITS.maxPdfPages} pages.`);
+      if (selectedPage !== undefined) {
+        if (!Number.isInteger(selectedPage) || selectedPage < 1 || selectedPage > count) {
+          throw new OcrError(`Selected page ${selectedPage} is out of range. Document has ${count} page${count === 1 ? '' : 's'}.`);
+        }
+        targetPages = [selectedPage];
+      } else {
+        if (count > OCR_LIMITS.pages) throw new OcrError('Choose a PDF with 1 to 6 pages, or select a single page.');
+        targetPages = Array.from({ length: count }, (_, i) => i + 1);
+      }
     }
     const pages: RecognizedPage[] = [];
-    for (let page = 1; page <= count; page++) {
+    for (const page of targetPages) {
       if (signal?.aborted) throw new OcrError('Recognition cancelled.', 499);
       let input = bytes;
       if (mime === 'application/pdf') {
@@ -114,17 +289,7 @@ export async function recognizeOcrDocument(bytes: Buffer, rotation = 0, signal?:
         await run('pdftoppm', ['-f', String(page), '-l', String(page), '-singlefile', '-scale-to', '2400', '-png', source, prefix], signal);
         input = await readFile(`${prefix}.png`);
       }
-      let image: Buffer;
-      try {
-        const metadata = await sharp(input, { limitInputPixels: OCR_LIMITS.pixels }).metadata();
-        if ((metadata.pages || 1) !== 1) throw new OcrError('Animated or multi-frame images are not supported.');
-        image = await sharp(input, { limitInputPixels: OCR_LIMITS.pixels }).autoOrient().rotate(rotation)
-          .resize({ width: 2400, height: 2400, fit: 'inside', withoutEnlargement: true })
-          .flatten({ background: '#ffffff' }).grayscale().normalize().sharpen().png().toBuffer();
-      } catch (error) {
-        if (error instanceof OcrError) throw error;
-        throw new OcrError('The image is invalid or exceeds the 24-megapixel limit.');
-      }
+      const image = await applyImageTransform(input, { rotation, crop });
       const imagePath = path.join(dir, `page-${page}.png`);
       await writeFile(imagePath, image, { mode: 0o600 });
       // Explicit output flags work with a model-only TESSDATA_PREFIX; a named
@@ -134,7 +299,14 @@ export async function recognizeOcrDocument(bytes: Buffer, rotation = 0, signal?:
       if (!tsv.startsWith('level\tpage_num\tblock_num\t')) throw new OcrError('The local recognition engine returned an unsupported result. No care records were created.', 503);
       const result = readTesseractTsv(tsv);
       if (result.text.length > OCR_LIMITS.text) throw new OcrError('Too much text was found. Upload a smaller section.');
-      pages.push({ page, ...result, engine, image });
+      pages.push({
+        page,
+        ...result,
+        engine,
+        image,
+        ...(rotation ? { rotation } : {}),
+        ...(crop ? { crop } : {}),
+      });
     }
     return pages;
   } finally {

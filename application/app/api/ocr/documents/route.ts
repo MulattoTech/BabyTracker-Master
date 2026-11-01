@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/app/api/db';
 import { createOcrDocument, ocrDocumentView, purgeOcrSource } from '@/src/lib/ocr/documents';
 import { ocrRoute, readOcrBody } from '@/src/lib/ocr/http';
-import { OCR_LIMITS } from '@/src/lib/ocr/intake';
+import { OCR_LIMITS, parseOcrCrop } from '@/src/lib/ocr/intake';
 import { OcrError } from '@/src/lib/ocr/errors';
 
 export const runtime = 'nodejs';
@@ -40,11 +40,25 @@ export const POST = ocrRoute(async (request, actor) => {
     if (typeof value !== 'string' || value.length > max) throw new OcrError(`Invalid ${name}.`);
     return value;
   };
+
+  const selectedPageRaw = form.get('selectedPage');
+  const selectedPage = typeof selectedPageRaw === 'string' && selectedPageRaw.trim() !== ''
+    ? Number(selectedPageRaw)
+    : undefined;
+  if (selectedPage !== undefined && (!Number.isInteger(selectedPage) || selectedPage < 1 || selectedPage > OCR_LIMITS.maxPdfPages)) {
+    throw new OcrError(`Selected page must be an integer between 1 and ${OCR_LIMITS.maxPdfPages}.`);
+  }
+
+  const cropRaw = form.get('crop');
+  const crop = typeof cropRaw === 'string' && cropRaw.trim() !== ''
+    ? parseOcrCrop(cropRaw)
+    : undefined;
+
   const result = await createOcrDocument(prisma, actor, {
     bytes: Buffer.from(await file.arrayBuffer()), name: file.name, babyId: text('babyId'),
     timeZone: text('timeZone'), defaultDate: text('defaultDate', 10) || undefined,
     timeFormat: text('timeFormat', 10) as '24h' | '12h' | 'unknown', rotation: Number(text('rotation', 3)),
-    retentionDays: Number(text('retentionDays', 3)), signal: request.signal,
+    retentionDays: Number(text('retentionDays', 3)), selectedPage, crop, signal: request.signal,
   });
   return NextResponse.json({ success: true, data: result });
 });
