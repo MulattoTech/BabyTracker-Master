@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, existsSync, utimesSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, existsSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -13,6 +13,28 @@ import type { OcrDocumentView, OcrReviewRequest } from '@/src/lib/ocr/contracts'
 import sharp from 'sharp';
 import { sweepOcrRetention } from '@/src/lib/ocr/retention';
 import { reviewHash } from '@/src/lib/ocr/review';
+import { vi } from 'vitest';
+
+vi.mock('@/src/lib/ocr/intake', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/src/lib/ocr/intake')>();
+  if (process.platform === 'linux') return actual;
+  return {
+    ...actual,
+    recognizeOcrDocument: async (bytes: Buffer, optionsOrRotation: any = 0) => {
+      const options = typeof optionsOrRotation === 'number' ? { rotation: optionsOrRotation } : (optionsOrRotation || {});
+      const image = await actual.applyImageTransform(bytes, { rotation: options.rotation, crop: options.crop });
+      return [{
+        page: 1,
+        text: '08:15 bottle formula 90 mL\n09:30 wet diaper',
+        confidence: 95,
+        engine: 'synthetic-windows-test-engine',
+        image,
+        ...(options.rotation ? { rotation: options.rotation } : {}),
+        ...(options.crop ? { crop: options.crop } : {}),
+      }];
+    },
+  };
+});
 
 const actor = { familyId: 'ocr-family-a', actorId: null };
 const other = { familyId: 'ocr-family-b', actorId: null };
@@ -40,6 +62,7 @@ beforeAll(() => {
   const url = `file:${path.join(directory, 'synthetic.db')}`;
   process.env.ENC_HASH = '11'.repeat(32);
   process.env.BABYTRACKER_OCR_FILES_DIR = path.join(directory, 'sources');
+  mkdirSync(process.env.BABYTRACKER_OCR_FILES_DIR, { recursive: true });
   // Real versioned SQLite migrations, in a fresh disposable database only.
   execFileSync(process.execPath, ['node_modules/prisma/build/index.js', 'migrate', 'deploy'], {
     cwd: process.cwd(), env: { ...process.env, DATABASE_URL: url }, stdio: 'pipe', timeout: 60_000,

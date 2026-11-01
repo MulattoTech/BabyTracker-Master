@@ -54,6 +54,44 @@ unsaved duplicate decisions and unclear whole-document finalization wording.
 The release-layout check additionally caught a missing named Tesseract output
 configuration; explicit TSV output flags and protocol validation fixed it.
 
+
+## Release Gate Suite Verification — Issue #29 (2026-11-01)
+
+An end-to-end synthetic acceptance test suite and automated release gate have been implemented in canonical BabyTracker:
+
+```bash
+# Run the unified release gate (Vitest E2E + Playwright Browser Viewports + Docker Staging check)
+npm run test:release-gate
+
+# Or run the Vitest acceptance suite directly
+npm test -- tests/e2e-acceptance.test.ts
+
+# Or run the browser acceptance suite directly
+npm run test:acceptance:browser
+```
+
+### Gate Results (Synthetic Test Data Only)
+
+| Requirement Code | Parity Requirement Description | Verification Outcome |
+| :--- | :--- | :--- |
+| **PARITY_MIXED_FEEDING_DIAPER_FLOW** | Synthetic mixed care sheet intake (photo/PDF) -> preview & crop -> parse candidate rows -> review UX adjustments -> explicit human confirmation -> reconciliation ledger -> canonical Sprout events | **PASS** |
+| **PARITY_CROP_AND_PROVENANCE** | Crop specifications (pixel and percentage), rotation (0/90/180/270), and candidate provenance retention through review and persistence | **PASS** |
+| **PARITY_REVIEW_UX_ADJUSTMENTS** | Review UX row adjustments, amounts (e.g. 90 -> 95 mL), notes, and approval toggles | **PASS** |
+| **PARITY_EXPLICIT_HUMAN_CONFIRMATION** | Explicit review confirmation checkbox gating final import | **PASS** |
+| **PARITY_RECONCILIATION_LEDGER** | Reconciliation ledger persistence (`ExternalImportRecord`) with provider ID, source record ID, and target entity type | **PASS** |
+| **PARITY_SPROUT_TIMELINE_INTEGRATION** | Creation of canonical `FeedLog` and `DiaperLog` records with exact amounts and UTC timestamps | **PASS** |
+| **PARITY_SAFETY_CANCELLATION_ZERO_ARTIFACTS** | Cancellation of review or uncommitted drafts leaves zero care records or orphan files | **PASS** |
+| **PARITY_SAFETY_MALFORMED_ROWS_BLOCK_SAVE** | Malformed rows, missing dates/times, unapproved rows, and unacknowledged warnings block save | **PASS** |
+| **PARITY_SAFETY_ATOMIC_ROLLBACK** | Atomic database transaction rollback on write error preserves clean timeline state | **PASS** |
+| **PARITY_SAFETY_IDEMPOTENCY_AND_DUPLICATES** | Idempotent re-import, duplicate file hash detection, same-time event duplicate detection in preview, explicit keep vs. skip decisions | **PASS** |
+| **PARITY_SAFETY_CROSS_FAMILY_ISOLATION** | Strict cross-family denial for documents, sources, previews, commits, and cryptographic state seals | **PASS** |
+| **PARITY_VIEWPORT_PHONE_390PX** | Phone viewport (width 390px) responsive layout validation with zero horizontal overflow and accessible touch controls | **PASS** |
+| **PARITY_VIEWPORT_TABLET_820PX** | Tablet viewport (width 820px iPad) layout validation with zero horizontal overflow and keyboard focus navigability | **PASS** |
+| **PARITY_KEYBOARD_ACCESSIBILITY** | Keyboard focus navigability on mobile and tablet viewports | **PASS** |
+| **PARITY_ZERO_CLIENT_JS_EXCEPTIONS** | Zero client-side JavaScript console errors | **PASS** |
+| **PARITY_DOCKER_ISOLATED_STAGING** | Docker preview staging container verification against synthetic environment | **PASS** |
+
+
 ## Requirement traceability
 
 The authoritative roadmap remains in `MulattoTech/BabyTracker`; do not create
