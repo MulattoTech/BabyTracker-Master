@@ -30,7 +30,9 @@ export function ocrDocumentView(document: OcrDocument): OcrDocumentView {
     sourceTimezone: review.timeZone, revision: document.revision, rows: review.rows, originalRows: original.rows,
     committedAt: document.committedAt?.toISOString() || null,
     result: document.resultJson ? JSON.parse(document.resultJson) : null,
-    sourceExpiresAt: document.sourceExpiresAt.toISOString(), hasSource: !!document.sourceFile && document.sourceExpiresAt > new Date(),
+    sourceExpiresAt: document.sourceExpiresAt.toISOString(),
+    purgedAt: document.purgedAt?.toISOString() || null,
+    hasSource: Boolean(document.sourceFile && !document.purgedAt && document.sourceExpiresAt > new Date()),
     createdAt: document.createdAt.toISOString(),
     utcOffsets: review.utcOffsets, duplicateDecisions: review.duplicateDecisions,
     pages,
@@ -56,7 +58,7 @@ export async function createOcrDocument(db: PrismaClient, actor: OcrActor, input
   if (input.defaultDate && !isOcrDate(input.defaultDate)) throw new OcrError('Enter a complete source date or leave it blank.');
   try { new Intl.DateTimeFormat('en', { timeZone: input.timeZone }); } catch { throw new OcrError('Choose a valid time zone.'); }
   if (!input.timeZone || !['24h', '12h', 'unknown'].includes(input.timeFormat)) throw new OcrError('Choose the document time zone and clock format.');
-  if (!Number.isInteger(input.retentionDays) || input.retentionDays < 1 || input.retentionDays > 365) throw new OcrError('Source retention must be between 1 and 365 days.');
+  if (!Number.isInteger(input.retentionDays) || input.retentionDays < 0 || input.retentionDays > 365) throw new OcrError('Source retention must be between 0 and 365 days.');
   const mimeType = identifyOcrUpload(input.bytes);
   const sourceHash = createHash('sha256').update(input.bytes).digest('hex');
   const unique = { familyId: actor.familyId, babyId: baby.id, sourceHash };
@@ -94,7 +96,7 @@ export async function createOcrDocument(db: PrismaClient, actor: OcrActor, input
       mimeType, byteSize: input.bytes.length, sourceFile, previewFiles: JSON.stringify(previews), pageCount: pages.length,
       parserVersion: OCR_PARSER_VERSION, sourceTimezone: input.timeZone, originalState,
       reviewState: sealOcrState(review, scope(reference, 'review')),
-      sourceExpiresAt: new Date(Date.now() + input.retentionDays * 86_400_000),
+      sourceExpiresAt: input.retentionDays === 0 ? new Date(Date.now() + 3_600_000) : new Date(Date.now() + input.retentionDays * 86_400_000),
       audits: { create: { action: 'upload', actorId: actor.actorId, snapshot: sealOcrState({
         sourceHash,
         parserVersion: OCR_PARSER_VERSION,
@@ -228,8 +230,36 @@ export async function commitOcrReview(db: PrismaClient, actor: OcrActor, id: str
     };
 
     await audit(tx, document, actor, 'commit', auditPayload);
+    let finalSourceFile = document.sourceFile;
+    let finalPreviewFiles = document.previewFiles;
+    let finalPurgedAt = document.purgedAt;
+
+    if (review.purgeSourceAfterCommit || (input as any)?.purgeSourceAfterCommit === true) {
+      const filesToPurge: string[] = [];
+      try {
+        filesToPurge.push(...(JSON.parse(document.previewFiles || '[]') as { file: string }[]).map(p => p.file));
+      } catch {}
+      if (document.sourceFile) filesToPurge.push(document.sourceFile);
+
+      for (const file of filesToPurge) {
+        if (/^[a-f\d-]{36}\.enc$/i.test(file)) {
+          deleteEncryptedFile(file, storageDir);
+        }
+      }
+
+      finalSourceFile = null;
+      finalPreviewFiles = '[]';
+      finalPurgedAt = new Date();
+      await audit(tx, document, actor, 'purge-source', { sourceHash: document.sourceHash, reason: 'auto-purge-on-commit' });
+    }
+
     const saved = await tx.ocrDocument.update({ where: { id }, data: {
-      reviewState: sealOcrState(review, scope(document, 'review')), resultJson: JSON.stringify(result), sourceTimezone: review.timeZone,
+      reviewState: sealOcrState(review, scope(document, 'review')),
+      resultJson: JSON.stringify(result),
+      sourceTimezone: review.timeZone,
+      sourceFile: finalSourceFile,
+      previewFiles: finalPreviewFiles,
+      purgedAt: finalPurgedAt,
     } });
     return ocrDocumentView(saved);
   }, { maxWait: 10_000, timeout: 30_000 });
@@ -246,7 +276,8 @@ export async function commitOcrReview(db: PrismaClient, actor: OcrActor, id: str
 
 export async function purgeOcrSource(db: PrismaClient, actor: OcrActor, id: string): Promise<OcrDocumentView> {
   const document = await requireOcrDocument(db, actor, id);
-  const files: string[] = JSON.parse(document.previewFiles).map((page: { file: string }) => page.file);
+  let files: string[] = [];
+  try { files = (JSON.parse(document.previewFiles || '[]') as { file: string }[]).map(page => page.file); } catch { files = []; }
   if (document.sourceFile) files.push(document.sourceFile);
   // Exact server-generated names only. A source purge never deletes care events or their audit.
   for (const file of files) {
@@ -262,9 +293,9 @@ export async function purgeOcrSource(db: PrismaClient, actor: OcrActor, id: stri
 
 export async function readOcrSource(db: PrismaClient, actor: OcrActor, id: string, page?: number): Promise<{ bytes: Buffer; mimeType: string }> {
   const document = await requireOcrDocument(db, actor, id);
-  if (document.sourceExpiresAt <= new Date()) {
+  if (document.sourceExpiresAt <= new Date() || document.purgedAt !== null || !document.sourceFile) {
     if (document.sourceFile) await purgeOcrSource(db, actor, id);
-    throw new OcrError('The source retention period has ended. Import history is still available.', 410);
+    throw new OcrError('The source file was not found or was purged under the retention policy. Import history is still available.', 410);
   }
   const previews = JSON.parse(document.previewFiles || '[]') as { page: number; file: string }[];
   let file: string | null = null;
@@ -279,4 +310,60 @@ export async function readOcrSource(db: PrismaClient, actor: OcrActor, id: strin
   if (!file) throw new OcrError('Source file not found.', 404);
   if (!/^[a-f\d-]{36}\.enc$/i.test(file)) throw new OcrError('Invalid stored source reference.', 500);
   return { bytes: decryptFile(file, storageDir), mimeType: page === undefined ? document.mimeType : 'image/png' };
+}
+
+export async function redactOcrDocument(
+  db: PrismaClient,
+  actor: OcrActor,
+  id: string,
+  options: { redactNotes?: boolean; purgeSource?: boolean } = { redactNotes: true, purgeSource: true }
+): Promise<OcrDocumentView> {
+  return db.$transaction(async tx => {
+    const document = await requireOcrDocument(tx, actor, id);
+    if (options.purgeSource !== false) {
+      let files: string[] = [];
+      try {
+        files = (JSON.parse(document.previewFiles || '[]') as { file: string }[]).map(page => page.file);
+      } catch {
+        files = [];
+      }
+      if (document.sourceFile) files.push(document.sourceFile);
+      for (const file of files) {
+        if (/^[a-f\d-]{36}\.enc$/i.test(file)) {
+          deleteEncryptedFile(file, storageDir);
+        }
+      }
+    }
+
+    let reviewState = document.reviewState;
+    if (options.redactNotes !== false) {
+      try {
+        const review = openOcrState<OcrReviewRequest>(document.reviewState, scope(document, 'review'));
+        review.rows = review.rows.map(row => ({
+          ...row,
+          notes: row.notes ? '[REDACTED]' : '',
+          source: { ...row.source, rawText: '[REDACTED]' },
+        }));
+        reviewState = sealOcrState(review, scope(document, 'review'));
+      } catch {}
+    }
+
+    await audit(tx, document, actor, 'redact', {
+      sourceHash: document.sourceHash,
+      redactedAt: new Date().toISOString(),
+      purgedSource: options.purgeSource !== false,
+      redactedNotes: options.redactNotes !== false,
+    });
+
+    const saved = await tx.ocrDocument.update({
+      where: { id },
+      data: {
+        reviewState,
+        sourceFile: options.purgeSource !== false ? null : document.sourceFile,
+        previewFiles: options.purgeSource !== false ? '[]' : document.previewFiles,
+        purgedAt: options.purgeSource !== false ? new Date() : document.purgedAt,
+      },
+    });
+    return ocrDocumentView(saved);
+  });
 }

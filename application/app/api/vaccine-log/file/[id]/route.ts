@@ -54,6 +54,9 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
         'Content-Type': document.mimeType,
         'Content-Disposition': `attachment; filename*=UTF-8''${encodedFilename}`,
         'Content-Length': decryptedBuffer.length.toString(),
+        'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': "sandbox; default-src 'none'",
+        'Cache-Control': 'private, no-store',
       },
     });
   } catch (error) {

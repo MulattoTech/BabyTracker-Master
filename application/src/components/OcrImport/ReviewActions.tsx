@@ -164,6 +164,16 @@ export default function ReviewActions({ controller: state }: { controller: OcrIm
         />
         <span>{t('I reviewed the original source, every selected event, all corrections and warnings, and any duplicate decisions. Import these approved events.')}</span>
       </label>
+
+      <label className="ocr-approval ocr-purge-option">
+        <input
+          type="checkbox"
+          checked={state.purgeAfterImport}
+          disabled={Boolean(state.busy)}
+          onChange={event => state.setPurgeAfterImport(event.target.checked)}
+        />
+        <span>{t('Purge raw source document and page images immediately after successful import')}</span>
+      </label>
     </div>}
 
     <Button
