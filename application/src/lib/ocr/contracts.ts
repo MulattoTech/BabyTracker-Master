@@ -41,6 +41,8 @@ export interface OcrDuplicate {
   recordId: string;
   eventType: string;
   occurredAt: string;
+  matchType?: 'exact' | 'fuzzy';
+  matchedFields?: string[];
 }
 
 export interface OcrReviewPreview {

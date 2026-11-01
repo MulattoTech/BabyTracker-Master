@@ -95,7 +95,16 @@ export async function createOcrDocument(db: PrismaClient, actor: OcrActor, input
       parserVersion: OCR_PARSER_VERSION, sourceTimezone: input.timeZone, originalState,
       reviewState: sealOcrState(review, scope(reference, 'review')),
       sourceExpiresAt: new Date(Date.now() + input.retentionDays * 86_400_000),
-      audits: { create: { action: 'upload', actorId: actor.actorId, snapshot: sealOcrState({ sourceHash, parserVersion: OCR_PARSER_VERSION, rows: rows.length }, scope(reference, 'audit')) } },
+      audits: { create: { action: 'upload', actorId: actor.actorId, snapshot: sealOcrState({
+        sourceHash,
+        parserVersion: OCR_PARSER_VERSION,
+        originalName: input.name,
+        pageCount: pages.length,
+        rotation: input.rotation,
+        crop: input.crop || null,
+        selectedPage: input.selectedPage || null,
+        rows: rows.length,
+      }, scope(reference, 'audit')) } },
     } });
     stored.length = 0; // Ownership transferred to persisted document.
     return ocrDocumentView(document);
@@ -131,7 +140,7 @@ export async function saveOcrReview(db: PrismaClient, actor: OcrActor, id: strin
 export async function previewOcrReview(db: PrismaClient, actor: OcrActor, id: string, input: unknown): Promise<OcrReviewPreview> {
   const document = await requireOcrDocument(db, actor, id);
   const review = readReviewRequest(input, document);
-  return { issues: reviewIssues(review), duplicates: await findOcrDuplicates(db, document, review) };
+  return { issues: reviewIssues(review), duplicates: await findOcrDuplicates(db, document, review, { includeDetails: true }) };
 }
 
 export async function commitOcrReview(db: PrismaClient, actor: OcrActor, id: string, input: unknown): Promise<OcrDocumentView> {
@@ -154,7 +163,7 @@ export async function commitOcrReview(db: PrismaClient, actor: OcrActor, id: str
       data: { committedAt: new Date(), commitHash: hash, revision: { increment: 1 } },
     });
     if (changed.count !== 1) throw new OcrError('A newer review exists. Reload before importing.', 409);
-    const duplicates = await findOcrDuplicates(tx, document, review);
+    const duplicates = await findOcrDuplicates(tx, document, review, { includeDetails: true });
     if (duplicates.some(duplicate => !review.duplicateDecisions?.[duplicate.rowId])) {
       throw new OcrError('Potential duplicate events need a keep or skip decision. Check duplicates again.', 409);
     }
@@ -172,7 +181,53 @@ export async function commitOcrReview(db: PrismaClient, actor: OcrActor, id: str
       configuration: { sourceTimezone: 'UTC', childDestinations: { [document.babyId]: { mode: 'existing', targetBabyId: document.babyId } } },
     }) : { created: 0, duplicates: 0, records: [], babyMappings: { [document.babyId]: document.babyId } };
     const result = { ...execution, skipped: skipped.length };
-    await audit(tx, document, actor, 'commit', { review, duplicates, result, skipped: skipped.map(row => row.id) });
+
+    const original = openOcrState<OriginalOcrState & { options?: { rotation?: number; crop?: OcrCrop; selectedPage?: number } }>(
+      document.originalState,
+      scope(document, 'original'),
+    );
+
+    const auditPayload = {
+      parserVersion: document.parserVersion,
+      documentId: document.id,
+      sourceHash: document.sourceHash,
+      sourceDocument: {
+        id: document.id,
+        originalName: document.originalName,
+        sourceHash: document.sourceHash,
+        pageCount: document.pageCount,
+        rotation: original.options?.rotation ?? 0,
+        crop: original.options?.crop ?? null,
+        selectedPage: original.options?.selectedPage ?? null,
+      },
+      review,
+      reviewerDecisions: {
+        timeZone: review.timeZone,
+        acknowledgeWarnings: review.acknowledgeWarnings,
+        duplicateDecisions: review.duplicateDecisions || {},
+        utcOffsets: review.utcOffsets || {},
+        approvedRowIds: review.rows.filter(row => row.approved).map(row => row.id),
+        skippedRowIds: skipped.map(row => row.id),
+      },
+      rawFields: review.rows.map(row => {
+        const orig = original.rows?.find(r => r.id === row.id);
+        return {
+          rowId: row.id,
+          page: row.source?.page ?? orig?.source?.page ?? 1,
+          line: row.source?.line ?? orig?.source?.line ?? 1,
+          slot: row.source?.slot ?? orig?.source?.slot ?? 0,
+          rawText: row.source?.rawText || orig?.source?.rawText || '',
+          engine: row.source?.engine || orig?.source?.engine || document.parserVersion,
+          confidence: row.source?.confidence ?? orig?.source?.confidence ?? null,
+          fieldSources: row.fieldSources,
+        };
+      }),
+      duplicates,
+      result,
+      skipped: skipped.map(row => row.id),
+    };
+
+    await audit(tx, document, actor, 'commit', auditPayload);
     const saved = await tx.ocrDocument.update({ where: { id }, data: {
       reviewState: sealOcrState(review, scope(document, 'review')), resultJson: JSON.stringify(result), sourceTimezone: review.timeZone,
     } });
