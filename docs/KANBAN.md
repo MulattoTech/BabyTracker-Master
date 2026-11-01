@@ -13,8 +13,9 @@ kanban
   Backlog
     [#29 Final Release Verification]
   In Progress
-    [#12 Reconciliation & Provenance Ledger: Worker babytracker-master-8]
+    [Release Handoff Preparation]
   Review / Verification
+    [#12 Reconciliation & Provenance Ledger: PR #55 in AGY Review & CI]
     [Staging Container Verification: PASS 6/6 checks]
     [Playwright Browser Smoke: PASS 9/9 checks]
   Done
@@ -34,7 +35,7 @@ kanban
 | **#38** | Mixed feeding/diaper extraction & handwriting tolerance | Delivered | **DONE** | - | Merged in [PR #52](https://github.com/MulattoTech/BabyTracker-Master/pull/52) |
 | **#37** | Local image/PDF intake, limits & provenance | Delivered | **DONE** | - | Merged in [PR #54](https://github.com/MulattoTech/BabyTracker-Master/pull/54) |
 | **#11** | Care sheet review workflow UI/UX | Delivered | **DONE** | - | Merged in [PR #53](https://github.com/MulattoTech/BabyTracker-Master/pull/53) |
-| **#12** | Reconciliation, deduplication & ledger | Worker (`babytracker-master-8`) | **IN PROGRESS** | `babytracker-master-8` (`ao/you-are-worker/root`) | Transactional Sprout commit & duplicate check |
+| **#12** | Reconciliation, deduplication & ledger | Worker (`babytracker-master-8`) | **IN REVIEW** | `babytracker-master-8` (`ao/you-are-worker/root`) | [PR #55](https://github.com/MulattoTech/BabyTracker-Master/pull/55) (AGY Review + CI) |
 | **#29** | Staging acceptance & release evidence | Release Owner | **READY** | - | Promotes pinned candidate after exact main CI |
 
 ---
@@ -42,12 +43,12 @@ kanban
 ## Active Coordination Directives
 
 1. **Worker #12 (`babytracker-master-8`)**:
-   - Scope: `application/src/lib/ocr/documents.ts`, `review.ts`, `contracts.ts`, and `tests/ocr-duplicates.test.ts`.
+   - Scope: `application/src/lib/ocr/documents.ts`, `review.ts`, `contracts.ts`, `tests/ocr-duplicates.test.ts`, `tests/ocr-reconciliation.test.ts`.
    - Exact & Fuzzy Deduplication: Match by child, event type, timestamp, amount/type values.
    - Transactional Commit: Commit approved non-rejected rows in a single database transaction; roll back cleanly on errors.
    - Idempotency: Re-importing identical files/documents must be a safe no-op that does not duplicate care events.
    - Provenance Audit: Preserve parser version, source document/page/rotation/crop, raw line text, and reviewer decisions.
-   - Worktree Isolation: Strictly edit in `C:\Users\Dylan\.ao\data\worktrees\babytracker-master\babytracker-master-8`.
+   - Deliverable: [PR #55](https://github.com/MulattoTech/BabyTracker-Master/pull/55) delivered and claimed. Under independent review by AGY subagent `237862eb-d214-41a6-a72f-d136fecc207d`.
    - Status: Active. Dependency resolution established via `node_modules` junction; analyzing source IDs and candidate provenance.
 
 2. **Completed Streams**:
