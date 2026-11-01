@@ -90,21 +90,29 @@ describe('bounded local OCR intake', () => {
     expect(rows).toHaveLength(1);
     const row = rows[0];
     expect(row.source.page).toBe(3);
-    expect(row.source.rotation).toBe(90);
-    expect(row.source.crop).toEqual({ left: 10, top: 20, width: 500, height: 400, unit: 'pixel' });
 
-    const validated = validateOcrCandidate(row, { allowIncomplete: true });
+    const rowWithSourceProvenance: OcrCandidate = {
+      ...row,
+      source: {
+        ...row.source,
+        rotation: 90,
+        crop: page.crop,
+      },
+    };
+    const validated = validateOcrCandidate(rowWithSourceProvenance, { allowIncomplete: true });
     expect(validated.valid).toBe(true);
     expect(validated.candidate?.source.page).toBe(3);
     expect(validated.candidate?.source.rotation).toBe(90);
-    expect(validated.candidate?.source.crop).toEqual({ left: 10, top: 20, width: 500, height: 400, unit: 'pixel' });
+    expect(validated.candidate?.source.crop).toEqual(page.crop);
 
     process.env.ENC_HASH = '22'.repeat(32);
-    const sealed = sealOcrState({ rows, options: { rotation: 90, selectedPage: 3, crop: page.crop } }, 'fam:doc');
-    const opened = openOcrState<{ rows: OcrCandidate[]; options: { rotation: number; selectedPage: number; crop: unknown } }>(sealed, 'fam:doc');
+    const sealed = sealOcrState({ rows, pages: [page], options: { rotation: 90, selectedPage: 3, crop: page.crop } }, 'fam:doc');
+    const opened = openOcrState<{ rows: OcrCandidate[]; pages: typeof page[]; options: { rotation: number; selectedPage: number; crop: unknown } }>(sealed, 'fam:doc');
     expect(opened.options.selectedPage).toBe(3);
     expect(opened.options.rotation).toBe(90);
     expect(opened.options.crop).toEqual(page.crop);
+    expect(opened.pages[0].rotation).toBe(90);
+    expect(opened.pages[0].crop).toEqual(page.crop);
     expect(opened.rows[0].source.page).toBe(3);
   });
 

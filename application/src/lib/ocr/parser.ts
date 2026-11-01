@@ -253,8 +253,6 @@ function makeCandidate(
       page: page.page, line: lineNumber, slot, rawText, engine: page.engine || OCR_PARSER_VERSION,
       confidence: page.confidence ?? null,
       ...(contextDate ? { contextDate, contextDateOrigin } : {}),
-      ...(page.rotation !== undefined ? { rotation: page.rotation } : {}),
-      ...(page.crop !== undefined ? { crop: page.crop } : {}),
     }, fieldSources, warnings,
   };
 }
