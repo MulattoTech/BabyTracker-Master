@@ -22,7 +22,8 @@
     "env:ensure": "node scripts/ensure-env-defaults.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:ocr-browser": "node scripts/ocr-browser-smoke.mjs"
+    "test:ocr-browser": "node scripts/ocr-browser-smoke.mjs",
+    "test:preview-browser": "node scripts/test-preview-browser.mjs"
   },
   "dependencies": {
     "@lucide/lab": "^0.2.0",
@@ -93,5 +94,12 @@
     "tsx": "^4.23.12",
     "typescript": "^7.0.2",
     "vitest": "^4.1.11"
+  },
+  "allowScripts": {
+    "better-sqlite3@13.0.3": true,
+    "better-sqlite3@12.11.1": true,
+    "esbuild@0.28.2": true,
+    "@prisma/engines@7.10.0": true,
+    "prisma@7.10.0": true
   }
 }

@@ -8,9 +8,10 @@ interface Clock { readonly value: string | null; readonly raw: string; readonly 
 interface DateMatch { readonly value: string | null; readonly raw: string; }
 
 const feedPattern = /\b(?:feed(?:ing)?|fed|bottle|btl|formula|breast\s*milk|breastfed|breastfeed(?:ing)?|nurs(?:e|ed|ing))\b/i;
-const diaperPattern = /\b(?:diaper|nappy|wet|dirty|dry|stool|poop(?:ed)?|urine|pee(?:d)?|bowel\s+movement)\b/i;
+const diaperPattern = /\b(?:diaper|nappy|wet|dirty|dry|stool|poop(?:ed)?|urine|pee(?:d)?|bowel\s*movement|bm|soiled)\b/i;
 const sleepPattern = /\b(?:sleep|slept|asleep|nap(?:ped)?|bedtime|awake|woke)\b/i;
-const volumePattern = /(?<![\w.,/+-])([+-]?(?:\d+\s+\d+\s*\/\s*\d+|\d+\s*[¼½¾]|\d+\s*\/\s*\d+|\d+(?:[.,]\d+)?|[¼½¾]))\s*(m[lL](?:s)?|millilit(?:er|re)s?|(?:fl\.?\s*)?oz|ounces?)\b/gi;
+const volumePattern = /(?<![\w.,/+-])([+-]?(?:\d+\s+\d+\s*\/\s*\d+|\d+\s*[¼½¾]|\d+\s*\/\s*\d+|\d+(?:[.,]\d+)?|[¼½¾]))\s*(m[lL](?:s)?|millilit(?:er|re)s?|cc(?:s)?|c\.c\.?|(?:fl\.?\s*)?oz|ounces?)\b/gi;
+const volumeRangePattern = /(?<![\w.,/+-])((?:\d+(?:[.,]\d+)?|[¼½¾]|\d+\s*\/\s*\d+))\s*(?:-|–|—|\bto\b)\s*((?:\d+(?:[.,]\d+)?|[¼½¾]|\d+\s*\/\s*\d+))\s*(m[lL](?:s)?|millilit(?:er|re)s?|cc(?:s)?|c\.c\.?|(?:fl\.?\s*)?oz|ounces?)\b/gi;
 
 function datesIn(text: string): DateMatch[] {
   const dates: DateMatch[] = [];
@@ -28,7 +29,7 @@ function datesIn(text: string): DateMatch[] {
 
 function clocksIn(text: string, mode: OcrParseOptions['timeFormat']): Clock[] {
   const clocks: Clock[] = [];
-  const pattern = /\b(?:(\d{1,2}):(\d{2})\s*([ap]\.?m\.?)?|(\d{1,2})\s*([ap]\.?m\.?)|noon|midnight)(?![\w:])/gi;
+  const pattern = /\b(?:(\d{1,2})[:.](\d{2})\s*([ap]\.?m\.?)?|(\d{1,2})\s*([ap]\.?m\.?)|noon|midnight)(?![\w:])/gi;
   for (const match of text.matchAll(pattern)) {
     const raw = match[0].trim();
     let value: string | null = null;
@@ -48,26 +49,47 @@ function clocksIn(text: string, mode: OcrParseOptions['timeFormat']): Clock[] {
     if (/^\s*\?/.test(text.slice((match.index ?? 0) + match[0].length))) value = null;
     clocks.push({ raw, value, index: match.index ?? 0 });
   }
-  return clocks;
+  if (mode === '24h') {
+    const militaryPattern = /(?<![\d:])\b([01]\d|2[0-3])([0-5]\d)\b(?![\d:])/g;
+    for (const match of text.matchAll(militaryPattern)) {
+      const raw = match[0];
+      if (!clocks.some(c => (match.index ?? 0) >= c.index && (match.index ?? 0) < c.index + c.raw.length)) {
+        clocks.push({ raw, value: `${match[1]}:${match[2]}`, index: match.index ?? 0 });
+      }
+    }
+  }
+  return clocks.sort((a, b) => a.index - b.index);
 }
 
 function parseAmount(raw: string): number | null {
   if (raw.includes(',')) return null;
-  const normalized = raw.replace(/([¼½¾])/g, char => ` ${ { '¼': '1/4', '½': '1/2', '¾': '3/4' }[char] }`).trim();
-  const mixed = normalized.match(/^([+-]?\d+)\s+(\d+)\s*\/\s*(\d+)$/);
-  const fraction = normalized.match(/^([+-]?\d+)\s*\/\s*(\d+)$/);
+  if (/[-–—]|\bto\b/i.test(raw)) return null;
+  const normalized = raw.replace(/([¼½¾])/g, char => ` ${ ({ '¼': '1/4', '½': '1/2', '¾': '3/4' })[char] }`).trim();
+  const mixed = normalized.match(/^([+]?\d+)\s+(\d+)\s*\/\s*(\d+)$/);
+  const fraction = normalized.match(/^([+]?\d+)\s*\/\s*(\d+)$/);
   let amount: number;
-  if (mixed) amount = Number(mixed[1]) + (Number(mixed[1]) < 0 ? -1 : 1) * Number(mixed[2]) / Number(mixed[3]);
+  if (mixed) amount = Number(mixed[1]) + Number(mixed[2]) / Number(mixed[3]);
   else if (fraction) amount = Number(fraction[1]) / Number(fraction[2]);
   else amount = Number(normalized);
-  return Number.isFinite(amount) ? amount : null;
+  return Number.isFinite(amount) && amount > 0 ? amount : null;
 }
 
 function volumesIn(text: string): { amount: number | null; unit: 'ML' | 'OZ'; raw: string }[] {
-  return [...text.matchAll(volumePattern)].map(match => ({
-    amount: /^\s*\?/.test(text.slice((match.index ?? 0) + match[0].length)) ? null : parseAmount(match[1]),
-    unit: /^(?:ml|milli)/i.test(match[2]) ? 'ML' : 'OZ', raw: match[0],
+  const ranges = [...text.matchAll(volumeRangePattern)].map(match => ({
+    amount: null,
+    unit: /^(?:ml|milli|cc|c\.c)/i.test(match[3]) ? ('ML' as const) : ('OZ' as const),
+    raw: match[0],
+    index: match.index ?? 0,
   }));
+  const singles = [...text.matchAll(volumePattern)]
+    .filter(match => !ranges.some(r => (match.index ?? 0) >= r.index && (match.index ?? 0) < r.index + r.raw.length))
+    .map(match => ({
+      amount: /^\s*\?/.test(text.slice((match.index ?? 0) + match[0].length)) ? null : parseAmount(match[1]),
+      unit: /^(?:ml|milli|cc|c\.c)/i.test(match[2]) ? ('ML' as const) : ('OZ' as const),
+      raw: match[0],
+      index: match.index ?? 0,
+    }));
+  return [...ranges, ...singles].sort((a, b) => a.index - b.index).map(({ amount, unit, raw }) => ({ amount, unit, raw }));
 }
 
 function typesIn(text: string): OcrEventType[] {
@@ -79,12 +101,32 @@ function typesIn(text: string): OcrEventType[] {
 }
 
 function segmentsIn(text: string): string[] {
+  const initial = text.split(/[;|\t]+/);
   const segments: string[] = [];
-  for (const fragment of text.split(';')) {
-    if (segments.length && typesIn(fragment).length === 0) segments[segments.length - 1] += `;${fragment}`;
-    else segments.push(fragment);
+  for (const fragment of initial) {
+    const trimmed = fragment.trim();
+    if (!trimmed) continue;
+    if (typesIn(trimmed).length > 1 && /[,/]/.test(trimmed)) {
+      const parts = trimmed.split(/[,/]+/);
+      let temp = '';
+      for (const part of parts) {
+        if (typesIn(part).length > 0 && temp && typesIn(temp).length > 0) {
+          segments.push(temp.trim());
+          temp = part;
+        } else {
+          temp = temp ? `${temp}, ${part}` : part;
+        }
+      }
+      if (temp.trim()) segments.push(temp.trim());
+    } else {
+      if (segments.length && typesIn(trimmed).length === 0) {
+        segments[segments.length - 1] += `; ${trimmed}`;
+      } else {
+        segments.push(trimmed);
+      }
+    }
   }
-  return segments;
+  return segments.length ? segments : [text];
 }
 
 function makeCandidate(
@@ -107,7 +149,18 @@ function makeCandidate(
   }
   const ownClocks = clocksIn(segment, mode);
   const lineClocks = clocksIn(rawText, mode);
-  const inheritedClock = ownClocks.length === 0 && lineClocks.length === 1 ? lineClocks[0] : undefined;
+  let inheritedClock: Clock | undefined;
+  if (ownClocks.length === 0) {
+    if (lineClocks.length === 1) {
+      inheritedClock = lineClocks[0];
+    } else if (lineClocks.length > 1) {
+      const firstCol = rawText.split(/[|;\t]+/)[0];
+      const leadingClocks = clocksIn(firstCol, mode);
+      if (leadingClocks.length === 1 && leadingClocks[0].value !== null) {
+        inheritedClock = leadingClocks[0];
+      }
+    }
+  }
   const clocks = ownClocks.length ? ownClocks : inheritedClock ? [inheritedClock] : [];
   let localTime = clocks[0]?.value ?? null;
   mark('localTime', localTime !== null, inheritedClock ? 'context' : 'source');
@@ -149,7 +202,7 @@ function makeCandidate(
   }
   if (eventType === 'diaper') {
     const wet = /\b(?:wet|urine|pee(?:d)?)\b/i.test(segment);
-    const dirty = /\b(?:dirty|stool|poop(?:ed)?|bowel\s+movement)\b/i.test(segment);
+    const dirty = /\b(?:dirty|stool|poop(?:ed)?|bowel\s*movement|bm|soiled)\b/i.test(segment) && !/\b(?:breast\s*milk|ebm)\b/i.test(segment);
     const dry = /\bdry\b/i.test(segment);
     diaperType = wet && dirty ? 'BOTH' : wet ? 'WET' : dirty ? 'DIRTY' : dry ? 'DRY' : null;
     if (dry && (wet || dirty)) { diaperType = null; warnings.push('Conflicting diaper descriptions require review.'); }
@@ -168,10 +221,10 @@ function makeCandidate(
       warnings.push('Only a wake time was recognized; enter the sleep start before importing.');
     }
   }
-  if (/\?|\b(?:crossed\s*out|illegible|unclear)\b|~~/i.test(segment)) {
+  if (/\?|\b(?:crossed\s*out|illegible|unclear|void|error|mistake|scratched\s*out)\b|~~/i.test(segment)) {
     warnings.push('Uncertain or crossed-out text appears in this row. Correct it using the source.');
   }
-  const conflictingText = /\b(?:no|not|without)\s+(?:wet|dirty|dry|stool|poop|urine|pee|bottle|formula|breast\s*milk)\b|\b(?:wet|dirty|dry|bottle|formula|breast\s*milk)\s*\?|~~/i.test(segment);
+  const conflictingText = /\b(?:no|not|without)\s+(?:wet|dirty|dry|stool|poop|urine|pee|bottle|formula|breast\s*milk|bm|soiled)\b|\b(?:wet|dirty|dry|bottle|formula|breast\s*milk|bm|soiled)\s*\?|~~|\b(?:void|error|mistake|crossed\s*out)\b/i.test(segment);
   if (conflictingText && eventType === 'diaper') {
     diaperType = null;
     warnings.push('Negated, uncertain or crossed-out diaper text needs an explicit type selection.');
