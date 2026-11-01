@@ -1,4 +1,4 @@
-import { CheckCircle2, CopyPlus, FileSearch, Trash2 } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Ban, CheckCircle2, CopyPlus, FileSearch, GitMerge, RotateCcw, Trash2, XCircle } from 'lucide-react';
 import type { OcrCandidate, OcrEditableField, OcrFieldOrigin } from '@/src/lib/ocr/types';
 import { normalizeAmountMl } from '@/src/lib/ocr/validation';
 import { Button } from '@/src/components/ui/button';
@@ -14,11 +14,18 @@ interface Props {
   timeZone: string;
   offsets?: RowOffsets;
   locked: boolean;
+  isDuplicate?: boolean;
+  duplicateDecision?: 'skip' | 'keep';
+  canMergePrevious?: boolean;
+  canMergeNext?: boolean;
   onEdit: (patch: Partial<OcrCandidate>) => void;
   onApprove: (value: boolean) => void;
+  onReject?: (rejected: boolean) => void;
   onOffset: (key: 'start' | 'end', value: number | undefined) => void;
   onSource: () => void;
   onSplit: () => void;
+  onMergePrevious?: () => void;
+  onMergeNext?: () => void;
   onRemove: () => void;
 }
 
@@ -32,18 +39,51 @@ const originLabels: Record<OcrFieldOrigin, string> = {
   ambiguous: 'Needs clarification', corrected: 'Corrected during review',
 };
 
-export default function RowEditor({ row, number, timeZone, offsets, locked, onEdit, onApprove, onOffset, onSource, onSplit, onRemove }: Props) {
+export default function RowEditor({
+  row, number, timeZone, offsets, locked, isDuplicate, duplicateDecision,
+  canMergePrevious, canMergeNext, onEdit, onApprove, onReject, onOffset,
+  onSource, onSplit, onMergePrevious, onMergeNext, onRemove,
+}: Props) {
   const { t } = useLocalization();
   const issues = rowReviewIssues(row, timeZone, offsets);
   const warnings = [...new Set([...row.warnings, ...issues.warnings])];
   const change = <K extends keyof OcrCandidate,>(key: K, value: OcrCandidate[K]) => onEdit({ [key]: value });
-  const status = row.approved ? 'Approved for import' : issues.errors.length ? 'Needs correction' : 'Ready for review';
-  return <article className={`ocr-row${row.approved ? ' ocr-row-approved' : ''}`} aria-label={`${t('Draft event')} ${number}`}>
+  const isRejected = Boolean(row.rejected);
+  const status = isRejected ? 'Rejected' : row.approved ? 'Approved for import' : issues.errors.length ? 'Needs correction' : 'Ready for review';
+
+  return <article
+    className={`ocr-row${row.approved ? ' ocr-row-approved' : ''}${isRejected ? ' ocr-row-rejected' : ''}`}
+    aria-label={`${t('Draft event')} ${number}`}
+    tabIndex={-1}
+  >
     <header className="ocr-row-header">
-      <div><span className="ocr-row-number">{number}</span><strong>{t('Draft event')}</strong><span className={`ocr-status ${row.approved ? 'ocr-status-ok' : 'ocr-status-review'}`}>{row.approved && <CheckCircle2 size={13} aria-hidden="true" />}{t(status)}</span></div>
-      <Button type="button" size="sm" variant="ghost" onClick={onSource}><FileSearch size={15} aria-hidden="true" />{t('Page')} {row.source.page}</Button>
+      <div>
+        <span className="ocr-row-number">{number}</span>
+        <strong>{t('Draft event')}</strong>
+        <span className={`ocr-status ${isRejected ? 'ocr-status-rejected' : row.approved ? 'ocr-status-ok' : issues.errors.length ? 'ocr-status-review' : 'ocr-status-ready'}`} role="status">
+          {isRejected && <XCircle size={13} aria-hidden="true" />}
+          {!isRejected && row.approved && <CheckCircle2 size={13} aria-hidden="true" />}
+          {!isRejected && !row.approved && issues.errors.length > 0 && <AlertCircle size={13} aria-hidden="true" />}
+          {t(status)}
+        </span>
+        {isDuplicate && <span className="ocr-status ocr-status-duplicate" role="status" aria-label={t('Duplicate alert')}>
+          <AlertTriangle size={13} aria-hidden="true" />
+          {t(duplicateDecision === 'keep' ? 'Separate event (Keep)' : duplicateDecision === 'skip' ? 'Duplicate (Skip)' : 'Possible duplicate')}
+        </span>}
+      </div>
+      <Button type="button" size="sm" variant="ghost" onClick={onSource} aria-label={`${t('View source on page')} ${row.source.page}`}>
+        <FileSearch size={15} aria-hidden="true" />{t('Page')} {row.source.page}
+      </Button>
     </header>
-    <fieldset disabled={locked} className="ocr-row-fields">
+
+    {isRejected && <div className="ocr-row-rejected-banner" role="status">
+      <p>{t('This draft event is marked as rejected. It will be excluded from the import.')}</p>
+      {!locked && onReject && <Button type="button" size="sm" variant="outline" onClick={() => onReject(false)}>
+        <RotateCcw size={14} aria-hidden="true" />{t('Restore to review')}
+      </Button>}
+    </div>}
+
+    <fieldset disabled={locked || isRejected} className="ocr-row-fields">
       <legend className="sr-only">{t('Correct this event')}</legend>
       <div className="ocr-field-grid">
         <ChoiceField label="Event type" value={row.eventType} onChange={value => change('eventType', value as OcrCandidate['eventType'])} choices={[
@@ -78,9 +118,13 @@ export default function RowEditor({ row, number, timeZone, offsets, locked, onEd
       </div>
       {row.eventType === 'feed' && row.amount !== null && Number.isFinite(row.amount) && row.amount > 0 && row.unit && <p className="ocr-hint">{t('Equivalent volume')}: {normalizeAmountMl(row.amount, row.unit)} mL · {t('The entered unit is preserved.')}</p>}
       <Field label="Notes and stool characteristics">{id => <Textarea id={id} value={row.notes} maxLength={2000} rows={2} onChange={event => change('notes', event.target.value)} />}</Field>
-      {issues.errors.length > 0 && <ul className="ocr-row-errors" aria-label={t('Fields to resolve')}>{issues.errors.map(message => <li key={message}>{t(message)}</li>)}</ul>}
-      <label className="ocr-approval"><input type="checkbox" checked={row.approved} disabled={locked || (!row.approved && issues.errors.length > 0)} onChange={event => onApprove(event.target.checked)} /><span>{t('I checked this event against the source. Include it in the import.')}</span></label>
+      {!isRejected && issues.errors.length > 0 && <ul className="ocr-row-errors" aria-label={t('Fields to resolve')}>{issues.errors.map(message => <li key={message}>{t(message)}</li>)}</ul>}
+      {!isRejected && <label className="ocr-approval">
+        <input type="checkbox" checked={row.approved} disabled={locked || (!row.approved && issues.errors.length > 0)} onChange={event => onApprove(event.target.checked)} />
+        <span>{t('I checked this event against the source. Include it in the import.')}</span>
+      </label>}
     </fieldset>
+
     <details className="ocr-evidence">
       <summary>{t('Recognized text, uncertainty and provenance')}</summary>
       <p className="ocr-hint">{t('Source page')}: {row.source.page} · {t('Line')}: {row.source.line} · {t('Engine')}: {row.source.engine}</p>
@@ -89,9 +133,25 @@ export default function RowEditor({ row, number, timeZone, offsets, locked, onEd
       {warnings.length > 0 && <ul className="ocr-warnings">{warnings.map(message => <li key={message}>{t(message)}</li>)}</ul>}
       <dl className="ocr-provenance">{Object.entries(row.fieldSources).map(([field, origin]) => <div key={field}><dt>{t(fieldLabels[field as OcrEditableField] || field)}</dt><dd>{t(originLabels[origin] || origin)}</dd></div>)}</dl>
     </details>
+
     {!locked && <div className="ocr-button-row ocr-row-tools">
-      <Button type="button" size="sm" variant="outline" onClick={onSplit}><CopyPlus size={14} aria-hidden="true" />{t('Split into another draft row')}</Button>
-      <Button type="button" size="sm" variant="ghost" onClick={onRemove}><Trash2 size={14} aria-hidden="true" />{t('Remove draft row')}</Button>
+      <Button type="button" size="sm" variant="outline" onClick={onSplit} aria-label={`${t('Split event')} ${number} ${t('into another draft row')}`}>
+        <CopyPlus size={14} aria-hidden="true" />{t('Split into another draft row')}
+      </Button>
+      {canMergePrevious && onMergePrevious && <Button type="button" size="sm" variant="outline" onClick={onMergePrevious} aria-label={`${t('Merge event')} ${number} ${t('with previous event')} ${number - 1}`}>
+        <GitMerge size={14} aria-hidden="true" />{t('Merge with previous')}
+      </Button>}
+      {canMergeNext && onMergeNext && <Button type="button" size="sm" variant="outline" onClick={onMergeNext} aria-label={`${t('Merge event')} ${number} ${t('with next event')} ${number + 1}`}>
+        <GitMerge size={14} aria-hidden="true" />{t('Merge with next')}
+      </Button>}
+      {onReject && (isRejected ? <Button type="button" size="sm" variant="outline" onClick={() => onReject(false)} aria-label={`${t('Restore event')} ${number} ${t('to review')}`}>
+        <RotateCcw size={14} aria-hidden="true" />{t('Restore to review')}
+      </Button> : <Button type="button" size="sm" variant="outline" onClick={() => onReject(true)} aria-label={`${t('Reject event')} ${number}`}>
+        <Ban size={14} aria-hidden="true" />{t('Reject draft row')}
+      </Button>)}
+      <Button type="button" size="sm" variant="ghost" onClick={onRemove} aria-label={`${t('Remove draft row')} ${number}`}>
+        <Trash2 size={14} aria-hidden="true" />{t('Remove draft row')}
+      </Button>
     </div>}
   </article>;
 }

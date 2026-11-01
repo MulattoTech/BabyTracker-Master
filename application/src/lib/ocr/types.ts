@@ -42,6 +42,7 @@ export interface OcrCandidate {
   readonly sleepType: 'NAP' | 'NIGHT_SLEEP' | null;
   readonly notes: string;
   readonly approved: boolean;
+  readonly rejected?: boolean;
   readonly source: OcrSource;
   readonly fieldSources: Partial<Record<OcrEditableField, OcrFieldOrigin>>;
   readonly warnings: readonly string[];

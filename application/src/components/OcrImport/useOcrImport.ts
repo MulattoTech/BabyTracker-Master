@@ -3,7 +3,7 @@ import type { OcrCandidate } from '@/src/lib/ocr/types';
 import type { OcrDocumentSummary, OcrDocumentView, OcrReviewPreview, OcrReviewRequest } from '@/src/lib/ocr/contracts';
 import { useLocalization } from '@/src/context/localization';
 import { ocrRequest } from './api';
-import { editOcrRow, manualOcrRow, rowReviewIssues } from './review-helpers';
+import { editOcrRow, manualOcrRow, mergeOcrRows, rowReviewIssues } from './review-helpers';
 
 export function useOcrImport(babyId: string | undefined, defaultTimeZone: string) {
   const { t } = useLocalization();
@@ -67,10 +67,61 @@ export function useOcrImport(babyId: string | undefined, defaultTimeZone: string
     setUtcOffsets(current => { const next = { ...current }; delete next[id]; return next; }); invalidate();
   };
   const approve = (id: string, approved: boolean) => {
-    setRows(current => current.map(row => row.id === id && (!approved || rowReviewIssues(row, timeZone, utcOffsets[id]).errors.length === 0) ? { ...row, approved } : row)); invalidate();
+    setRows(current => current.map(row => {
+      if (row.id !== id) return row;
+      if (approved && (row.rejected || rowReviewIssues(row, timeZone, utcOffsets[id]).errors.length > 0)) return row;
+      return { ...row, approved };
+    }));
+    invalidate();
   };
   const approveValid = () => {
-    setRows(current => current.map(row => ({ ...row, approved: rowReviewIssues(row, timeZone, utcOffsets[row.id]).errors.length === 0 }))); invalidate();
+    setRows(current => current.map(row => {
+      if (row.rejected) return { ...row, approved: false };
+      return { ...row, approved: rowReviewIssues(row, timeZone, utcOffsets[row.id]).errors.length === 0 };
+    }));
+    invalidate();
+  };
+  const reject = (id: string, rejected: boolean) => {
+    setRows(current => current.map(row => row.id === id ? { ...row, rejected, approved: false } : row));
+    setUtcOffsets(current => {
+      if (rejected) {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      }
+      return current;
+    });
+    invalidate();
+  };
+  const merge = (targetId: string, sourceId: string) => {
+    let mergedRow: OcrCandidate | null = null;
+    setRows(current => {
+      const target = current.find(r => r.id === targetId);
+      const source = current.find(r => r.id === sourceId);
+      if (!target || !source) return current;
+      mergedRow = mergeOcrRows(target, source);
+      return current.filter(r => r.id !== sourceId).map(r => r.id === targetId ? mergedRow! : r);
+    });
+    setUtcOffsets(current => {
+      const next = { ...current };
+      delete next[sourceId];
+      delete next[targetId];
+      return next;
+    });
+    invalidate();
+    setNotice(t('Merged draft events successfully.'));
+  };
+  const revert = () => {
+    if (!document) return;
+    setRows(document.rows);
+    setTimeZone(document.sourceTimezone);
+    setUtcOffsets(document.utcOffsets ?? {});
+    setDuplicateDecisions(document.duplicateDecisions ?? {});
+    setPreview(null);
+    setAcknowledgeWarnings(false);
+    setDirty(false);
+    setError('');
+    setNotice(t('Draft changes reverted to last saved state.'));
   };
   const changeTimeZone = (value: string) => {
     setTimeZone(value); setUtcOffsets({}); setRows(current => current.map(row => ({ ...row, approved: false }))); invalidate();
@@ -87,7 +138,7 @@ export function useOcrImport(babyId: string | undefined, defaultTimeZone: string
   };
   const add = (page: number, copy?: OcrCandidate) => {
     const blank = manualOcrRow(page, crypto.randomUUID());
-    const row = copy ? { ...copy, id: blank.id, source: blank.source, approved: false, warnings: blank.warnings,
+    const row = copy ? { ...copy, id: blank.id, source: blank.source, approved: false, rejected: false, warnings: blank.warnings,
       fieldSources: Object.fromEntries(Object.keys(copy.fieldSources).map(key => [key, 'corrected' as const])) } : blank;
     setRows(current => [...current.map(item => item.id === copy?.id ? { ...item, approved: false } : item), row]); invalidate();
   };
@@ -95,7 +146,11 @@ export function useOcrImport(babyId: string | undefined, defaultTimeZone: string
     setRows(current => current.filter(row => row.id !== id));
     setUtcOffsets(current => { const next = { ...current }; delete next[id]; return next; }); invalidate();
   };
-  const bulkDate = (value: string) => { setRows(current => current.map(row => editOcrRow(row, { localDate: value || null }))); setUtcOffsets({}); invalidate(); };
+  const bulkDate = (value: string) => {
+    setRows(current => current.map(row => row.rejected ? row : editOcrRow(row, { localDate: value || null })));
+    setUtcOffsets({});
+    invalidate();
+  };
   const payload = (): OcrReviewRequest => ({ revision: document!.revision, rows, timeZone, utcOffsets, duplicateDecisions, acknowledgeWarnings });
   const open = (id: string) => {
     if (dirty && !window.confirm(t('Discard unsaved draft changes and open another document?'))) return;
@@ -126,7 +181,7 @@ export function useOcrImport(babyId: string | undefined, defaultTimeZone: string
   };
   const cancel = () => { pending.current?.abort(); setBusy(''); setNotice('Recognition canceled. Check document history for any retained draft; no events are imported without approval.'); };
   return { history, document, rows, timeZone, utcOffsets, duplicateDecisions, preview, acknowledgeWarnings,
-    busy, error, notice, dirty, edit, approve, approveValid, changeTimeZone, setOffset, add, remove,
+    busy, error, notice, dirty, edit, approve, approveValid, reject, merge, revert, changeTimeZone, setOffset, add, remove,
     bulkDate, open, upload, requestReview, purge, refreshHistory, cancel,
     setAcknowledgeWarnings, changeDuplicateDecision };
 }
