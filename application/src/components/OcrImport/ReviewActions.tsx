@@ -172,7 +172,7 @@ export default function ReviewActions({ controller: state }: { controller: OcrIm
       onClick={() => state.requestReview('commit')}
       disabled={!ready || Boolean(state.busy)}
     >
-      {state.busy === 'commit' ? t('Importing approved events…') : `${t('Confirm and import')} ${selected.length} ${t('approved events')}`}
+      {state.busy === 'commit' ? t('Importing approved events…') : t('Confirm and import approved events')}
     </Button>
   </section>;
 }
