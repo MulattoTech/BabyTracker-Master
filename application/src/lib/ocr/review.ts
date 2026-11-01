@@ -88,33 +88,226 @@ export function reviewIssues(review: OcrReviewRequest): OcrReviewPreview['issues
   });
 }
 
-export async function findOcrDuplicates(tx: Prisma.TransactionClient, document: OcrDocument, review: OcrReviewRequest): Promise<OcrDuplicate[]> {
+export interface FindOcrDuplicatesOptions {
+  fuzzyWindowMs?: number;
+  exactWindowMs?: number;
+  includeDetails?: boolean;
+}
+
+export async function findOcrDuplicates(
+  tx: Prisma.TransactionClient,
+  document: OcrDocument,
+  review: OcrReviewRequest,
+  options?: FindOcrDuplicatesOptions,
+): Promise<OcrDuplicate[]> {
   const duplicates: OcrDuplicate[] = [];
+  const seen = new Set<string>();
+  const addDuplicate = (item: OcrDuplicate) => {
+    const key = `${item.rowId}:${item.recordId}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      duplicates.push(item);
+    }
+  };
+
+  const exactWindowMs = options?.exactWindowMs ?? 60_000;
+  const fuzzyWindowMs = options?.fuzzyWindowMs ?? 15 * 60_000;
+
   // Resolve each wall clock once. Repeating Intl/DST resolution in the pair loop
   // made a bounded 200-row preview spend seconds on synchronous clock work.
   const approved = review.rows.filter(row => row.approved).map(row => {
     const utc = reviewTimes(row, review).start.utc;
     return { row, utc, milliseconds: utc ? Date.parse(utc) : null };
   });
+
   for (const { row, utc, milliseconds } of approved) {
     if (!utc || milliseconds === null || row.eventType === 'unknown') continue;
     const time = new Date(milliseconds);
-    const window = { gte: new Date(time.getTime() - 60_000), lte: new Date(time.getTime() + 60_000) };
+
+    // 1. Exact source-record provenance deduplication if previously imported into ExternalImportRecord
+    const txAny = tx as unknown as { externalImportRecord?: { findUnique?: (args: unknown) => Promise<{ targetRecordId: string } | null> } };
+    if (txAny.externalImportRecord?.findUnique) {
+      try {
+        const exactProvenance = await txAny.externalImportRecord.findUnique({
+          where: {
+            familyId_providerId_sourceEntityType_sourceRecordId: {
+              familyId: document.familyId,
+              providerId: 'babytracker-ocr-v1',
+              sourceEntityType: row.eventType,
+              sourceRecordId: `${document.babyId}:${document.sourceHash}:${row.id}`,
+            },
+          },
+        });
+        if (exactProvenance) {
+          addDuplicate({
+            rowId: row.id,
+            recordId: exactProvenance.targetRecordId,
+            eventType: row.eventType,
+            occurredAt: utc,
+            ...(options?.includeDetails ? { matchType: 'exact', matchedFields: ['sourceRecordId'] } : {}),
+          });
+        }
+      } catch {
+        // Safe fallback if table is not present or mocked
+      }
+    }
+
+    // 2. Exact and fuzzy duplicate detection against canonical care records
+    const queryWindow = { gte: new Date(time.getTime() - fuzzyWindowMs), lte: new Date(time.getTime() + fuzzyWindowMs) };
     const scoped = { familyId: document.familyId, babyId: document.babyId, deletedAt: null };
-    const matches = row.eventType === 'feed'
-      ? await tx.feedLog.findMany({ where: { ...scoped, time: window }, select: { id: true, time: true }, take: 20 })
-      : row.eventType === 'diaper'
-        ? await tx.diaperLog.findMany({ where: { ...scoped, time: window }, select: { id: true, time: true }, take: 20 })
-        : (await tx.sleepLog.findMany({ where: { ...scoped, startTime: window }, select: { id: true, startTime: true }, take: 20 })).map(event => ({ id: event.id, time: event.startTime }));
-    for (const match of matches) duplicates.push({ rowId: row.id, recordId: match.id, eventType: row.eventType, occurredAt: match.time.toISOString() });
+
+    if (row.eventType === 'feed') {
+      const matches = await tx.feedLog.findMany({
+        where: { ...scoped, time: queryWindow },
+        select: { id: true, time: true, type: true, bottleType: true, amount: true, unitAbbr: true },
+        take: 50,
+      });
+      for (const match of matches) {
+        const timeDiffMs = Math.abs(match.time.getTime() - time.getTime());
+        const isExactTime = timeDiffMs <= exactWindowMs;
+
+        const amountMatches = row.amount != null && match.amount != null
+          ? Math.abs(row.amount - match.amount) < 0.01
+          : (row.amount == null && match.amount == null);
+        const unitMatches = (!row.unit && !match.unitAbbr)
+          || (row.unit?.toUpperCase() === match.unitAbbr?.toUpperCase());
+        const typeMatches = row.feedType == null || row.feedType === match.type;
+        const bottleMatches = row.bottleType == null || row.bottleType === match.bottleType;
+
+        const valuesMatch = amountMatches && unitMatches && typeMatches && bottleMatches;
+        const hasValueEvidence = row.amount != null || row.feedType != null;
+
+        let matchType: 'exact' | 'fuzzy' | null = null;
+        const matchedFields: string[] = ['child', 'eventType', 'timestamp'];
+
+        if (isExactTime && valuesMatch) {
+          matchType = 'exact';
+          if (amountMatches && row.amount != null) matchedFields.push('amount', 'unit');
+          if (typeMatches && row.feedType != null) matchedFields.push('feedType');
+          if (bottleMatches && row.bottleType != null) matchedFields.push('bottleType');
+        } else if (isExactTime) {
+          matchType = 'fuzzy';
+          matchedFields.push('timeWindow');
+        } else if (valuesMatch && hasValueEvidence && timeDiffMs <= fuzzyWindowMs) {
+          matchType = 'fuzzy';
+          matchedFields.push('fuzzyTime', 'amount', 'unit');
+          if (typeMatches && row.feedType != null) matchedFields.push('feedType');
+        }
+
+        if (matchType) {
+          addDuplicate({
+            rowId: row.id,
+            recordId: match.id,
+            eventType: row.eventType,
+            occurredAt: match.time.toISOString(),
+            ...(options?.includeDetails ? { matchType, matchedFields } : {}),
+          });
+        }
+      }
+    } else if (row.eventType === 'diaper') {
+      const matches = await tx.diaperLog.findMany({
+        where: { ...scoped, time: queryWindow },
+        select: { id: true, time: true, type: true },
+        take: 50,
+      });
+      for (const match of matches) {
+        const timeDiffMs = Math.abs(match.time.getTime() - time.getTime());
+        const isExactTime = timeDiffMs <= exactWindowMs;
+        const typeMatches = row.diaperType == null || row.diaperType === match.type;
+
+        let matchType: 'exact' | 'fuzzy' | null = null;
+        const matchedFields: string[] = ['child', 'eventType', 'timestamp'];
+
+        if (isExactTime && typeMatches) {
+          matchType = 'exact';
+          if (row.diaperType != null) matchedFields.push('diaperType');
+        } else if (isExactTime) {
+          matchType = 'fuzzy';
+          matchedFields.push('timeWindow');
+        } else if (typeMatches && row.diaperType != null && timeDiffMs <= fuzzyWindowMs) {
+          matchType = 'fuzzy';
+          matchedFields.push('fuzzyTime', 'diaperType');
+        }
+
+        if (matchType) {
+          addDuplicate({
+            rowId: row.id,
+            recordId: match.id,
+            eventType: row.eventType,
+            occurredAt: match.time.toISOString(),
+            ...(options?.includeDetails ? { matchType, matchedFields } : {}),
+          });
+        }
+      }
+    } else if (row.eventType === 'sleep') {
+      const matches = await tx.sleepLog.findMany({
+        where: { ...scoped, startTime: queryWindow },
+        select: { id: true, startTime: true, endTime: true, type: true },
+        take: 50,
+      });
+      for (const match of matches) {
+        const timeDiffMs = Math.abs(match.startTime.getTime() - time.getTime());
+        const isExactTime = timeDiffMs <= exactWindowMs;
+        const typeMatches = row.sleepType == null || row.sleepType === match.type;
+
+        let matchType: 'exact' | 'fuzzy' | null = null;
+        const matchedFields: string[] = ['child', 'eventType', 'timestamp'];
+
+        if (isExactTime && typeMatches) {
+          matchType = 'exact';
+          if (row.sleepType != null) matchedFields.push('sleepType');
+        } else if (isExactTime) {
+          matchType = 'fuzzy';
+          matchedFields.push('timeWindow');
+        } else if (typeMatches && row.sleepType != null && timeDiffMs <= fuzzyWindowMs) {
+          matchType = 'fuzzy';
+          matchedFields.push('fuzzyTime', 'sleepType');
+        }
+
+        if (matchType) {
+          addDuplicate({
+            rowId: row.id,
+            recordId: match.id,
+            eventType: row.eventType,
+            occurredAt: match.startTime.toISOString(),
+            ...(options?.includeDetails ? { matchType, matchedFields } : {}),
+          });
+        }
+      }
+    }
   }
-  // Repeated same-time events on one sheet need an explicit keep/skip decision too.
+
+  // 3. Repeated same-time events on one sheet need an explicit keep/skip decision too.
   for (let index = 0; index < approved.length; index++) {
     const { row, milliseconds } = approved[index];
     if (milliseconds === null) continue;
     for (const previous of approved.slice(0, index)) {
-      if (row.eventType === previous.row.eventType && previous.utc && previous.milliseconds !== null && Math.abs(milliseconds - previous.milliseconds) <= 60_000) {
-        duplicates.push({ rowId: row.id, recordId: `draft:${previous.row.id}`, eventType: row.eventType, occurredAt: previous.utc });
+      if (row.eventType === previous.row.eventType && previous.utc && previous.milliseconds !== null) {
+        const timeDiffMs = Math.abs(milliseconds - previous.milliseconds);
+        if (timeDiffMs <= exactWindowMs) {
+          let matchType: 'exact' | 'fuzzy' = 'exact';
+          const matchedFields: string[] = ['eventType', 'timeWindow'];
+          if (row.eventType === 'feed') {
+            const valuesMatch = row.amount === previous.row.amount && row.feedType === previous.row.feedType && row.bottleType === previous.row.bottleType;
+            matchType = valuesMatch ? 'exact' : 'fuzzy';
+            if (valuesMatch) matchedFields.push('amount', 'feedType');
+          } else if (row.eventType === 'diaper') {
+            const valuesMatch = row.diaperType === previous.row.diaperType;
+            matchType = valuesMatch ? 'exact' : 'fuzzy';
+            if (valuesMatch) matchedFields.push('diaperType');
+          } else if (row.eventType === 'sleep') {
+            const valuesMatch = row.sleepType === previous.row.sleepType;
+            matchType = valuesMatch ? 'exact' : 'fuzzy';
+            if (valuesMatch) matchedFields.push('sleepType');
+          }
+          addDuplicate({
+            rowId: row.id,
+            recordId: `draft:${previous.row.id}`,
+            eventType: row.eventType,
+            occurredAt: previous.utc,
+            ...(options?.includeDetails ? { matchType, matchedFields } : {}),
+          });
+        }
       }
     }
   }
