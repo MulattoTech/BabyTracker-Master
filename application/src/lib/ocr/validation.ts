@@ -77,6 +77,7 @@ export function validateOcrCandidate(
   const diaperType = choice('diaperType', ['WET', 'DIRTY', 'BOTH', 'DRY'] as const);
   const sleepType = choice('sleepType', ['NAP', 'NIGHT_SLEEP'] as const);
   const notes = text('notes', OCR_MAX_NOTES);
+  const rejected = typeof value.rejected === 'boolean' ? value.rejected : false;
   const amount = value.amount;
   if (amount !== null && (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0 || amount > 100000)) {
     errors.push('Amount must be a finite positive number.');
@@ -148,7 +149,7 @@ export function validateOcrCandidate(
   const candidate: OcrCandidate = {
     id, eventType, localDate, localTime, endLocalDate, endLocalTime,
     feedType, bottleType, unit, diaperType, sleepType, amount: amount as number | null,
-    notes, approved: value.approved as boolean, source: {
+    notes, approved: value.approved as boolean, rejected, source: {
       page: source.page as number, line: source.line as number, slot: source.slot as number,
       rawText: source.rawText as string, engine: source.engine as string, confidence: source.confidence as number | null,
       ...(source.contextDate ? { contextDate: source.contextDate as string } : {}),

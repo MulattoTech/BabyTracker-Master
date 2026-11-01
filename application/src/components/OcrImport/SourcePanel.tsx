@@ -21,6 +21,7 @@ export default function SourcePanel({ document, page, onPage, busy, onPurge }: P
   const [loading, setLoading] = useState(false);
   const [zoom, setZoom] = useState(false);
   const [downloading, setDownloading] = useState(false);
+
   useEffect(() => {
     const abort = new AbortController();
     let objectUrl = '';
@@ -31,6 +32,7 @@ export default function SourcePanel({ document, page, onPage, busy, onPurge }: P
       .finally(() => { if (!abort.signal.aborted) setLoading(false); });
     return () => { abort.abort(); if (objectUrl) URL.revokeObjectURL(objectUrl); };
   }, [document.id, document.hasSource, page]);
+
   const download = async () => {
     setDownloading(true); setError('');
     try {
@@ -45,18 +47,36 @@ export default function SourcePanel({ document, page, onPage, busy, onPurge }: P
   const availablePages = document.pages && document.pages.length > 0
     ? document.pages
     : Array.from({ length: document.pageCount }, (_, index) => index + 1);
+
   return <section className="ocr-panel ocr-source" aria-label={t('Original source')}>
     <div className="ocr-panel-title"><FileText aria-hidden="true" /><div><h2>{t('Original source')}</h2><p className="ocr-filename">{document.originalName}</p></div></div>
     <div className="ocr-source-controls">
       <ChoiceField label="Source page" value={String(page)} onChange={value => onPage(Number(value))} choices={availablePages.map(p => [String(p), `${t('Page')} ${p}`] as const)} />
-      <Button type="button" variant="outline" size="sm" onClick={() => setZoom(value => !value)} aria-pressed={zoom} disabled={!url}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => setZoom(value => !value)}
+        aria-pressed={zoom}
+        aria-label={t(zoom ? 'Fit page' : 'Enlarge')}
+        disabled={!url}
+      >
         {zoom ? <ZoomOut aria-hidden="true" size={16} /> : <ZoomIn aria-hidden="true" size={16} />}{zoom ? t('Fit page') : t('Enlarge')}
       </Button>
     </div>
     {loading && <p role="status" className="ocr-muted">{t('Loading private source preview…')}</p>}
     {error && <p role="alert" className="ocr-error">{t(error)}</p>}
     {!document.hasSource && <p className="ocr-notice">{t('The source files were removed or expired. Review history and imported care events remain available.')}</p>}
-    {url && <div className={`ocr-source-image${zoom ? ' ocr-source-zoom' : ''}`} tabIndex={0} aria-label={t('Scrollable source preview')}>
+    {url && <div
+      className={`ocr-source-image${zoom ? ' ocr-source-zoom' : ''}`}
+      tabIndex={0}
+      role="region"
+      aria-label={t('Scrollable source preview')}
+      onKeyDown={e => {
+        if (e.key === '+' || e.key === '=') { setZoom(true); e.preventDefault(); }
+        else if (e.key === '-') { setZoom(false); e.preventDefault(); }
+      }}
+    >
       {/* Authorized blob URLs avoid putting credentials or private document URLs in image requests. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={url} alt={`${t('Source page')} ${page} — ${document.originalName}`} />
