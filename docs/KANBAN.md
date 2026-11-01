@@ -14,9 +14,10 @@ kanban
     [#12 Reconciliation & Provenance Ledger]
     [#29 Final Release Verification]
   In Progress
-    [#37 Local Intake & Provenance: Worker babytracker-master-6]
-    [#11 Care Sheet Review Workflow: Worker babytracker-master-7]
+    [#12 Worker Replenishment: Pending PR acceptance]
   Review / Verification
+    [#11 Care Sheet Review Workflow: PR #53 under AGY review]
+    [#37 Local Intake & Provenance: PR #54 CI running]
     [Staging Container Verification: PASS 6/6 checks]
     [Playwright Browser Smoke: PASS 9/9 checks]
   Done
@@ -32,8 +33,8 @@ kanban
 | :--- | :--- | :--- | :---: | :--- | :--- |
 | **#50** | P0 Master Tracking & Safe Release | Orchestrator (`babytracker-master-4`) | **IN PROGRESS** | `orchestrator/babytracker--orchestrator` | Overall release gate coordination |
 | **#38** | Mixed feeding/diaper extraction & handwriting tolerance | Delivered | **DONE** | - | Merged in [PR #52](https://github.com/MulattoTech/BabyTracker-Master/pull/52) |
-| **#37** | Local image/PDF intake, limits & provenance | Worker (`babytracker-master-6`) | **IN PROGRESS** | `babytracker-master-6` (`ao/work-immediately-on/root`) | Bounded intake, rotation/crop, zero egress |
-| **#11** | Care sheet review workflow UI/UX | Worker (`babytracker-master-7`) | **IN PROGRESS** | `babytracker-master-7` (`ao/implement-a-p0/root`) | Editable draft rows, split/reject, explicit approval |
+| **#37** | Local image/PDF intake, limits & provenance | Worker (`babytracker-master-6`) | **IN REVIEW** | `babytracker-master-6` (`ao/work-immediately-on/root`) | [PR #54](https://github.com/MulattoTech/BabyTracker-Master/pull/54) |
+| **#11** | Care sheet review workflow UI/UX | Worker (`babytracker-master-7`) | **IN REVIEW** | `babytracker-master-7` (`ao/implement-a-p0/root`) | [PR #53](https://github.com/MulattoTech/BabyTracker-Master/pull/53) |
 | **#12** | Reconciliation, deduplication & ledger | Pending #11 & #37 | **QUEUED** | - | Transactional Sprout commit & duplicate check |
 | **#29** | Staging acceptance & release evidence | Release Owner | **READY** | - | Promotes pinned candidate after exact main CI |
 
