@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026-11-01 (America/Chicago)  
 **Orchestrator Session:** `babytracker-master-4` (`gemini-3.8-flash-medium`, interface `tui`)  
-**Current Main Commit:** [`dfe42a904d535570e93eeb478f4cb52ee0fac350`](https://github.com/MulattoTech/BabyTracker-Master/commit/dfe42a904d535570e93eeb478f4cb52ee0fac350)  
+**Current Main Commit:** [`383da43dd2e68228fb8ca8927288455d60d5f80f`](https://github.com/MulattoTech/BabyTracker-Master/commit/383da43dd2e68228fb8ca8927288455d60d5f80f)  
 
 ---
 
@@ -11,16 +11,15 @@
 ```mermaid
 kanban
   Backlog
-    [#12 Reconciliation & Provenance Ledger]
     [#29 Final Release Verification]
   In Progress
-    [#12 Worker Replenishment: Pending PR acceptance]
+    [#12 Reconciliation & Provenance Ledger: Worker babytracker-master-8]
   Review / Verification
-    [#11 Care Sheet Review Workflow: PR #53 under AGY review]
-    [#37 Local Intake & Provenance: PR #54 CI running]
     [Staging Container Verification: PASS 6/6 checks]
     [Playwright Browser Smoke: PASS 9/9 checks]
   Done
+    [#37 Local Intake & Provenance: PR #54 Merged]
+    [#11 Care Sheet Review Workflow: PR #53 Merged]
     [#38 Mixed Table & Handwriting Parsing: PR #52 Merged]
     [#51 Master Workspace Setup & Release Gates: Merged]
 ```
@@ -33,29 +32,27 @@ kanban
 | :--- | :--- | :--- | :---: | :--- | :--- |
 | **#50** | P0 Master Tracking & Safe Release | Orchestrator (`babytracker-master-4`) | **IN PROGRESS** | `orchestrator/babytracker--orchestrator` | Overall release gate coordination |
 | **#38** | Mixed feeding/diaper extraction & handwriting tolerance | Delivered | **DONE** | - | Merged in [PR #52](https://github.com/MulattoTech/BabyTracker-Master/pull/52) |
-| **#37** | Local image/PDF intake, limits & provenance | Worker (`babytracker-master-6`) | **IN REVIEW** | `babytracker-master-6` (`ao/work-immediately-on/root`) | [PR #54](https://github.com/MulattoTech/BabyTracker-Master/pull/54) |
-| **#11** | Care sheet review workflow UI/UX | Worker (`babytracker-master-7`) | **IN REVIEW** | `babytracker-master-7` (`ao/implement-a-p0/root`) | [PR #53](https://github.com/MulattoTech/BabyTracker-Master/pull/53) |
-| **#12** | Reconciliation, deduplication & ledger | Pending #11 & #37 | **QUEUED** | - | Transactional Sprout commit & duplicate check |
+| **#37** | Local image/PDF intake, limits & provenance | Delivered | **DONE** | - | Merged in [PR #54](https://github.com/MulattoTech/BabyTracker-Master/pull/54) |
+| **#11** | Care sheet review workflow UI/UX | Delivered | **DONE** | - | Merged in [PR #53](https://github.com/MulattoTech/BabyTracker-Master/pull/53) |
+| **#12** | Reconciliation, deduplication & ledger | Worker (`babytracker-master-8`) | **IN PROGRESS** | `babytracker-master-8` (`ao/you-are-worker/root`) | Transactional Sprout commit & duplicate check |
 | **#29** | Staging acceptance & release evidence | Release Owner | **READY** | - | Promotes pinned candidate after exact main CI |
 
 ---
 
 ## Active Coordination Directives
 
-1. **Worker #37 (`babytracker-master-6`)**:
-   - Scope: `application/src/lib/ocr/intake.ts`, `UploadPanel.tsx`, and intake tests.
-   - Resource Bounds: Enforce <=12 MB, <=6 PDF pages, <=24M pixels.
-   - Provenance: Ensure image rotation (0, 90, 180, 270) and crop survive without metadata loss.
-   - Security: Validate zero external network requests and local-only worker sandboxing.
-   - Worktree Isolation: Strictly edit in `babytracker-master-6`.
+1. **Worker #12 (`babytracker-master-8`)**:
+   - Scope: `application/src/lib/ocr/documents.ts`, `review.ts`, `contracts.ts`, and `tests/ocr-duplicates.test.ts`.
+   - Exact & Fuzzy Deduplication: Match by child, event type, timestamp, amount/type values.
+   - Transactional Commit: Commit approved non-rejected rows in a single database transaction; roll back cleanly on errors.
+   - Idempotency: Re-importing identical files/documents must be a safe no-op that does not duplicate care events.
+   - Provenance Audit: Preserve parser version, source document/page/rotation/crop, raw line text, and reviewer decisions.
+   - Worktree Isolation: Strictly edit in `C:\Users\Dylan\.ao\data\worktrees\babytracker-master\babytracker-master-8`.
+   - Status: Active. Dependency resolution established via `node_modules` junction; analyzing source IDs and candidate provenance.
 
-2. **Worker #11 (`babytracker-master-7`)**:
-   - Scope: `application/src/components/OcrImport/` (`RowEditor.tsx`, `ReviewActions.tsx`, `SourcePanel.tsx`).
-   - Mobile/Tablet Ergonomics: Verify side-by-side / stacked responsive layouts.
-   - Validation & Ambiguity: Ensure incomplete or ambiguous required fields block commit until reviewed.
-   - Actions: Verify add, split, merge, delete, and reject row controls.
-   - Accessibility: Keyboard navigation, ARIA attributes, and non-destructive back navigation.
-   - Worktree Isolation: Strictly edit in `babytracker-master-7`.
+2. **Completed Streams**:
+   - **Worker #37 (`babytracker-master-6`)**: Delivered and merged in PR #54 (`f99b61c65ff61fd502c3c9c61e4c76b91c13d71e`). Bounded intake, crops, rotation, and provenance verified.
+   - **Worker #11 (`babytracker-master-7`)**: Delivered and merged in PR #53 (`383da43dd2e68228fb8ca8927288455d60d5f80f`). Row merge/reject, totals, layout toggles, I18n localization verified.
 
 3. **Release Promotion Baseline**:
    - Planned Candidate: `babytracker:git-dfe42a904d53`
