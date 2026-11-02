@@ -164,6 +164,63 @@ export async function verifyJournalOutbox({ base, db, family, baby, caretaker, t
     await pending(page).waitFor({ state: 'detached' });
     assert.equal(await db.feedLog.count(), originalCount + 5, 'Discarding a local pending copy must preserve canonical records');
     checks.push('A real API 409 blocks automatic retries; explicit local discard preserves the existing canonical record');
+
+    // A second caregiver may delete a bottle after the first response was lost.
+    // The permanent receipt must turn a retry into a reviewable conflict, not a
+    // replacement record or a server error that retries indefinitely.
+    let deletedResponseLost = false;
+    const loseDeletedResponse = async route => {
+      if (route.request().method() !== 'POST') return route.continue();
+      if (!deletedResponseLost) {
+        const response = await route.fetch(); assert.equal(response.status(), 200);
+        deletedResponseLost = true;
+      }
+      await route.abort('failed');
+    };
+    await page.route('**/api/bottle-journal', loseDeletedResponse);
+    await fill(page, 47, '2026-10-21T10:07');
+    await page.getByText('Bottle saved on this browser. Waiting for server confirmation.', { exact: true }).waitFor();
+    assert.equal(deletedResponseLost, true);
+    await waitForCount(originalCount + 6);
+    const deletedQueue = (await rows(page))[0];
+    const receiptBeforeDelete = await db.externalImportRecord.findFirstOrThrow({ where: {
+      familyId: family.id, providerId: 'sat-tracker-journal', sourceRecordId: deletedQueue.requestId,
+    } });
+    const deletion = await fetch(`${base}/api/feed-log?id=${encodeURIComponent(deletedQueue.requestId)}`, {
+      method: 'DELETE', headers: { Authorization: `Bearer ${otherToken}` },
+    });
+    assert.equal(deletion.status, 200); await deletion.body?.cancel();
+    assert.equal(await db.feedLog.findUnique({ where: { id: deletedQueue.requestId } }), null);
+    await page.unroute('**/api/bottle-journal', loseDeletedResponse);
+    const replayResponse = page.waitForResponse(response => response.url() === `${base}/api/bottle-journal`
+      && response.request().method() === 'POST');
+    await pending(page).getByRole('button', { name: 'Retry this entry', exact: true }).click();
+    assert.equal((await replayResponse).status(), 409, 'A deleted journal receipt must yield a reviewable conflict, never a retryable 500');
+    await pending(page).getByText(review, { exact: true }).waitFor();
+    const deletedBlocked = (await rows(page))[0];
+    assert.equal(deletedBlocked.requestId, deletedQueue.requestId);
+    assert.deepEqual(deletedBlocked.bottle, deletedQueue.bottle);
+    assert.equal(deletedBlocked.state, 'blocked'); assert.equal(deletedBlocked.status, 409);
+    assert.equal(await db.feedLog.count(), originalCount + 5);
+    assert.deepEqual(await db.externalImportRecord.findUnique({ where: { id: receiptBeforeDelete.id } }), receiptBeforeDelete);
+    checks.push('A lost journal response followed by another caregiver’s canonical deletion blocks the original retry without resurrection or receipt mutation');
+
+    await page.reload({ waitUntil: 'networkidle' });
+    await pending(page).getByText(review, { exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Sync now', exact: true }).click();
+    await page.getByRole('button', { name: 'Sync now', exact: true }).waitFor({ state: 'visible' });
+    assert.equal((await rows(page))[0].attempts, deletedBlocked.attempts, 'A blocked deleted-record retry must survive reload without automatic retries');
+    await pending(page).getByRole('button', { name: 'Discard pending entry', exact: true }).click();
+    await pending(page).getByText('This may already be saved online. Discard only the local pending copy?', { exact: true }).waitFor();
+    await pending(page).getByRole('button', { name: 'Cancel', exact: true }).click();
+    assert.equal((await rows(page))[0].requestId, deletedQueue.requestId);
+    await pending(page).getByRole('button', { name: 'Discard pending entry', exact: true }).click();
+    await pending(page).getByRole('button', { name: 'Confirm discard', exact: true }).click();
+    await pending(page).waitFor({ state: 'detached' });
+    assert.equal((await rows(page)).length, 0);
+    assert.equal(await db.feedLog.count(), originalCount + 5);
+    assert.deepEqual(await db.externalImportRecord.findUnique({ where: { id: receiptBeforeDelete.id } }), receiptBeforeDelete);
+    checks.push('Deleted-record conflicts remain blocked across reload; reviewed local discard removes only the queued copy and preserves the permanent receipt');
     return checks;
   } finally { if (context) await context.close(); }
 }

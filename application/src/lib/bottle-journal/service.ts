@@ -32,6 +32,24 @@ export async function saveBottle(db: PrismaClient, actor: JournalActor, babyId: 
   if (!/^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i.test(id)) throw new JournalError('Invalid request ID.');
   return db.$transaction(async tx => {
     const existing = await tx.feedLog.findUnique({ where: { id } });
+    if (expectedUpdatedAt === undefined) {
+      // The create receipt outlives canonical feed deletion. Read it before
+      // treating a missing feed as a fresh request; a late delivery must never
+      // recreate a removed bottle or retry forever on the receipt's unique key.
+      const receipt = await tx.externalImportRecord.findUnique({ where: {
+        familyId_providerId_sourceEntityType_sourceRecordId: {
+          familyId: actor.familyId, providerId: 'sat-tracker-journal', sourceEntityType: 'feed', sourceRecordId: id,
+        },
+      } });
+      if (receipt && (receipt.targetRecordId !== id || receipt.targetEntityType !== 'FeedLog' || receipt.sourceChildId !== babyId)) {
+        throw new JournalError('This request has a different saved receipt. Review saved history before retrying or discarding the local pending copy.', 409);
+      }
+      if (receipt && (!existing || existing.deletedAt || existing.familyId !== actor.familyId || existing.babyId !== babyId || existing.type !== 'BOTTLE')) {
+        throw new JournalError('This bottle was already saved and later changed or removed. Review saved history before discarding the local pending copy.', 409);
+      }
+    }
+    // An intentional edit is authorized by the current family/child and exact
+    // revision, independently of the original create receipt's provenance.
     if (existing && (existing.familyId !== actor.familyId || existing.babyId !== babyId || existing.type !== 'BOTTLE' || existing.deletedAt)) throw new JournalError('Bottle not found.', 404);
     if (expectedUpdatedAt !== undefined) {
       if (!existing) throw new JournalError('Bottle not found.', 404);
