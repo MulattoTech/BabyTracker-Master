@@ -9,8 +9,8 @@
  *   when neither exists, the per-family generic 'Solids' entry is used.
  * - Reaction description: when a cause exists and was NOT used as the food
  *   name it is prefixed as 'Cause: <cause>. <description>'.
- * - Idempotency: a feed whose id already appears in FoodLog.feedLogId was
- *   converted by an earlier run and is skipped.
+ * - Idempotency: a feed linked by a FoodLog for the same family and child
+ *   was converted by an earlier run and is skipped, even if that try was removed.
  * - Catalog matching is case-insensitive on the normalized name; the first
  *   seen casing is preserved on create.
  */
@@ -61,10 +61,11 @@ function composeReactionDescription(feed, usedCause) {
   return description || null;
 }
 
-/** Feeds not yet converted (their id is absent from FoodLog.feedLogId values). */
-function filterUnconverted(feeds, convertedFeedLogIds) {
-  const converted = new Set(convertedFeedLogIds);
-  return feeds.filter((feed) => !converted.has(feed.id));
+/** A soft link is conversion evidence only within the same family and child. */
+function filterUnconverted(feeds, convertedFoodLogs) {
+  const key = (id, familyId, babyId) => JSON.stringify([id, familyId ?? null, babyId]);
+  const converted = new Set(convertedFoodLogs.map((log) => key(log.feedLogId, log.familyId, log.babyId)));
+  return feeds.filter((feed) => !converted.has(key(feed.id, feed.familyId, feed.babyId)));
 }
 
 /**

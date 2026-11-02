@@ -512,7 +512,8 @@ export interface FoodLogCreate {
   hadReaction?: boolean;
   reactionDescription?: string;
   notes?: string;
-  feedLogId?: string;
+  /** Optional SOLIDS source provenance; null clears an existing link. */
+  feedLogId?: string | null;
 }
 
 // All-time food-try progress for a baby ("100 foods before 1")
