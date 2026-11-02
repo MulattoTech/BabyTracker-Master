@@ -38,7 +38,7 @@ function execute(label, args) {
 }
 
 try {
-  execute('acceptance-service', ['node_modules/vitest/vitest.mjs', 'run', 'tests/e2e-acceptance.test.ts',
+  execute('acceptance-service', ['node_modules/vitest/vitest.mjs', 'run', 'tests/e2e-acceptance.test.ts', 'tests/babyBuddyFeedingFidelity.integration.test.ts',
     '--reporter=json', '--outputFile=' + servicePath]);
   const service = JSON.parse(fs.readFileSync(servicePath, 'utf8'));
   assert.equal(service.success, true, 'Service acceptance report must declare success');
@@ -66,6 +66,7 @@ try {
   assert.equal(browser.journalChecksPassed, true, 'OCR-to-journal and shared bottle workflow must run');
   assert.equal(browser.journalOutboxChecksPassed, true, 'Disconnected journal persistence, restart, isolation and replay must run');
   assert.equal(browser.medicationChecksPassed, true, 'Real medication import UI, dose fidelity, duplicate replay and ownership checks must run');
+  assert.equal(browser.feedingImportChecksPassed, true, 'Real feeding import UI, elapsed time fidelity, atomic rejection and replay must run');
   assert.deepEqual(browser.cleanup?.errors, [], 'Owned browser/server cleanup must be verified');
   assert.equal(browser.cleanup?.server?.exited, true, 'Synthetic server exit must be verified');
   assert.equal(browser.cleanup?.browser?.exited, true, 'Synthetic browser exit must be verified');

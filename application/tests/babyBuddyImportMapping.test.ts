@@ -292,7 +292,7 @@ describe('Baby Buddy feeding mapping', () => {
     ['left breast', 'LEFT'],
     ['right breast', 'RIGHT'],
   ] as const)(
-    'maps %s with its side and duration',
+    'maps %s with its side and endpoints for timezone-aware duration resolution',
     (method, side) => {
       const result = mapBabyBuddyFeeding({
         id: '1',
@@ -313,7 +313,6 @@ describe('Baby Buddy feeding mapping', () => {
           startTime: '2026-01-01T10:00:00',
           endTime: '2026-01-01T10:30:00',
           time: '2026-01-01T10:30:00',
-          feedDuration: 1800,
           notes: 'Test',
         }),
       );
@@ -332,7 +331,8 @@ describe('Baby Buddy feeding mapping', () => {
     });
 
     expect(result?.type).toBe('BREAST');
-    expect(result?.feedDuration).toBe(1200);
+    expect(result).toMatchObject({ startTime: '2026-01-01T10:00:00', endTime: '2026-01-01T10:20:00' });
+    expect(result?.feedDuration).toBeUndefined(); // Resolved after the source timezone is known.
     expect(result?.side).toBeUndefined();
   });
 

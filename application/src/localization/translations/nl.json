@@ -3150,5 +3150,15 @@
   "This pending bottle changed in another tab. Refresh the journal before trying again.": "Deze wachtende flesregistratie is gewijzigd in een ander tabblad. Vernieuw het dagboek voordat u het opnieuw probeert.",
   "Waiting to sync": "Wachten op synchronisatie",
   "Offline": "Offline",
-  "Medication entries without an amount are preserved as notes with an unknown dose": "Medicatiegegevens zonder hoeveelheid worden bewaard als notities met een onbekende dosis"
+  "Medication entries without an amount are preserved as notes with an unknown dose": "Medicatiegegevens zonder hoeveelheid worden bewaard als notities met een onbekende dosis",
+  "Timestamps without a UTC offset use this timezone. Feeding timestamps with an offset keep their exact time.": "Tijdstempels zonder UTC-offset gebruiken deze tijdzone. Voedingstijdstempels met een offset behouden hun exacte tijdstip.",
+  "Invalid feeding timestamp. Use YYYY-MM-DD HH:mm:ss with an optional UTC offset.": "Ongeldig voedingstijdstip. Gebruik YYYY-MM-DD HH:mm:ss met een optionele UTC-offset.",
+  "Invalid feeding calendar date. Correct the source before importing.": "Ongeldige kalenderdatum voor de voeding. Corrigeer de bron vóór het importeren.",
+  "Source timezone is required": "De tijdzone van de bron is verplicht",
+  "Invalid source timezone. Choose a valid timezone before importing.": "Ongeldige brontijdzone. Kies een geldige tijdzone vóór het importeren.",
+  "This feeding time does not exist in the source timezone because the clock changed. Correct the source time before importing.": "Dit voedingstijdstip bestaat niet in de brontijdzone door de klokverzetting. Corrigeer de brontijd vóór het importeren.",
+  "This feeding time is ambiguous because the clock repeats. Include the source UTC offset, such as -05:00 or -06:00, before importing.": "Dit voedingstijdstip is dubbelzinnig omdat de klok dit uur herhaalt. Voeg de UTC-offset van de bron toe, zoals -05:00 of -06:00, vóór het importeren.",
+  "Both feeding start and end timestamps are required to import a timed session.": "Zowel de begin- als eindtijd is vereist om een getimede voedingssessie te importeren.",
+  "Feeding duration must be a non-negative whole number of seconds. Check the source start and end timestamps.": "De voedingsduur moet een niet-negatief geheel aantal seconden zijn. Controleer de begin- en eindtijd van de bron.",
+  "Feeding duration conflicts with the source start and end timestamps.": "De voedingsduur komt niet overeen met de begin- en eindtijd van de bron."
 }

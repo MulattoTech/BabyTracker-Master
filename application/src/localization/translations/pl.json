@@ -3154,5 +3154,15 @@
   "This pending bottle changed in another tab. Refresh the journal before trying again.": "Ten oczekujący wpis dotyczący butelki zmienił się w innej karcie. Odśwież dziennik przed ponowną próbą.",
   "Waiting to sync": "Oczekiwanie na synchronizację",
   "Offline": "Offline",
-  "Medication entries without an amount are preserved as notes with an unknown dose": "Wpisy leków bez podanej ilości są zachowywane jako notatki z nieznaną dawką"
+  "Medication entries without an amount are preserved as notes with an unknown dose": "Wpisy leków bez podanej ilości są zachowywane jako notatki z nieznaną dawką",
+  "Timestamps without a UTC offset use this timezone. Feeding timestamps with an offset keep their exact time.": "Znaczniki czasu bez przesunięcia UTC używają tej strefy czasowej. Znaczniki karmienia z przesunięciem zachowują dokładny moment.",
+  "Invalid feeding timestamp. Use YYYY-MM-DD HH:mm:ss with an optional UTC offset.": "Nieprawidłowy czas karmienia. Użyj formatu YYYY-MM-DD HH:mm:ss z opcjonalnym przesunięciem UTC.",
+  "Invalid feeding calendar date. Correct the source before importing.": "Nieprawidłowa data kalendarzowa karmienia. Popraw źródło przed importem.",
+  "Source timezone is required": "Strefa czasowa źródła jest wymagana",
+  "Invalid source timezone. Choose a valid timezone before importing.": "Nieprawidłowa strefa czasowa źródła. Wybierz prawidłową strefę przed importem.",
+  "This feeding time does not exist in the source timezone because the clock changed. Correct the source time before importing.": "Ta godzina karmienia nie istnieje w strefie źródłowej z powodu zmiany czasu. Popraw czas źródłowy przed importem.",
+  "This feeding time is ambiguous because the clock repeats. Include the source UTC offset, such as -05:00 or -06:00, before importing.": "Ta godzina karmienia jest niejednoznaczna, ponieważ zegar powtarza godzinę. Przed importem dodaj przesunięcie UTC źródła, np. -05:00 lub -06:00.",
+  "Both feeding start and end timestamps are required to import a timed session.": "Aby zaimportować sesję karmienia z pomiarem czasu, wymagane są czas rozpoczęcia i zakończenia.",
+  "Feeding duration must be a non-negative whole number of seconds. Check the source start and end timestamps.": "Czas trwania karmienia musi być nieujemną całkowitą liczbą sekund. Sprawdź źródłowe czasy rozpoczęcia i zakończenia.",
+  "Feeding duration conflicts with the source start and end timestamps.": "Czas trwania karmienia nie zgadza się ze źródłowymi czasami rozpoczęcia i zakończenia."
 }

@@ -354,7 +354,7 @@ export default function ConfigureStep({
 
         <p className="mt-1 text-sm text-slate-300">
           {t(
-            'Baby Buddy timestamps will be interpreted in this timezone',
+            'Timestamps without a UTC offset use this timezone. Feeding timestamps with an offset keep their exact time.',
           )}
         </p>
 

@@ -3150,5 +3150,15 @@
   "This pending bottle changed in another tab. Refresh the journal before trying again.": "Denne ventende flaskeregistreringen ble endret i en annen fane. Oppdater dagboken før du prøver igjen.",
   "Waiting to sync": "Venter på synkronisering",
   "Offline": "Frakoblet",
-  "Medication entries without an amount are preserved as notes with an unknown dose": "Legemiddeloppføringer uten mengde bevares som notater med ukjent dose"
+  "Medication entries without an amount are preserved as notes with an unknown dose": "Legemiddeloppføringer uten mengde bevares som notater med ukjent dose",
+  "Timestamps without a UTC offset use this timezone. Feeding timestamps with an offset keep their exact time.": "Tidsstempler uten UTC-forskyvning bruker denne tidssonen. Matingstidsstempler med forskyvning beholder sitt nøyaktige tidspunkt.",
+  "Invalid feeding timestamp. Use YYYY-MM-DD HH:mm:ss with an optional UTC offset.": "Ugyldig matingstidspunkt. Bruk YYYY-MM-DD HH:mm:ss med valgfri UTC-forskyvning.",
+  "Invalid feeding calendar date. Correct the source before importing.": "Ugyldig kalenderdato for mating. Rett kilden før import.",
+  "Source timezone is required": "Kildens tidssone er påkrevd",
+  "Invalid source timezone. Choose a valid timezone before importing.": "Ugyldig tidssone for kilden. Velg en gyldig tidssone før import.",
+  "This feeding time does not exist in the source timezone because the clock changed. Correct the source time before importing.": "Dette matingstidspunktet finnes ikke i kildens tidssone fordi klokken ble stilt. Rett kildetiden før import.",
+  "This feeding time is ambiguous because the clock repeats. Include the source UTC offset, such as -05:00 or -06:00, before importing.": "Dette matingstidspunktet er tvetydig fordi klokken gjentar timen. Ta med kildens UTC-forskyvning, som -05:00 eller -06:00, før import.",
+  "Both feeding start and end timestamps are required to import a timed session.": "Både start- og sluttidspunkt kreves for å importere en tidsmålt mating.",
+  "Feeding duration must be a non-negative whole number of seconds. Check the source start and end timestamps.": "Matingens varighet må være et ikke-negativt helt antall sekunder. Kontroller kildens start- og sluttidspunkt.",
+  "Feeding duration conflicts with the source start and end timestamps.": "Matingens varighet samsvarer ikke med kildens start- og sluttidspunkt."
 }

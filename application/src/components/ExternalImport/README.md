@@ -12,6 +12,31 @@ The component currently supports Baby Buddy CSV exports and guides family admini
 
 External imports are additive. The importer does not use database restore endpoints and does not modify or delete existing Sprout Track records.
 
+## Feeding timestamp fidelity
+
+Baby Buddy bottle, breast and solid-food imports retain both source endpoints.
+The canonical activity timestamp remains the session end, matching the existing
+import convention. Feeding duration is the exact elapsed whole seconds between
+the resolved UTC endpoints, so clock changes and midnight do not distort it.
+The source timezone applies to timestamps without an offset. An explicit `Z`,
+`+05:30`, `-06:00` or equivalent compact offset identifies its own instant and is
+not reinterpreted in the selected timezone.
+
+The importer rejects invalid calendar dates, missing endpoints, negative or
+nonintegral-second durations, and naive times in a daylight-saving gap or fold.
+It never chooses an occurrence of a repeated clock time automatically. The error
+remains visible on the review screen; correct the source with its recorded UTC
+offset or correct the invalid time and reselect the file. The entire batch rolls
+back if a later record is invalid, including its source-provenance entries.
+
+Reimporting a source ID returns its existing target unchanged. This repair does
+not rewrite previously imported bottles with absent duration or historical
+breastfeeding durations; those need explicit source reconciliation. Both-breast
+and fortified-milk semantics, nonfeeding timestamp adapters and generic import
+undo remain separate acceptance work. Unit tests, migrated SQLite transaction
+tests, and the disposable browser/API gate cover this bounded feeding contract;
+production-image and physical-device acceptance remain separate release gates.
+
 ## Skipped files, activity-only children, and medication imports
 
 - Files that don't match a supported Baby Buddy export are skipped rather than aborting the whole import. The Configure step surfaces a "Files that will be skipped" warning listing each skipped file and its reason; if none of the uploaded files are usable, the preview step blocks progression with an error instead.

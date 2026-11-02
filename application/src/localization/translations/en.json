@@ -3150,5 +3150,15 @@
   "This pending bottle changed in another tab. Refresh the journal before trying again.": "This pending bottle changed in another tab. Refresh the journal before trying again.",
   "Waiting to sync": "Waiting to sync",
   "Offline": "Offline",
-  "Medication entries without an amount are preserved as notes with an unknown dose": "Medication entries without an amount are preserved as notes with an unknown dose"
+  "Medication entries without an amount are preserved as notes with an unknown dose": "Medication entries without an amount are preserved as notes with an unknown dose",
+  "Timestamps without a UTC offset use this timezone. Feeding timestamps with an offset keep their exact time.": "Timestamps without a UTC offset use this timezone. Feeding timestamps with an offset keep their exact time.",
+  "Invalid feeding timestamp. Use YYYY-MM-DD HH:mm:ss with an optional UTC offset.": "Invalid feeding timestamp. Use YYYY-MM-DD HH:mm:ss with an optional UTC offset.",
+  "Invalid feeding calendar date. Correct the source before importing.": "Invalid feeding calendar date. Correct the source before importing.",
+  "Source timezone is required": "Source timezone is required",
+  "Invalid source timezone. Choose a valid timezone before importing.": "Invalid source timezone. Choose a valid timezone before importing.",
+  "This feeding time does not exist in the source timezone because the clock changed. Correct the source time before importing.": "This feeding time does not exist in the source timezone because the clock changed. Correct the source time before importing.",
+  "This feeding time is ambiguous because the clock repeats. Include the source UTC offset, such as -05:00 or -06:00, before importing.": "This feeding time is ambiguous because the clock repeats. Include the source UTC offset, such as -05:00 or -06:00, before importing.",
+  "Both feeding start and end timestamps are required to import a timed session.": "Both feeding start and end timestamps are required to import a timed session.",
+  "Feeding duration must be a non-negative whole number of seconds. Check the source start and end timestamps.": "Feeding duration must be a non-negative whole number of seconds. Check the source start and end timestamps.",
+  "Feeding duration conflicts with the source start and end timestamps.": "Feeding duration conflicts with the source start and end timestamps."
 }

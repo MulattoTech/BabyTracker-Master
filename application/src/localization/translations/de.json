@@ -3150,5 +3150,15 @@
   "This pending bottle changed in another tab. Refresh the journal before trying again.": "Dieser ausstehende Flascheneintrag wurde in einem anderen Tab geändert. Aktualisieren Sie das Tagebuch, bevor Sie es erneut versuchen.",
   "Waiting to sync": "Warten auf Synchronisierung",
   "Offline": "Offline",
-  "Medication entries without an amount are preserved as notes with an unknown dose": "Medikamenteneinträge ohne Mengenangabe werden als Notizen mit unbekannter Dosis gespeichert"
+  "Medication entries without an amount are preserved as notes with an unknown dose": "Medikamenteneinträge ohne Mengenangabe werden als Notizen mit unbekannter Dosis gespeichert",
+  "Timestamps without a UTC offset use this timezone. Feeding timestamps with an offset keep their exact time.": "Zeitangaben ohne UTC-Offset verwenden diese Zeitzone. Fütterungszeiten mit Offset behalten ihren genauen Zeitpunkt.",
+  "Invalid feeding timestamp. Use YYYY-MM-DD HH:mm:ss with an optional UTC offset.": "Ungültige Fütterungszeit. Verwenden Sie YYYY-MM-DD HH:mm:ss, optional mit UTC-Offset.",
+  "Invalid feeding calendar date. Correct the source before importing.": "Ungültiges Kalenderdatum der Fütterung. Korrigieren Sie die Quelle vor dem Import.",
+  "Source timezone is required": "Die Zeitzone der Quelle ist erforderlich",
+  "Invalid source timezone. Choose a valid timezone before importing.": "Ungültige Zeitzone der Quelle. Wählen Sie vor dem Import eine gültige Zeitzone.",
+  "This feeding time does not exist in the source timezone because the clock changed. Correct the source time before importing.": "Diese Fütterungszeit existiert wegen einer Zeitumstellung nicht in der Quellzeitzone. Korrigieren Sie die Quellzeit vor dem Import.",
+  "This feeding time is ambiguous because the clock repeats. Include the source UTC offset, such as -05:00 or -06:00, before importing.": "Diese Fütterungszeit ist wegen einer Zeitumstellung mehrdeutig. Ergänzen Sie vor dem Import den UTC-Offset der Quelle, etwa -05:00 oder -06:00.",
+  "Both feeding start and end timestamps are required to import a timed session.": "Zum Import einer zeitlich erfassten Fütterung sind Start- und Endzeit erforderlich.",
+  "Feeding duration must be a non-negative whole number of seconds. Check the source start and end timestamps.": "Die Fütterungsdauer muss eine nicht negative ganze Zahl von Sekunden sein. Prüfen Sie Start- und Endzeit der Quelle.",
+  "Feeding duration conflicts with the source start and end timestamps.": "Die Fütterungsdauer stimmt nicht mit Start- und Endzeit der Quelle überein."
 }

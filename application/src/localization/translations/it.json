@@ -3150,5 +3150,15 @@
   "This pending bottle changed in another tab. Refresh the journal before trying again.": "Questo biberon in attesa è stato modificato in un’altra scheda. Aggiorna il diario prima di riprovare.",
   "Waiting to sync": "In attesa di sincronizzazione",
   "Offline": "Offline",
-  "Medication entries without an amount are preserved as notes with an unknown dose": "Le voci dei farmaci senza quantità vengono conservate come note con dose sconosciuta"
+  "Medication entries without an amount are preserved as notes with an unknown dose": "Le voci dei farmaci senza quantità vengono conservate come note con dose sconosciuta",
+  "Timestamps without a UTC offset use this timezone. Feeding timestamps with an offset keep their exact time.": "Le date senza offset UTC usano questo fuso orario. Le date delle poppate con offset mantengono il loro istante esatto.",
+  "Invalid feeding timestamp. Use YYYY-MM-DD HH:mm:ss with an optional UTC offset.": "Data della poppata non valida. Usa YYYY-MM-DD HH:mm:ss con un offset UTC facoltativo.",
+  "Invalid feeding calendar date. Correct the source before importing.": "Data di calendario della poppata non valida. Correggi la fonte prima di importare.",
+  "Source timezone is required": "Il fuso orario della fonte è obbligatorio",
+  "Invalid source timezone. Choose a valid timezone before importing.": "Fuso orario della fonte non valido. Scegli un fuso orario valido prima di importare.",
+  "This feeding time does not exist in the source timezone because the clock changed. Correct the source time before importing.": "Questo orario di poppata non esiste nel fuso orario della fonte a causa del cambio dell’ora. Correggi l’orario della fonte prima di importare.",
+  "This feeding time is ambiguous because the clock repeats. Include the source UTC offset, such as -05:00 or -06:00, before importing.": "Questo orario di poppata è ambiguo perché l’orologio ripete l’ora. Includi l’offset UTC della fonte, come -05:00 o -06:00, prima di importare.",
+  "Both feeding start and end timestamps are required to import a timed session.": "Per importare una poppata cronometrata servono sia la data di inizio sia quella di fine.",
+  "Feeding duration must be a non-negative whole number of seconds. Check the source start and end timestamps.": "La durata della poppata deve essere un numero intero di secondi non negativo. Controlla le date di inizio e fine della fonte.",
+  "Feeding duration conflicts with the source start and end timestamps.": "La durata della poppata non corrisponde alle date di inizio e fine della fonte."
 }

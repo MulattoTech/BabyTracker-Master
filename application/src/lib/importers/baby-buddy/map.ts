@@ -9,6 +9,7 @@ import {
 } from '@/src/types/external-import';
 import { BabyBuddyCsvRow } from './parse';
 import { parseBabyBuddyNumber } from './numbers';
+import { normalizeFeedingTimestamp } from '../feeding-time';
 
 function required(
   row: BabyBuddyCsvRow,
@@ -131,23 +132,6 @@ function optionalNumber(
   return parseBabyBuddyNumber(value, field);
 }
 
-function durationSeconds(
-  startTime: string,
-  endTime: string,
-): number {
-  const start = new Date(`${startTime}Z`);
-  const end = new Date(`${endTime}Z`);
-  const duration = Math.round(
-    (end.getTime() - start.getTime()) / 1000,
-  );
-
-  if (!Number.isFinite(duration) || duration < 0) {
-    throw new Error('Feeding end time must not be before start time');
-  }
-
-  return duration;
-}
-
 const bottleLikeMethods = [
   'bottle',
   'parent fed',
@@ -167,8 +151,8 @@ export function mapBabyBuddyFeeding(
   amountUnit: ExternalImportFeedingAmountUnit = 'SKIP',
 ): ExternalImportFeedRecord | null {
   const sourceChildId = required(row, 'child_id');
-  const startTime = toUtcInput(required(row, 'start'));
-  const endTime = toUtcInput(required(row, 'end'));
+  const startTime = normalizeFeedingTimestamp(required(row, 'start'));
+  const endTime = normalizeFeedingTimestamp(required(row, 'end'));
   const method = required(row, 'method');
   const sourceType = required(row, 'type');
   const notes = row.notes?.trim() || undefined;
@@ -182,6 +166,8 @@ export function mapBabyBuddyFeeding(
       childId: sourceChildId,
     },
     sourceChildId,
+    startTime,
+    endTime,
     time: endTime,
     notes,
   };
@@ -194,9 +180,6 @@ export function mapBabyBuddyFeeding(
     return {
       ...base,
       type: 'BREAST',
-      startTime,
-      endTime,
-      feedDuration: durationSeconds(startTime, endTime),
       side:
         method === 'left breast'
           ? 'LEFT'

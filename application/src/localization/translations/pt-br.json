@@ -3150,5 +3150,15 @@
   "This pending bottle changed in another tab. Refresh the journal before trying again.": "Esta mamadeira pendente foi alterada em outra aba. Atualize o diário antes de tentar novamente.",
   "Waiting to sync": "Aguardando sincronização",
   "Offline": "Sem conexão",
-  "Medication entries without an amount are preserved as notes with an unknown dose": "Os registros de medicamentos sem quantidade são preservados como notas com dose desconhecida"
+  "Medication entries without an amount are preserved as notes with an unknown dose": "Os registros de medicamentos sem quantidade são preservados como notas com dose desconhecida",
+  "Timestamps without a UTC offset use this timezone. Feeding timestamps with an offset keep their exact time.": "As datas sem deslocamento UTC usam este fuso horário. As datas de alimentação com deslocamento mantêm o instante exato.",
+  "Invalid feeding timestamp. Use YYYY-MM-DD HH:mm:ss with an optional UTC offset.": "Data de alimentação inválida. Use YYYY-MM-DD HH:mm:ss com um deslocamento UTC opcional.",
+  "Invalid feeding calendar date. Correct the source before importing.": "Data de calendário da alimentação inválida. Corrija a origem antes de importar.",
+  "Source timezone is required": "O fuso horário de origem é obrigatório",
+  "Invalid source timezone. Choose a valid timezone before importing.": "Fuso horário de origem inválido. Escolha um fuso horário válido antes de importar.",
+  "This feeding time does not exist in the source timezone because the clock changed. Correct the source time before importing.": "Este horário de alimentação não existe no fuso horário de origem devido à mudança do relógio. Corrija o horário de origem antes de importar.",
+  "This feeding time is ambiguous because the clock repeats. Include the source UTC offset, such as -05:00 or -06:00, before importing.": "Este horário de alimentação é ambíguo porque o relógio repete a hora. Inclua o deslocamento UTC de origem, como -05:00 ou -06:00, antes de importar.",
+  "Both feeding start and end timestamps are required to import a timed session.": "As datas de início e fim são necessárias para importar uma sessão de alimentação cronometrada.",
+  "Feeding duration must be a non-negative whole number of seconds. Check the source start and end timestamps.": "A duração da alimentação deve ser um número inteiro de segundos não negativo. Verifique as datas de início e fim da origem.",
+  "Feeding duration conflicts with the source start and end timestamps.": "A duração da alimentação não corresponde às datas de início e fim da origem."
 }

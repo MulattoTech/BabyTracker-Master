@@ -18,6 +18,7 @@ import {
 import {
   createExternalImportExecutionPlan,
 } from './plan';
+import { resolveExternalImportFeedTiming } from './feeding-time';
 
 export interface ExternalImportExecutionInput {
   readonly familyId: string;
@@ -192,35 +193,17 @@ async function createActivityRecord(
     }
 
     case 'feed': {
-      const time = externalImportLocalTimeToUtc(
-        record.time,
-        sourceTimezone,
-      );
-
-      const startTime = record.startTime
-        ? externalImportLocalTimeToUtc(
-            record.startTime,
-            sourceTimezone,
-          )
-        : undefined;
-
-      const endTime = record.endTime
-        ? externalImportLocalTimeToUtc(
-            record.endTime,
-            sourceTimezone,
-          )
-        : undefined;
+      // Elapsed time must be calculated after resolving each endpoint's actual
+      // instant. Wall-clock subtraction loses/gains an hour across DST changes.
+      const timing = resolveExternalImportFeedTiming(record, sourceTimezone);
 
       const created = await tx.feedLog.create({
         data: {
           familyId,
           caretakerId,
           babyId,
-          time,
+          ...timing,
           type: record.type,
-          startTime,
-          endTime,
-          feedDuration: record.feedDuration,
           side: record.side,
           amount: record.amount,
           offeredAmount: record.offeredAmount,
