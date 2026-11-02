@@ -3,7 +3,8 @@ import { createHash } from 'node:crypto';
 import prisma from '../db';
 import { journalRoute, readJournalJson } from '@/src/lib/bottle-journal/http';
 import { getJournal, saveBottle, setJournalTarget } from '@/src/lib/bottle-journal/service';
-import { text } from '@/src/lib/bottle-journal/validation';
+import { JournalError, text } from '@/src/lib/bottle-journal/validation';
+import { journalScope } from '@/src/lib/bottle-journal/outbox-identity';
 import { notifyActivityCreated, resetTimerNotificationState } from '@/src/lib/notifications/activityHook';
 
 export const GET = journalRoute(async (request, actor) => {
@@ -15,6 +16,11 @@ export const GET = journalRoute(async (request, actor) => {
 });
 export const POST = journalRoute(async (request, actor) => {
   const body = await readJournalJson(request), babyId = text(body.babyId, 100, 'child ID')!;
+  // A fetch interceptor may refresh a session while a queued request is in
+  // flight. Never replay a previous caregiver's draft under a new identity.
+  if (body.expectedScope !== undefined && body.expectedScope !== journalScope(actor.familyId, actor.actorKey!, babyId)) {
+    throw new JournalError('The signed-in caregiver or child changed. Review this pending bottle after signing in again.', 409);
+  }
   const data = await saveBottle(prisma, actor, babyId, body.bottle, body.requestId, body.expectedUpdatedAt);
   if (data.created) {
     void notifyActivityCreated(babyId, 'feed', { caretakerId: actor.caretakerId || undefined }, { type: 'BOTTLE' }).catch(() => undefined);

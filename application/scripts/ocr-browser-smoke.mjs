@@ -10,6 +10,7 @@ import path from 'node:path';
 import { chromium } from 'playwright';
 import sharp from 'sharp';
 import jwt from 'jsonwebtoken';
+import { verifyJournalOutbox } from './journal-outbox-browser.mjs';
 const require = createRequire(import.meta.url);
 const { PrismaClient } = require('@prisma/client');
 const { createPrismaAdapter } = require('../prisma/prisma-adapter.js');
@@ -299,20 +300,22 @@ try {
   };
   await page.route('**/api/bottle-journal', simulateResponseLoss);
   await quickBottle.getByRole('button', { name: 'Save bottle', exact: true }).click();
-  await page.locator('.journal-error').waitFor();
+  await page.getByText('Bottle saved on this browser. Waiting for server confirmation.', { exact: true }).waitFor();
   assert.equal(lostResponse, true, 'The synthetic server must save before the response is lost');
   const quickSaved = await db.feedLog.findFirstOrThrow({ where: { time: new Date('2026-10-20T20:00:00.000Z') } });
   assert.equal(quickSaved.amount, 30); assert.equal(quickSaved.unitAbbr, 'ML');
   assert.equal(await db.feedLog.count(), 4);
   await page.unroute('**/api/bottle-journal', simulateResponseLoss);
   await page.clock.setFixedTime(new Date('2026-10-20T21:00:00.000Z'));
-  await quickBottle.getByRole('button', { name: 'Save bottle', exact: true }).click();
+  await page.getByRole('region', { name: 'Pending bottles on this browser', exact: true }).getByRole('button', { name: 'Retry this entry', exact: true }).click();
   await page.getByText('Bottle saved.', { exact: true }).waitFor();
   assert.equal(await db.feedLog.count(), 4, 'Retry must not create another bottle');
   assert.equal((await db.feedLog.findUniqueOrThrow({ where: { id: quickSaved.id } })).time.toISOString(), '2026-10-20T20:00:00.000Z');
   await page.getByTestId('journal-daily-total').filter({ hasText: /^283\.7 mL$/ }).waitFor();
   report.checks.push('Quick entry uses current time; response-loss retry preserves one exact bottle');
   report.journalChecksPassed = true;
+  report.checks.push(...await verifyJournalOutbox({ base, db, family, baby, caretaker, token, secret, scratch }));
+  report.journalOutboxChecksPassed = true;
   const userToken = jwt.sign({ id: caretaker.id, name: caretaker.name, role: 'USER', familyId: family.id, familySlug: family.slug }, secret, { expiresIn: '5m' });
   const denied = await fetch(`${base}/api/ocr/documents?babyId=${baby.id}`, { headers: { Authorization: `Bearer ${userToken}` }, signal: AbortSignal.timeout(5000) });
   assert.equal(denied.status, 403); await denied.body?.cancel();
@@ -325,6 +328,10 @@ try {
   const cleanupErrors = [];
   report.cleanup = {};
   try {
+    if (browser) for (const context of browser.contexts()) {
+      for (const page of context.pages()) await bounded(page.unrouteAll({ behavior: 'ignoreErrors' }), 3000, 'Synthetic page routing cleanup');
+      await bounded(context.unrouteAll({ behavior: 'ignoreErrors' }), 3000, 'Synthetic context routing cleanup');
+    }
     if (browser) await bounded(browser.close(), 5000, 'Browser connection closure');
   } catch (error) { report.cleanup.browserGracefulCloseTimedOut = true; }
   try {

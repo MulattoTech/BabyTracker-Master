@@ -64,6 +64,7 @@ try {
   assert.equal(browser.status, 'PASS', 'Browser checks and cleanup must pass');
   assert.equal(browser.browserChecksPassed, true, 'Real upload/review/confirmation must run');
   assert.equal(browser.journalChecksPassed, true, 'OCR-to-journal and shared bottle workflow must run');
+  assert.equal(browser.journalOutboxChecksPassed, true, 'Disconnected journal persistence, restart, isolation and replay must run');
   assert.deepEqual(browser.cleanup?.errors, [], 'Owned browser/server cleanup must be verified');
   assert.equal(browser.cleanup?.server?.exited, true, 'Synthetic server exit must be verified');
   assert.equal(browser.cleanup?.browser?.exited, true, 'Synthetic browser exit must be verified');

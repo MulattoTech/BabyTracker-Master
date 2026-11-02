@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFamily } from '@/src/context/family';
 import type { BottlePayload, BottleRow, JournalData, JournalRequest } from './types';
+import { useJournalOutbox } from './useJournalOutbox';
 
 export function useBottleJournal(babyId: string | undefined, day: string, timeZone: string) {
   const { authenticatedFetch } = useFamily();
@@ -34,6 +35,7 @@ export function useBottleJournal(babyId: string | undefined, day: string, timeZo
       if (ticket === sequence.current && current === identityRef.current) setRefreshing(false);
     }
   }, [babyId, day, timeZone, identity, authenticatedFetch]);
+  const outbox = useJournalOutbox(babyId, () => { etag.current = ''; setNotice('Bottle saved.'); void refresh(true); });
   useEffect(() => {
     etag.current = ''; setData(null); setError(''); setNotice(''); setLastSynced(null);
     // A new selection and a confirmed save must refresh even if an older request is finishing.
@@ -55,6 +57,11 @@ export function useBottleJournal(babyId: string | undefined, day: string, timeZo
     const current = identityRef.current;
     setSaving(true); setError(''); setNotice('');
     try {
+      if (!editing && outbox.available) {
+        const result = await outbox.enqueue(bottle, requestId);
+        if (current === identityRef.current) setNotice(result === 'saved' ? 'Bottle saved.' : 'Bottle saved on this browser. Waiting for server confirmation.');
+        return true;
+      }
       await request('/api/bottle-journal', { babyId, bottle, requestId, ...(editing ? { expectedUpdatedAt: editing.updatedAt } : {}) });
       if (current === identityRef.current) { setNotice('Bottle saved.'); etag.current = ''; await refresh(true); }
       return true;
@@ -71,5 +78,5 @@ export function useBottleJournal(babyId: string | undefined, day: string, timeZo
     } catch (error) { if (current === identityRef.current) setError(error instanceof Error ? error.message : 'The intake target could not be saved.'); }
     finally { setSaving(false); }
   }
-  return { data: data && data.babyId === babyId && data.day === day && data.timeZone === timeZone ? data : null, error, notice, saving, refreshing, lastSynced, refresh, save, setTarget, request };
+  return { data: data && data.babyId === babyId && data.day === day && data.timeZone === timeZone ? data : null, error, notice, saving, refreshing, lastSynced, refresh, save, setTarget, request, outbox };
 }

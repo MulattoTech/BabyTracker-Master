@@ -13,6 +13,7 @@ export function journalRoute(handler: (request: NextRequest, actor: JournalActor
         if (!permission.allowed) return permission.response!;
       }
       const response = await handler(request, { familyId: auth.familyId, caretakerId: auth.caretakerId,
+        actorKey: auth.isAccountAuth && auth.accountId ? `account:${auth.accountId}` : `caretaker:${auth.caretakerId}`,
         canManage: Boolean(auth.isSysAdmin || auth.isAccountOwner || ['ADMIN', 'OWNER'].includes(auth.caretakerRole || '')) });
       response.headers.set('Cache-Control', 'private, no-store');
       response.headers.set('X-Content-Type-Options', 'nosniff');
