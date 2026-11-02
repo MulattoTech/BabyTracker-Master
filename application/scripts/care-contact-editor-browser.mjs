@@ -48,6 +48,19 @@ export async function verifyCareContactEditors({ base, db, family, baby, caretak
     assert.deepEqual(afterFields, beforeFields, 'Contact edits must preserve the other care fields');
     assert.equal(afterNotes, notes);
   };
+  const assertEditorLabels = async editor => {
+    const labels = await editor.evaluate(panel => Array.from(panel.querySelectorAll('label[for]')).map(label => ({
+      text: label.textContent,
+      ownControl: !!label.control && panel.contains(label.control),
+      idMatches: Array.from(document.querySelectorAll('[id]')).filter(node => node.id === label.htmlFor).length,
+    })));
+    assert.ok(labels.length > 0, 'The editor must expose associated field labels');
+    assert.deepEqual(labels.filter(label => !label.ownControl || label.idMatches !== 1), [],
+      'Each editor label must target one control inside that editor, even with other forms mounted');
+    assert.equal(await editor.getByRole('button', { name: 'Update', exact: true }).evaluate(button =>
+      !!button.form && button.form.closest('[role="dialog"]') === button.closest('[role="dialog"]')
+    ), true, 'The footer must submit this editor form');
+  };
   const submit = async (kind, record, editor) => {
     const pathname = kind === 'medicine' ? '/api/medicine' : '/api/vaccine-log';
     const [response] = await Promise.all([
@@ -63,7 +76,9 @@ export async function verifyCareContactEditors({ base, db, family, baby, caretak
     await page.getByRole('dialog', { name: 'Medicine Tracker', exact: true })
       .getByRole('button', { name: `Edit ${record.name}`, exact: true }).click();
     const editor = page.getByRole('dialog', { name: 'Edit Medicine', exact: true });
-    assert.equal(await editor.locator('input[name="name"]').inputValue(), record.name);
+    await assertEditorLabels(editor);
+    assert.equal(await editor.getByLabel('Medicine Name').inputValue(), record.name);
+    assert.equal(await editor.getByRole('group', { name: 'Associated Contacts', exact: true }).count(), 1);
     return editor;
   };
   const openVaccine = async record => {
@@ -71,6 +86,7 @@ export async function verifyCareContactEditors({ base, db, family, baby, caretak
     await page.getByRole('dialog', { name: 'Vaccine Record', exact: true })
       .getByRole('button', { name: 'Edit', exact: true }).click();
     const editor = page.getByRole('dialog', { name: 'Vaccine Tracker', exact: true });
+    await assertEditorLabels(editor);
     assert.equal(await editor.getByLabel('Vaccine Name', { exact: true }).inputValue(), record.name);
     return editor;
   };
