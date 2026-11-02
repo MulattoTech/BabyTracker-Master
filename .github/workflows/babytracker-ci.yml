@@ -46,4 +46,13 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npx playwright install --with-deps chromium --only-shell
-      - run: npm run test:ocr-browser
+      - name: Fresh OCR and journal acceptance gate
+        run: npm run test:release-gate
+      - name: Upload synthetic acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sat-tracker-acceptance-${{ github.sha }}
+          path: application/test-results/
+          if-no-files-found: warn
+          retention-days: 7

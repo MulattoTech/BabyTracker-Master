@@ -54,6 +54,46 @@ unsaved duplicate decisions and unclear whole-document finalization wording.
 The release-layout check additionally caught a missing named Tesseract output
 configuration; explicit TSV output flags and protocol validation fixed it.
 
+
+## Current source gate — Issue #29
+
+The historical October evidence above applies to its named revisions only. The
+new source gate does not inherit those PASS results or require the old staging
+document. Run `npm run test:release-gate` from `application/` after the normal build
+and toolchain setup.
+
+| Layer | What the command actually exercises | Evidence |
+| --- | --- | --- |
+| Service acceptance | Fresh synthetic care history per test, seeded parser drafts, correction, explicit confirmation, ledger, exact canonical values, transaction rollback, duplicate decisions and family denial | Vitest JSON; every case must execute and pass |
+| Real browser | New generated image upload through native OCR; edit 90→95 mL, review-only save, confirmation, canonical timeline and the same Bottle Journal | Fresh browser report tied to the gate invocation |
+| Journal | Offered/consumed entry, caregiver, same-ID correction, daily total, configured target, automatic refresh in a second storage-isolated browser context and manual sync | Browser assertions against both visible UI and disposable SQLite |
+| Layout | OCR at 390px and 820px; Bottle Journal at 412px; overflow, keyboard focus and touch-sized save control | Synthetic screenshots and executed assertions |
+| Cleanup | Owned browser/server exit and removal of disposable storage | Browser report cleanup checks |
+| Deployment | Preview, live routing, current backup/restore, migration, previous-image rollback, approval and production preservation | **Not run by this source command**; separate release evidence required |
+
+The gate removes prior reports before execution, associates browser evidence with
+a unique run ID, and fails on missing/failed/skipped evidence. The overall status
+describes **source acceptance**, not a deployment or a complete product. This file
+does not predeclare PASS. See `test-results/release-gate-report.json` and the CI
+artifact for a particular revision.
+
+The service suite's drafts are intentionally seeded; they are not OCR recognition
+accuracy measurements. The browser's clean printed fixture is not representative
+handwriting. Physical phones, real owner logs, offline behavior and PostgreSQL
+rollback require separate acceptance.
+
+Rollback rehearsal now requires an explicit cached immutable image from the live
+deployment receipt, rather than an obsolete hardcoded image:
+
+```powershell
+./scripts/test-ocr-rollback.ps1 -RollbackImage sha256:<previous-live-image-digest>
+```
+
+The rehearsal retains its synthetic-stage allowlist, exact two-event fixture
+checks, cloned volumes, isolated networking and owned-resource cleanup. It never
+accepts production volumes. The report identifies both candidate and rollback
+images.
+
 ## Requirement traceability
 
 The authoritative roadmap remains in `MulattoTech/BabyTracker`; do not create
