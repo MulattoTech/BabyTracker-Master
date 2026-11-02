@@ -3,6 +3,7 @@ import {
   OcrCandidate, OcrEditableField, OcrEventType, OcrFieldOrigin, OcrPageText, OcrParseOptions,
 } from './types';
 import { isOcrDate } from './validation';
+import { maskFeedDuration, parseFeedDuration } from './duration';
 
 interface Clock { readonly value: string | null; readonly raw: string; readonly index: number; }
 interface DateMatch { readonly value: string | null; readonly raw: string; }
@@ -25,7 +26,7 @@ function maskNamedMetadata(text: string): string {
 }
 
 function datesIn(text: string): DateMatch[] {
-  text = maskNamedMetadata(text);
+  text = maskFeedDuration(maskNamedMetadata(text));
   const dates: DateMatch[] = [];
   const volumeSpans = [...text.matchAll(volumePattern)].map(match => [match.index ?? 0, (match.index ?? 0) + match[0].length]);
   for (const match of text.matchAll(dateLikePattern)) {
@@ -39,7 +40,7 @@ function datesIn(text: string): DateMatch[] {
 }
 
 function clocksIn(text: string, mode: OcrParseOptions['timeFormat']): Clock[] {
-  text = maskNamedMetadata(text);
+  text = maskFeedDuration(maskNamedMetadata(text));
   const clocks: Clock[] = [];
   // A year inside a date or digits in a volume are not military clock times.
   const excluded = [
@@ -152,7 +153,7 @@ function segmentsIn(text: string): string[] {
     if (!trimmed) continue;
     // Labelled bottle cells belong to the preceding feeding, not separate events.
     if (segments.length && typesIn(segments[segments.length - 1]).includes('feed')
-      && /^(?:offered|prepared|consumed|taken|drank|drunk|formula(?:\s+name)?|brand|bottle\s+(?:id|label)|caregiver|fed\s+by|concentration)\s*[:=]/i.test(trimmed)) {
+      && /^(?:(?:(?:feeding|feed|nursing|bottle)\s+)?duration|offered|prepared|consumed|taken|drank|drunk|formula(?:\s+name)?|brand|bottle\s+(?:id|label)|caregiver|fed\s+by|concentration)\s*[:=]/i.test(trimmed)) {
       segments[segments.length - 1] += `; ${trimmed}`;
       continue;
     }
@@ -230,6 +231,7 @@ function makeCandidate(
   let sleepType: OcrCandidate['sleepType'] = null;
   let amount: number | null = null;
   let unit: OcrCandidate['unit'] = null;
+  let feedDuration: number | null = null;
   let offeredAmount: number | null = null;
   let formulaKcalOz: number | null = null;
   let formulaName: string | null = null;
@@ -245,6 +247,10 @@ function makeCandidate(
     bottleType = formula !== milk ? formula ? 'Formula' : 'Breast Milk' : null;
     if (formula && milk) warnings.push('Mixed formula and breast milk need a reviewer-selected designation and notes.');
     const quantityText = maskNamedMetadata(segment);
+    const duration = parseFeedDuration(quantityText);
+    feedDuration = duration.value;
+    fieldSources.feedDuration = duration.origin;
+    if (duration.origin === 'ambiguous') warnings.push('Feeding duration is unclear; enter an explicit elapsed duration or leave it unrecorded.');
     const volumes = volumesIn(quantityText);
     const roles = volumes.map(volume => volumeRole(quantityText, volume));
     const offered = volumes.filter((_, index) => roles[index] === 'offered');
@@ -330,7 +336,7 @@ function makeCandidate(
   }
   if (conflictingText && eventType === 'feed') {
     feedType = null;
-    amount = null; offeredAmount = null; formulaKcalOz = null; formulaName = null; bottleLabel = null; sourceCaregiverName = null;
+    amount = null; feedDuration = null; fieldSources.feedDuration = 'ambiguous'; offeredAmount = null; formulaKcalOz = null; formulaName = null; bottleLabel = null; sourceCaregiverName = null;
     warnings.push('Negated, uncertain or crossed-out feeding text needs explicit field corrections.');
   }
   if (page.confidence !== undefined && page.confidence !== null && page.confidence < 70) warnings.push('Low engine recognition score; manual transcription may be necessary.');
@@ -343,14 +349,14 @@ function makeCandidate(
   mark('feedType', feedType !== null); mark('bottleType', bottleType !== null);
   if (!fieldSources.amount) mark('amount', amount !== null);
   if (!fieldSources.unit) mark('unit', unit !== null);
-  for (const [field, value] of Object.entries({ offeredAmount, formulaKcalOz, formulaName, bottleLabel, sourceCaregiverName })) {
+  for (const [field, value] of Object.entries({ feedDuration, offeredAmount, formulaKcalOz, formulaName, bottleLabel, sourceCaregiverName })) {
     if (!fieldSources[field as OcrEditableField]) mark(field as OcrEditableField, value !== null);
   }
   mark('diaperType', diaperType !== null); mark('sleepType', sleepType !== null); mark('notes', true);
   return {
     id: `p${page.page}-l${lineNumber}-${eventType}-${slot}`, eventType, localDate, localTime,
     endLocalDate, endLocalTime, feedType, bottleType, amount, unit, diaperType, sleepType,
-    offeredAmount, formulaKcalOz, formulaName, bottleLabel, sourceCaregiverName,
+    feedDuration, offeredAmount, formulaKcalOz, formulaName, bottleLabel, sourceCaregiverName,
     notes: segment.trim().slice(0, OCR_MAX_NOTES), approved: false,
     source: {
       page: page.page, line: lineNumber, slot, rawText, engine: page.engine || OCR_PARSER_VERSION,

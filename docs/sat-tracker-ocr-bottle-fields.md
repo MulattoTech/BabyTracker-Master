@@ -35,6 +35,28 @@ Merging draft rows converts copied consumed or offered quantities into the targe
 row's established unit. A quantity without a source unit remains unresolved, and
 a unit from another row cannot silently reinterpret an existing unitless quantity.
 
+## Feeding duration
+
+Explicit `duration: 20 min`, `feeding duration: 1 h 5 min` and `nursed for 15 minutes`
+produce a structured `feedDuration` in whole seconds. A duration cell is excluded
+from event-clock/date parsing, so `1200 s` cannot become a 12:00 feeding time.
+The review field displays minutes and accepts fractional minutes, rounded to the
+nearest second. A missing duration stays blank; no time difference or implicit
+unit is invented. Ranges, question marks, unlabelled values, repeated units and
+conflicting duration labels remain unresolved for review.
+
+Server validation requires 1–86400 whole seconds when supplied and warns above
+two hours. This is a data-integrity bound, not a recommended feeding duration.
+Corrections reset approval and preserve field provenance. After explicit final
+confirmation, the existing import transaction writes `FeedLog.feedDuration`; no
+schema migration or second store is needed. Older reviews retain the absent field
+and their existing confirmation hash. Source deletion leaves canonical records
+unchanged. Handwriting recognition remains a separate qualification requirement.
+
+`ocr-duration.test.ts` covers parsing, abstention, bounds, editing, merging,
+provenance and old receipt replay. The real Linux image/SQLite integration and
+browser gate verify recognized duration, correction and exact canonical seconds.
+
 ## Compatibility
 
 New fields are optional. A pre-existing draft that omitted them continues to omit

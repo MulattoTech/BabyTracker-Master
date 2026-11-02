@@ -8,7 +8,7 @@ export function manualOcrRow(page: number, id: string): OcrCandidate {
   return {
     id: `manual-${id}`, eventType: 'unknown', localDate: null, localTime: null,
     endLocalDate: null, endLocalTime: null, feedType: null, bottleType: null,
-    amount: null, unit: null, offeredAmount: null, formulaKcalOz: null, formulaName: null, bottleLabel: null, sourceCaregiverName: null, diaperType: null, sleepType: null, notes: '', approved: false, rejected: false,
+    amount: null, unit: null, feedDuration: null, offeredAmount: null, formulaKcalOz: null, formulaName: null, bottleLabel: null, sourceCaregiverName: null, diaperType: null, sleepType: null, notes: '', approved: false, rejected: false,
     source: { page, line: 1, slot: 0, rawText: '', engine: 'manual', confidence: null },
     fieldSources: {}, warnings: ['Manually transcribed from the source; verify every field.'],
   };
@@ -39,7 +39,7 @@ export function mergeOcrRows(target: OcrCandidate, source: OcrCandidate): OcrCan
     merged.eventType = source.eventType;
     fieldSources.eventType = 'corrected';
   }
-  for (const field of ['localDate', 'localTime', 'endLocalDate', 'endLocalTime', 'feedType', 'bottleType', 'diaperType', 'sleepType', 'formulaKcalOz', 'formulaName', 'bottleLabel', 'sourceCaregiverName'] as const) {
+  for (const field of ['localDate', 'localTime', 'endLocalDate', 'endLocalTime', 'feedType', 'bottleType', 'diaperType', 'sleepType', 'feedDuration', 'formulaKcalOz', 'formulaName', 'bottleLabel', 'sourceCaregiverName'] as const) {
     if (target[field] == null && source[field] != null) {
       (merged as Record<string, unknown>)[field] = source[field];
       fieldSources[field] = 'corrected';

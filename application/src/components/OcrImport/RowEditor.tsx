@@ -33,7 +33,7 @@ const fieldLabels: Record<OcrEditableField, string> = {
   eventType: 'Event type', localDate: 'Event date', localTime: 'Event time', endLocalDate: 'Sleep end date',
   endLocalTime: 'Sleep end time', feedType: 'Feeding method', bottleType: 'Milk designation', amount: 'Feeding amount',
   unit: 'Amount unit', diaperType: 'Diaper type', sleepType: 'Sleep type', notes: 'Notes',
-  offeredAmount: 'Volume offered (same unit)', formulaKcalOz: 'Formula concentration (kcal/oz)',
+  feedDuration: 'Feeding duration (minutes)', offeredAmount: 'Volume offered (same unit)', formulaKcalOz: 'Formula concentration (kcal/oz)',
   formulaName: 'Formula name', bottleLabel: 'Bottle identifier', sourceCaregiverName: 'Source caregiver name',
 };
 const originLabels: Record<OcrFieldOrigin, string> = {
@@ -105,6 +105,7 @@ export default function RowEditor({
           <ChoiceField label="Amount unit" value={row.unit ?? ''} onChange={value => change('unit', value as OcrCandidate['unit'] || null)} choices={[
             ['', 'Choose unit'], ['ML', 'mL'], ['OZ', 'US fluid ounces'],
           ]} />
+          <TextField label="Feeding duration (minutes)" type="number" min={1 / 60} max={1440} step="any" value={row.feedDuration == null ? '' : String(row.feedDuration / 60)} onChange={value => change('feedDuration', value === '' ? null : Math.round(Number(value) * 60))} />
           <TextField label="Volume offered (same unit)" type="number" min={0} step="any" value={row.offeredAmount == null ? '' : String(row.offeredAmount)} onChange={value => change('offeredAmount', value === '' ? null : Number(value))} />
           <TextField label="Formula concentration (kcal/oz)" type="number" min={0} step="any" value={row.formulaKcalOz == null ? '' : String(row.formulaKcalOz)} onChange={value => change('formulaKcalOz', value === '' ? null : Number(value))} />
           <TextField label="Formula name" value={row.formulaName ?? ''} onChange={value => change('formulaName', value || null)} />

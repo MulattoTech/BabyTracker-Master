@@ -3121,5 +3121,9 @@
   "Confirm the consumed volume; offered or remaining volume is not consumption.": "",
   "Multiple offered volumes need correction.": "",
   "An unlabelled quantity was not assigned to offered or consumed volume.": "",
-  "A rejected event cannot also be approved.": ""
+  "A rejected event cannot also be approved.": "",
+  "Feeding duration (minutes)": "Durata hrănirii (minute)",
+  "Feeding duration exceeds two hours; compare it with the source before approving.": "Durata hrănirii depășește două ore; comparați cu sursa înainte de aprobare.",
+  "Feeding duration is unclear; enter an explicit elapsed duration or leave it unrecorded.": "Durata hrănirii este neclară; introduceți timpul scurs sau lăsați câmpul necompletat.",
+  "Feeding duration must be a whole number of seconds between 1 and 86400, or left blank.": "Durata hrănirii trebuie să fie un număr întreg de secunde între 1 și 86400 sau să rămână necompletată."
 }

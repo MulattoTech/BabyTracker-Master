@@ -3121,5 +3121,9 @@
   "Confirm the consumed volume; offered or remaining volume is not consumption.": "पी गई मात्रा की पुष्टि करें; दी गई या बची हुई मात्रा, पी गई मात्रा नहीं है।",
   "Multiple offered volumes need correction.": "दी गई एक से अधिक मात्राओं को सुधारना आवश्यक है।",
   "An unlabelled quantity was not assigned to offered or consumed volume.": "बिना लेबल वाली मात्रा को दी गई या पी गई मात्रा नहीं माना गया।",
-  "A rejected event cannot also be approved.": "अस्वीकृत घटना को स्वीकृत भी नहीं किया जा सकता।"
+  "A rejected event cannot also be approved.": "अस्वीकृत घटना को स्वीकृत भी नहीं किया जा सकता।",
+  "Feeding duration (minutes)": "दूध पिलाने की अवधि (मिनट)",
+  "Feeding duration exceeds two hours; compare it with the source before approving.": "दूध पिलाने की अवधि दो घंटे से अधिक है; स्वीकृत करने से पहले स्रोत से मिलान करें।",
+  "Feeding duration is unclear; enter an explicit elapsed duration or leave it unrecorded.": "दूध पिलाने की अवधि स्पष्ट नहीं है; बीता हुआ समय दर्ज करें या इसे खाली छोड़ दें।",
+  "Feeding duration must be a whole number of seconds between 1 and 86400, or left blank.": "दूध पिलाने की अवधि 1 से 86400 के बीच पूर्ण सेकंड में होनी चाहिए, या इसे खाली छोड़ दें।"
 }

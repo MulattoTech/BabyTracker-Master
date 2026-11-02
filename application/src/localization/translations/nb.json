@@ -3121,5 +3121,9 @@
   "Confirm the consumed volume; offered or remaining volume is not consumption.": "",
   "Multiple offered volumes need correction.": "",
   "An unlabelled quantity was not assigned to offered or consumed volume.": "",
-  "A rejected event cannot also be approved.": ""
+  "A rejected event cannot also be approved.": "",
+  "Feeding duration (minutes)": "Varighet på mating (minutter)",
+  "Feeding duration exceeds two hours; compare it with the source before approving.": "Varigheten på matingen overstiger to timer; sammenlign med kilden før godkjenning.",
+  "Feeding duration is unclear; enter an explicit elapsed duration or leave it unrecorded.": "Varigheten på matingen er uklar; oppgi tiden som gikk eller la feltet stå tomt.",
+  "Feeding duration must be a whole number of seconds between 1 and 86400, or left blank.": "Varigheten på matingen må være et helt antall sekunder mellom 1 og 86400, eller stå tomt."
 }

@@ -4,7 +4,7 @@ export type OcrFieldOrigin = 'source' | 'context' | 'missing' | 'ambiguous' | 'c
 export type OcrEditableField =
   | 'eventType' | 'localDate' | 'localTime' | 'endLocalDate' | 'endLocalTime'
   | 'feedType' | 'bottleType' | 'amount' | 'unit' | 'diaperType' | 'sleepType' | 'notes'
-  | 'offeredAmount' | 'formulaKcalOz' | 'formulaName' | 'bottleLabel' | 'sourceCaregiverName';
+  | 'feedDuration' | 'offeredAmount' | 'formulaKcalOz' | 'formulaName' | 'bottleLabel' | 'sourceCaregiverName';
 
 export interface OcrCrop {
   readonly left: number;
@@ -39,6 +39,8 @@ export interface OcrCandidate {
   readonly bottleType: 'Formula' | 'Breast Milk' | 'Other' | null;
   readonly amount: number | null;
   readonly unit: 'ML' | 'OZ' | null;
+  /** Elapsed feeding duration in whole seconds; absent in older saved drafts. */
+  readonly feedDuration?: number | null;
   /** Optional for backward-compatible review/retry of pre-journal drafts. Offered uses unit above. */
   readonly offeredAmount?: number | null;
   readonly formulaKcalOz?: number | null;
