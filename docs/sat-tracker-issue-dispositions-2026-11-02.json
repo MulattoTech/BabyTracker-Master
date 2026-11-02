@@ -1,0 +1,425 @@
+{
+  "observedDateUTC": "2026-11-02",
+  "repository": "MulattoTech/BabyTracker-Master",
+  "mainSHA": "64c69c4b35df1161b2846c4f4e663e44e70d74a5",
+  "openIssueCount": 33,
+  "inScopeOpenIssueCount": 32,
+  "openPullRequestCount": 1,
+  "priorityLabels": {
+    "P1": 3,
+    "P2": 2,
+    "P3": 8,
+    "P4": 14,
+    "P5": 4,
+    "unlabelled": 2
+  },
+  "originalFeatureMatrixRows": 77,
+  "requiredRows": 76,
+  "desiredRows": 1,
+  "canonicalAcceptanceLedger": "Not found in tracked main; matrices are source-presence/desired capability inventories, not complete acceptance ledger.",
+  "completionPercent": null,
+  "verifiedRequirementCount": null,
+  "reasons": [
+    "Original capability rows do not cover all new detailed mission requirements.",
+    "No exhaustive per-requirement evidence/status ledger found.",
+    "Closed issue, implementation presence and synthetic tests do not establish physical-device or full-product acceptance."
+  ],
+  "issues": [
+    {
+      "number": 50,
+      "title": "P0: Canonical monorepo, production-safe OCR rollout, upstream sync and module/update system",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/50",
+      "githubLabels": [],
+      "suggestedMissionPriority": "P1",
+      "status": "IN PROGRESS",
+      "remaining": "Canonical/release foundation deployed; full module dependencies/version compatibility/migrations/update/rollback/UI/owner approval and locked-folder disposition remain. Original title P0 does not establish a live incident."
+    },
+    {
+      "number": 49,
+      "title": "Review preserved OCR worker and legacy PR1 recovery work",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/49",
+      "githubLabels": [],
+      "suggestedMissionPriority": "P1",
+      "status": "IN PROGRESS",
+      "remaining": "Source-access assertions recovered; preserved adapter/crop/recognition proposals deferred. Private PR1 snapshot comparison still required, plus boundary tests before future integration."
+    },
+    {
+      "number": 39,
+      "title": "[Fleet] Isolated BabyTracker Fleet Control and reviewed dispatch acceptance",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/39",
+      "githubLabels": [
+        "P1"
+      ],
+      "suggestedMissionPriority": "OUT OF SCOPE",
+      "status": "IN PROGRESS",
+      "remaining": "Fleet controller ownership moved to Fleet-Control-Hub; no fleet mutations authorized by this Sat Tracker mission. Preserve issue/history and reference canonical owner."
+    },
+    {
+      "number": 36,
+      "title": "[Upstream] Oak-and-Sprout/sprout-track 1.6.8 review",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/36",
+      "githubLabels": [
+        "P4"
+      ],
+      "suggestedMissionPriority": "P2",
+      "status": "IN PROGRESS",
+      "remaining": "Review Sprout1.6.8 only for concrete compatible fixes; no upgrade solely for version change. Existing 1.6.7 custom base preserved."
+    },
+    {
+      "number": 34,
+      "title": "[Upstream] babybuddy/babybuddy v2.11.0 review",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/34",
+      "githubLabels": [
+        "P4"
+      ],
+      "suggestedMissionPriority": "P2",
+      "status": "IN PROGRESS",
+      "remaining": "v2.11.0 source audit complete; its compatibility runtime scope overlaps #13. Link source-reviewed status and leave fidelity acceptance outstanding."
+    },
+    {
+      "number": 33,
+      "title": "[Upstream] Oak-and-Sprout/sprout-track 1.6.7 review",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/33",
+      "githubLabels": [
+        "P4"
+      ],
+      "suggestedMissionPriority": "P2",
+      "status": "IN PROGRESS",
+      "remaining": "Stock 1.6.7 review is historical now canonical source derives from it; reconcile coverage against release evidence, retain unresolved full phone/iPad/portability criteria. No automatic closure."
+    },
+    {
+      "number": 31,
+      "title": "[BabyTracker] Upstream release watch and backup-first upgrade qualification",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/31",
+      "githubLabels": [
+        "P4"
+      ],
+      "suggestedMissionPriority": "P2",
+      "status": "IN PROGRESS",
+      "remaining": "Watch/manual backup-first flow exists. Historical CI billing clause is superseded by real passing hosted CI; full candidate compatibility/mobile regression remains."
+    },
+    {
+      "number": 30,
+      "title": "[BabyTracker] Phase 0 - secure first-run setup, private HTTPS, and restore drill",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/30",
+      "githubLabels": [
+        "P1"
+      ],
+      "suggestedMissionPriority": "P1",
+      "status": "BLOCKED",
+      "remaining": "Technical release backup/restore/rollback evidence recorded; fresh isolated onboarding can be automated, but actual family setup/default replacement and Pixel9/10/iPad acceptance remain unverified."
+    },
+    {
+      "number": 28,
+      "title": "[BabyTracker] Prediction evaluation dashboard and model-version registry",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/28",
+      "githubLabels": [
+        "P5"
+      ],
+      "suggestedMissionPriority": "P1",
+      "status": "NOT IMPLEMENTED",
+      "remaining": "Evaluation/version registry depends on sleep models; prospective MAE/coverage, default promotion rule and rollback remain."
+    },
+    {
+      "number": 27,
+      "title": "[BabyTracker] Data-quality dashboard and impossible-event/conflict detection",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/27",
+      "githubLabels": [
+        "P4"
+      ],
+      "suggestedMissionPriority": "P1",
+      "status": "IN PROGRESS",
+      "remaining": "Import/Journal duplicate and optimistic revision controls exist; cross-domain impossible/conflicting events and reusable resolution dashboard remain."
+    },
+    {
+      "number": 26,
+      "title": "[BabyTracker] Import daycare/NICU/caregiver shift sheets with reusable mapping templates",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/26",
+      "githubLabels": [
+        "P4"
+      ],
+      "suggestedMissionPriority": "P2",
+      "status": "NOT IMPLEMENTED",
+      "remaining": "Recurring form mapping-template registry/versioning and field-mapping UI not established by generic OCR; keep unsupported forms reviewable."
+    },
+    {
+      "number": 24,
+      "title": "[BabyTracker] Build unified timeline, calendar, day view, and caregiver activity history",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/24",
+      "githubLabels": [
+        "P4"
+      ],
+      "suggestedMissionPriority": "P2",
+      "status": "IN PROGRESS",
+      "remaining": "Timeline/report source exists; qualify combined filters, all event representations, calendar recurrence, long-history performance and mobile/tablet behavior."
+    },
+    {
+      "number": 23,
+      "title": "[BabyTracker] Nursery/night mode, push notifications, reminders, dark mode, and accessibility",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/23",
+      "githubLabels": [
+        "P4"
+      ],
+      "suggestedMissionPriority": "P2",
+      "status": "IN PROGRESS",
+      "remaining": "Night/dark source present; broader one-handed flows, reminders/push per caregiver/device, undo and accessibility acceptance remain."
+    },
+    {
+      "number": 22,
+      "title": "[BabyTracker] Multi-caregiver authentication, roles, family isolation, and handoff",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/22",
+      "githubLabels": [
+        "P3"
+      ],
+      "suggestedMissionPriority": "P1",
+      "status": "IN PROGRESS",
+      "remaining": "Family scope and import boundary covered; prove all mutation actor/audit, caregiver permissions/expiry, handoff summary and shared iPad reauth."
+    },
+    {
+      "number": 21,
+      "title": "[BabyTracker] MASTER - Baby Buddy + Sprout + predictive sleep + document import parity",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/21",
+      "githubLabels": [
+        "P2"
+      ],
+      "suggestedMissionPriority": "P1",
+      "status": "IN PROGRESS",
+      "remaining": "Umbrella stays open. Update stale stock-baseline text and map every required original matrix row; no closure based on child issue closed states."
+    },
+    {
+      "number": 20,
+      "title": "[BabyTracker] Docker deployment, migrations, amd64/arm64 CI and upstream qualification",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/20",
+      "githubLabels": [
+        "P4"
+      ],
+      "suggestedMissionPriority": "P1",
+      "status": "IN PROGRESS",
+      "remaining": "Immutable x86 release and backup/migration/rollback evidence exists; PostgreSQL and arm64 qualification, clean-install and representative-upgrade CI remain distinct gates."
+    },
+    {
+      "number": 19,
+      "title": "[BabyTracker] Reporting, pediatrician-ready summaries, export, backup and restore",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/19",
+      "githubLabels": [
+        "P3"
+      ],
+      "suggestedMissionPriority": "P1",
+      "status": "IN PROGRESS",
+      "remaining": "Reports/PDF/CSV/XLSX/backup source exists; golden totals/date windows, consistent full portable attachment+DB archive and user-facing restore acceptance remain."
+    },
+    {
+      "number": 18,
+      "title": "[BabyTracker] Full REST/OpenAPI API, scoped keys, signed webhooks, MCP and Home Assistant",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/18",
+      "githubLabels": [
+        "P3"
+      ],
+      "suggestedMissionPriority": "P1",
+      "status": "IN PROGRESS",
+      "remaining": "Scoped inbound hooks exist; versioned full OpenAPI, signed outbound callbacks/retry/dedupe, MCP and Home Assistant compatibility still require contracts and tests."
+    },
+    {
+      "number": 17,
+      "title": "[BabyTracker] Generic tags, notes, timers, and flexible activity model",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/17",
+      "githubLabels": [
+        "P3"
+      ],
+      "suggestedMissionPriority": "P1",
+      "status": "IN PROGRESS",
+      "remaining": "Tummy time/notes/activity present; generic tags and independent named timers absent; implement canonical CRUD/conversion/import/report path."
+    },
+    {
+      "number": 16,
+      "title": "[BabyTracker] Foods, allergens, milestones, photos, calendar, and contacts",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/16",
+      "githubLabels": [
+        "P4"
+      ],
+      "suggestedMissionPriority": "P1",
+      "status": "IN PROGRESS",
+      "remaining": "Broad Sprout features present; verify full CRUD, media authorization, imported image refs, recurrence and portable export."
+    },
+    {
+      "number": 15,
+      "title": "[BabyTracker] Health, growth, corrected-age, and vaccine parity",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/15",
+      "githubLabels": [
+        "P3"
+      ],
+      "suggestedMissionPriority": "P1",
+      "status": "IN PROGRESS",
+      "remaining": "Core health/growth present; BMI, corrected-age/due date, missing-dose fidelity and complete export/report/API acceptance remain."
+    },
+    {
+      "number": 14,
+      "title": "[BabyTracker] Sprout Track import and parity adapter",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/14",
+      "githubLabels": [
+        "P4"
+      ],
+      "suggestedMissionPriority": "P1",
+      "status": "NOT IMPLEMENTED",
+      "remaining": "Only Baby Buddy provider found in importer tree; Sprout full portable mappings and ownership/provenance round trips need implementation/qualification."
+    },
+    {
+      "number": 13,
+      "title": "[BabyTracker] Baby Buddy import and compatibility adapter",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/13",
+      "githubLabels": [
+        "P2"
+      ],
+      "suggestedMissionPriority": "P1",
+      "status": "IN PROGRESS",
+      "remaining": "Pin Baby Buddy v2.11.0 and finish golden actual-DB round trips; missing dosage, fortified milk, both breasts, tags, BMI, diaper amount, image references and pump disposition remain."
+    },
+    {
+      "number": 10,
+      "title": "[BabyTracker] PDF import: extract native form fields and digital text",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/10",
+      "githubLabels": [
+        "P4"
+      ],
+      "suggestedMissionPriority": "P1",
+      "status": "IN PROGRESS",
+      "remaining": "Native PDF text exists; native AcroForm fields and normalized sleep/medication/vitals/growth candidates not evidenced by the feeding/diaper gate. Verify distinct tiers."
+    },
+    {
+      "number": 9,
+      "title": "[BabyTracker] Implement dynamic daily sleep-plan recalculation",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/9",
+      "githubLabels": [
+        "P5"
+      ],
+      "suggestedMissionPriority": "P1",
+      "status": "NOT IMPLEMENTED",
+      "remaining": "Dynamic plan recalculation depends on #7/#8; define meaningful-change threshold and prevent notification spam."
+    },
+    {
+      "number": 8,
+      "title": "[BabyTracker] Add nap-duration and predicted-wake model",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/8",
+      "githubLabels": [
+        "P5"
+      ],
+      "suggestedMissionPriority": "P1",
+      "status": "NOT IMPLEMENTED",
+      "remaining": "Nap-duration/wake model requires prospective evaluation against per-child median; no implemented acceptance found."
+    },
+    {
+      "number": 7,
+      "title": "[BabyTracker] Build adaptive next-nap and bedtime prediction engine",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/7",
+      "githubLabels": [
+        "P5"
+      ],
+      "suggestedMissionPriority": "P1",
+      "status": "NOT IMPLEMENTED",
+      "remaining": "Original matrix requires next-nap/bedtime planning; module marked planned. Specify versioned baseline, sparse-data fallback, prospective snapshots and measured evaluation before claiming."
+    },
+    {
+      "number": 6,
+      "title": "[BabyTracker] Implement sleep tracking data and timer parity",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/6",
+      "githubLabels": [
+        "P3"
+      ],
+      "suggestedMissionPriority": "P1",
+      "status": "IN PROGRESS",
+      "remaining": "Sleep source present; qualify ongoing/completed, nap/night, timezone/DST, corrections, source tags and aggregate reports."
+    },
+    {
+      "number": 5,
+      "title": "[BabyTracker] Implement complete diaper tracking parity",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/5",
+      "githubLabels": [
+        "P3"
+      ],
+      "suggestedMissionPriority": "P1",
+      "status": "IN PROGRESS",
+      "remaining": "Diaper source present; add numeric amount and generic tags without overloading condition; verify imports, export and reports."
+    },
+    {
+      "number": 4,
+      "title": "[BabyTracker] Implement pumping and breast-milk inventory",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/4",
+      "githubLabels": [
+        "P4"
+      ],
+      "suggestedMissionPriority": "P1",
+      "status": "IN PROGRESS",
+      "remaining": "Pump/inventory source present; explicitly choose/preserve imported disposition instead of default STORED; verify pump-store-feed-correction and duplicate/unit invariants."
+    },
+    {
+      "number": 3,
+      "title": "[BabyTracker] Implement complete feeding and breastfeeding parity",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/3",
+      "githubLabels": [
+        "P3"
+      ],
+      "suggestedMissionPriority": "P1",
+      "status": "IN PROGRESS",
+      "remaining": "Feeding/nursing source present; preserve both-breast and fortified-milk semantics, full timer/concurrency/round-trip acceptance."
+    },
+    {
+      "number": 2,
+      "title": "[BabyTracker] Mobile-first PWA shell for phone and iPad",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/2",
+      "githubLabels": [
+        "P4"
+      ],
+      "suggestedMissionPriority": "P1",
+      "status": "IN PROGRESS",
+      "remaining": "Responsive/PWA source present; durable offline feed/diaper/sleep queue, crash/restart replay, physical phone/iPad acceptance still required."
+    },
+    {
+      "number": 1,
+      "title": "[BabyTracker] Establish canonical domain model and event schema",
+      "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/1",
+      "githubLabels": [
+        "P1"
+      ],
+      "suggestedMissionPriority": "P1",
+      "status": "IN PROGRESS",
+      "remaining": "Canonical FeedLog/Sprout schema remains authoritative; finish model ADR coverage and corrected-age/provenance contract across all required event types. Do not replace data store."
+    }
+  ],
+  "closedIssuesNeedingReconciliation": [
+    {
+      "number": 38,
+      "reason": "Handwriting parser string tests do not satisfy required representative handwritten-image metrics; keep recognition scope unresolved."
+    },
+    {
+      "number": 37,
+      "reason": "Mobile/tablet physical capture+keyboard acceptance unavailable; split/reopen residual criteria instead of treating intake as fully accepted."
+    },
+    {
+      "number": 29,
+      "reason": "Gate is explicitly source-only; offline, physical devices, full parity, sleep prediction, API/webhook, PostgreSQL etc are not complete."
+    },
+    {
+      "number": 11,
+      "reason": "Review UI and explicit commit implemented; physical source/draft review and representative handwriting broader acceptance unverified."
+    },
+    {
+      "number": 12,
+      "reason": "Recheck actual undo/partial import/concurrency assertions against current code before full closure acceptance; old issue body says still open."
+    },
+    {
+      "number": 25,
+      "reason": "Recent privacy patch + fresh release evidence likely resolves bounded controls; audit current ADR and negative APIs rather than assuming closed equals security complete."
+    }
+  ],
+  "draftPR35": {
+    "head": "45661da817d256d9fcf2814432da6c128c8a4b30",
+    "draft": true,
+    "files": [
+      ".feature-studio/config.json",
+      ".github/ISSUE_TEMPLATE/feature-studio.yml"
+    ],
+    "additions": 84,
+    "remains": "Intake-only bootstrap, no application module/updater. Preserve original; rendered issue form + up-to-date CI/review needed before merge.",
+    "securityReview": "Reviewed-static configuration disables automatic main push and writeback; requires human/spec/CI review; no executable workflow changes."
+  }
+}
