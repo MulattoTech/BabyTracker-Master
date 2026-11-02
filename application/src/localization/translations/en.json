@@ -3148,5 +3148,6 @@
   "This may already be saved online. Discard only the local pending copy?": "This may already be saved online. Discard only the local pending copy?",
   "This pending bottle already has different values. Review pending entries before trying again.": "This pending bottle already has different values. Review pending entries before trying again.",
   "This pending bottle changed in another tab. Refresh the journal before trying again.": "This pending bottle changed in another tab. Refresh the journal before trying again.",
-  "Waiting to sync": "Waiting to sync"
+  "Waiting to sync": "Waiting to sync",
+  "Offline": "Offline"
 }
