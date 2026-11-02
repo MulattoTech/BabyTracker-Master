@@ -3149,5 +3149,6 @@
   "This pending bottle already has different values. Review pending entries before trying again.": "Denne ventende flaskeregistreringen har allerede andre verdier. Se gjennom de ventende oppføringene før du prøver igjen.",
   "This pending bottle changed in another tab. Refresh the journal before trying again.": "Denne ventende flaskeregistreringen ble endret i en annen fane. Oppdater dagboken før du prøver igjen.",
   "Waiting to sync": "Venter på synkronisering",
-  "Offline": "Frakoblet"
+  "Offline": "Frakoblet",
+  "Medication entries without an amount are preserved as notes with an unknown dose": "Legemiddeloppføringer uten mengde bevares som notater med ukjent dose"
 }

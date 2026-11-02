@@ -55,7 +55,7 @@ const warningLabels: Record<string, string> = {
   'pumping-defaults-to-stored':
     'Pumping records are imported as stored milk',
   'medication-dosage-missing':
-    'Medication doses without an amount are imported as 0',
+    'Medication entries without an amount are preserved as notes with an unknown dose',
   'feeding-combination-unsupported':
     'Feeds with an unrecognized method are skipped',
 };

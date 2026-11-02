@@ -3149,5 +3149,6 @@
   "This pending bottle already has different values. Review pending entries before trying again.": "Deze wachtende flesregistratie bevat al andere waarden. Controleer de wachtende registraties voordat u het opnieuw probeert.",
   "This pending bottle changed in another tab. Refresh the journal before trying again.": "Deze wachtende flesregistratie is gewijzigd in een ander tabblad. Vernieuw het dagboek voordat u het opnieuw probeert.",
   "Waiting to sync": "Wachten op synchronisatie",
-  "Offline": "Offline"
+  "Offline": "Offline",
+  "Medication entries without an amount are preserved as notes with an unknown dose": "Medicatiegegevens zonder hoeveelheid worden bewaard als notities met een onbekende dosis"
 }

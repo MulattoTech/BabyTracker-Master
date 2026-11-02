@@ -120,13 +120,13 @@ function recordResult(
   record: ExternalImportRecord,
   targetRecordId: string,
   status: 'created' | 'duplicate',
+  targetEntityType = externalImportTargetEntityType(record),
 ): ExternalImportRecordResult {
   return {
     providerId: record.source.providerId,
     sourceEntityType: record.source.entityType,
     sourceRecordId: record.source.recordId,
-    targetEntityType:
-      externalImportTargetEntityType(record),
+    targetEntityType,
     targetRecordId,
     status,
   };
@@ -572,6 +572,7 @@ async function executeWithinTransaction(
           record,
           duplicate.targetRecordId,
           'duplicate',
+          duplicate.targetEntityType,
         ),
       );
 

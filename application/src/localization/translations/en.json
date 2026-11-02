@@ -3149,5 +3149,6 @@
   "This pending bottle already has different values. Review pending entries before trying again.": "This pending bottle already has different values. Review pending entries before trying again.",
   "This pending bottle changed in another tab. Refresh the journal before trying again.": "This pending bottle changed in another tab. Refresh the journal before trying again.",
   "Waiting to sync": "Waiting to sync",
-  "Offline": "Offline"
+  "Offline": "Offline",
+  "Medication entries without an amount are preserved as notes with an unknown dose": "Medication entries without an amount are preserved as notes with an unknown dose"
 }

@@ -3697,5 +3697,28 @@
       "remainingWork": "Generic OCR review is implemented; reusable versioned mapping templates remain required and are not implied by file upload support."
     }
   ],
-  "checkpoints": []
+  "checkpoints": [
+    {
+      "id": "2026-11-02-reviewed-implementation",
+      "status": "IMPLEMENTATION_AND_SYNTHETIC_ACCEPTANCE",
+      "scope": [
+        "PAR-004",
+        "PAR-034",
+        "PAR-052",
+        "PAR-063",
+        "PAR-065",
+        "OCR-001",
+        "JRN-001"
+      ],
+      "reference": "docs/sat-tracker-source-parity-2026-11-02.md",
+      "implementationReferences": [
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/66",
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/67",
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/68",
+        "application/src/lib/importers/baby-buddy/medication-map.ts"
+      ],
+      "evidenceScope": "Independent source reviews and a combined normal build plus27 disposable browser checks passed. Exact final CI and runtime release receipts are required for promotion; no physical device or representative handwriting claim.",
+      "remainingWork": "Retain every broad parent contract and its missing runtime/device/corpus evidence; this checkpoint does not change accepted contract counts."
+    }
+  ]
 }

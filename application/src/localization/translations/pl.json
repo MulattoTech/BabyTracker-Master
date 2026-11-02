@@ -3153,5 +3153,6 @@
   "This pending bottle already has different values. Review pending entries before trying again.": "Ten oczekujący wpis dotyczący butelki ma już inne wartości. Sprawdź oczekujące wpisy przed ponowną próbą.",
   "This pending bottle changed in another tab. Refresh the journal before trying again.": "Ten oczekujący wpis dotyczący butelki zmienił się w innej karcie. Odśwież dziennik przed ponowną próbą.",
   "Waiting to sync": "Oczekiwanie na synchronizację",
-  "Offline": "Offline"
+  "Offline": "Offline",
+  "Medication entries without an amount are preserved as notes with an unknown dose": "Wpisy leków bez podanej ilości są zachowywane jako notatki z nieznaną dawką"
 }

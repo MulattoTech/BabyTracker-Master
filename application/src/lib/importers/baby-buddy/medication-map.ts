@@ -1,4 +1,4 @@
-import { ExternalImportMedicineRecord } from '@/src/types/external-import';
+import { ExternalImportMedicineRecord, ExternalImportNoteRecord } from '@/src/types/external-import';
 import { BabyBuddyCsvRow } from './parse';
 import { parseBabyBuddyNumber } from './numbers';
 
@@ -53,6 +53,7 @@ export function mapBabyBuddyMedication(
 ): ExternalImportMedicineRecord {
   const sourceChildId = required(row, 'child_id');
   const dosage = row.dosage?.trim();
+  if (!dosage) throw new Error('Medication dose is missing. Preserve this source event as an unresolved note.');
   const unitAbbr =
     dosageUnits[row.dosage_unit?.trim().toLowerCase() ?? ''];
   const doseMinTime = babyBuddyIntervalToDoseMinTime(
@@ -70,11 +71,33 @@ export function mapBabyBuddyMedication(
     sourceChildId,
     time: toUtcInput(required(row, 'time')),
     medicineName: required(row, 'name'),
-    doseAmount: dosage
-      ? parseBabyBuddyNumber(dosage, 'dosage')
-      : 0,
+    doseAmount: parseBabyBuddyNumber(dosage, 'dosage'),
     ...(unitAbbr && { unitAbbr }),
     ...(doseMinTime && { doseMinTime }),
     notes: row.notes?.trim() || undefined,
+  };
+}
+
+/** The canonical medicine log requires a numeric dose. An absent amount is not
+ * zero: retain the source event as a clearly labelled note with its original
+ * medication provenance until the source can be reconciled. */
+export function mapBabyBuddyMedicationEntry(
+  row: BabyBuddyCsvRow,
+): ExternalImportMedicineRecord | ExternalImportNoteRecord {
+  if (row.dosage?.trim()) return mapBabyBuddyMedication(row);
+  const sourceChildId = required(row, 'child_id');
+  const content = [
+    `Medication: ${required(row, 'name')}`,
+    'Dose amount: not recorded in the source. No numeric medicine dose was imported.',
+    ...(row.dosage_unit?.trim() ? [`Source dose unit: ${row.dosage_unit.trim()}`] : []),
+    ...(row.next_dose_interval?.trim() ? [`Source next-dose interval: ${row.next_dose_interval.trim()}`] : []),
+    ...(row.notes?.trim() ? [`Source notes: ${row.notes.trim()}`] : []),
+  ].join('\n');
+  return {
+    targetType: 'note',
+    source: { providerId: 'baby-buddy', entityType: 'medication', recordId: required(row, 'id'), childId: sourceChildId },
+    sourceChildId,
+    time: toUtcInput(required(row, 'time')),
+    content,
   };
 }

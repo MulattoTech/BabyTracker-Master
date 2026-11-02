@@ -3149,5 +3149,6 @@
   "This pending bottle already has different values. Review pending entries before trying again.": "Questo biberon in attesa contiene già valori diversi. Controlla le voci in attesa prima di riprovare.",
   "This pending bottle changed in another tab. Refresh the journal before trying again.": "Questo biberon in attesa è stato modificato in un’altra scheda. Aggiorna il diario prima di riprovare.",
   "Waiting to sync": "In attesa di sincronizzazione",
-  "Offline": "Offline"
+  "Offline": "Offline",
+  "Medication entries without an amount are preserved as notes with an unknown dose": "Le voci dei farmaci senza quantità vengono conservate come note con dose sconosciuta"
 }
