@@ -283,5 +283,19 @@
   "unchecked rows were excluded from this finalized document": "unchecked rows were excluded from this finalized document",
   "unchecked rows will be excluded and locked": "unchecked rows will be excluded and locked",
   "with next event": "with next event",
-  "with previous event": "with previous event"
+  "with previous event": "with previous event",
+  "Volume offered (same unit)": "Volume offered (same unit)",
+  "Formula concentration (kcal/oz)": "Formula concentration (kcal/oz)",
+  "Formula name": "Formula name",
+  "Bottle identifier": "Bottle identifier",
+  "Source caregiver name": "Source caregiver name",
+  "Feeding amount is consumed volume. Leave unrecorded details blank. Source caregiver is a label, not an account assignment.": "Feeding amount is consumed volume. Leave unrecorded details blank. Source caregiver is a label, not an account assignment.",
+  "Invalid optional bottle metadata.": "Invalid optional bottle metadata.",
+  "Invalid optional bottle quantity or concentration.": "Invalid optional bottle quantity or concentration.",
+  "Offered volume requires the same explicit unit as consumed volume.": "Offered volume requires the same explicit unit as consumed volume.",
+  "Consumed volume cannot exceed offered volume.": "Consumed volume cannot exceed offered volume.",
+  "Confirm the consumed volume; offered or remaining volume is not consumption.": "Confirm the consumed volume; offered or remaining volume is not consumption.",
+  "Multiple offered volumes need correction.": "Multiple offered volumes need correction.",
+  "An unlabelled quantity was not assigned to offered or consumed volume.": "An unlabelled quantity was not assigned to offered or consumed volume.",
+  "A rejected event cannot also be approved.": "A rejected event cannot also be approved."
 }

@@ -3108,5 +3108,18 @@
   "Your Personal Profile": "Seu perfil pessoal",
   "Zero “did anyone change him?” texts sent today.": "Zero mensagens de “alguém trocou ele?” enviadas hoje.",
   "Use current time until saved": "",
-  "If a matching bottle is found": ""
+  "If a matching bottle is found": "",
+  "Volume offered (same unit)": "",
+  "Formula concentration (kcal/oz)": "",
+  "Formula name": "",
+  "Bottle identifier": "",
+  "Source caregiver name": "",
+  "Feeding amount is consumed volume. Leave unrecorded details blank. Source caregiver is a label, not an account assignment.": "",
+  "Invalid optional bottle metadata.": "",
+  "Invalid optional bottle quantity or concentration.": "",
+  "Offered volume requires the same explicit unit as consumed volume.": "",
+  "Confirm the consumed volume; offered or remaining volume is not consumption.": "",
+  "Multiple offered volumes need correction.": "",
+  "An unlabelled quantity was not assigned to offered or consumed volume.": "",
+  "A rejected event cannot also be approved.": ""
 }

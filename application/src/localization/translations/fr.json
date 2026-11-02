@@ -589,7 +589,7 @@
   "Consistency Score": "Score de Régularité",
   "Consumed": "Consommé",
   "Consumed (mL)": "",
-  "Consumed volume cannot exceed offered volume.": "",
+  "Consumed volume cannot exceed offered volume.": "Le volume consommé ne peut pas dépasser le volume proposé.",
   "Contact": "Contact",
   "Contact Details": "Détails du Contact",
   "Contact email for push notification service identification (mailto: format)": "Adresse e-mail de contact pour l'identification du service de notifications push (format mailto:)",
@@ -3108,5 +3108,18 @@
   "Your Personal Profile": "Votre profil personnel",
   "Zero “did anyone change him?” texts sent today.": "Zéro texto « quelqu'un l'a changé ? » envoyé aujourd'hui.",
   "Use current time until saved": "",
-  "If a matching bottle is found": ""
+  "If a matching bottle is found": "",
+  "Volume offered (same unit)": "Volume proposé (même unité)",
+  "Formula concentration (kcal/oz)": "Concentration du lait infantile (kcal/oz)",
+  "Formula name": "Nom du lait infantile",
+  "Bottle identifier": "Identifiant du biberon",
+  "Source caregiver name": "Nom de la personne sur le document",
+  "Feeding amount is consumed volume. Leave unrecorded details blank. Source caregiver is a label, not an account assignment.": "La quantité correspond au volume consommé. Laissez les détails non consignés vides. Le nom sur le document est une étiquette, pas une attribution de compte.",
+  "Invalid optional bottle metadata.": "Métadonnées facultatives du biberon non valides.",
+  "Invalid optional bottle quantity or concentration.": "Quantité ou concentration facultative du biberon non valide.",
+  "Offered volume requires the same explicit unit as consumed volume.": "Le volume proposé doit utiliser la même unité explicite que le volume consommé.",
+  "Confirm the consumed volume; offered or remaining volume is not consumption.": "Confirmez le volume consommé ; le volume proposé ou restant ne correspond pas à la consommation.",
+  "Multiple offered volumes need correction.": "Les différents volumes proposés doivent être corrigés.",
+  "An unlabelled quantity was not assigned to offered or consumed volume.": "Une quantité sans étiquette n’a été attribuée ni au volume proposé ni au volume consommé.",
+  "A rejected event cannot also be approved.": "Un événement rejeté ne peut pas aussi être approuvé."
 }

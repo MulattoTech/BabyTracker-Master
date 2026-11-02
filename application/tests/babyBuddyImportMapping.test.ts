@@ -773,3 +773,22 @@ describe('Baby Buddy medication mapping', () => {
 });
 
 }
+
+describe('Baby Buddy tummy-time source fidelity', () => {
+  const source = { id: '8', child_id: '7', start: '2026-01-01 10:00:00', end: '2026-01-01 10:05:00' };
+
+  it('retains separate milestone and notes without dropping either field', () => {
+    const result = mapBabyBuddyTummyTime({ ...source, milestone: ' Lifted head ', notes: ' With caregiver support ' });
+    expect(result.notes).toBe('Milestone: Lifted head\nNotes: With caregiver support');
+    expect(result.source.recordId).toBe('8');
+    expect(result.duration).toBe(5);
+  });
+
+  it.each([
+    ['Lifted head', '', 'Lifted head'],
+    ['', 'With caregiver support', 'With caregiver support'],
+    [' ', ' ', undefined],
+  ])('preserves a single populated field and leaves missing values absent', (milestone, notes, expected) => {
+    expect(mapBabyBuddyTummyTime({ ...source, milestone, notes }).notes).toBe(expected);
+  });
+});

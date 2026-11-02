@@ -589,7 +589,7 @@
   "Consistency Score": "Regelmäßigkeitswert",
   "Consumed": "Verbraucht",
   "Consumed (mL)": "",
-  "Consumed volume cannot exceed offered volume.": "",
+  "Consumed volume cannot exceed offered volume.": "Die getrunkene Menge darf die angebotene Menge nicht überschreiten.",
   "Contact": "Kontakt",
   "Contact Details": "Kontaktdetails",
   "Contact email for push notification service identification (mailto: format)": "Kontakt-E-Mail zur Identifikation des Push-Benachrichtigungsdienstes (mailto:-Format)",
@@ -3108,5 +3108,18 @@
   "Your Personal Profile": "Ihr persönliches Profil",
   "Zero “did anyone change him?” texts sent today.": "Null „Hat ihn schon jemand gewickelt?“-Nachrichten heute.",
   "Use current time until saved": "",
-  "If a matching bottle is found": ""
+  "If a matching bottle is found": "",
+  "Volume offered (same unit)": "Angebotene Menge (gleiche Einheit)",
+  "Formula concentration (kcal/oz)": "Konzentration der Säuglingsnahrung (kcal/oz)",
+  "Formula name": "Name der Säuglingsnahrung",
+  "Bottle identifier": "Flaschenkennung",
+  "Source caregiver name": "Name der Betreuungsperson im Dokument",
+  "Feeding amount is consumed volume. Leave unrecorded details blank. Source caregiver is a label, not an account assignment.": "Die Fütterungsmenge ist die getrunkene Menge. Nicht dokumentierte Angaben bleiben leer. Der Name im Dokument ist eine Beschriftung und keine Kontozuweisung.",
+  "Invalid optional bottle metadata.": "Ungültige optionale Flaschenangaben.",
+  "Invalid optional bottle quantity or concentration.": "Ungültige optionale Flaschenmenge oder Konzentration.",
+  "Offered volume requires the same explicit unit as consumed volume.": "Angebotene und getrunkene Menge müssen dieselbe ausdrücklich angegebene Einheit verwenden.",
+  "Confirm the consumed volume; offered or remaining volume is not consumption.": "Bestätigen Sie die getrunkene Menge; die angebotene oder verbleibende Menge ist nicht die getrunkene Menge.",
+  "Multiple offered volumes need correction.": "Mehrere angebotene Mengen müssen korrigiert werden.",
+  "An unlabelled quantity was not assigned to offered or consumed volume.": "Eine unbeschriftete Menge wurde weder der angebotenen noch der getrunkenen Menge zugeordnet.",
+  "A rejected event cannot also be approved.": "Ein abgelehnter Eintrag kann nicht zugleich genehmigt sein."
 }

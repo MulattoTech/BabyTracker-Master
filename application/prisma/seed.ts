@@ -125,7 +125,7 @@ async function main() {
 
 /**
  * Updates units in the database by checking which units exist and only adding the ones that don't exist yet.
- * Also updates existing units with activity types if they don't have them set.
+ * Updates existing activity types only when the supplied mapping differs.
  * @param unitData Array of unit data objects with unitAbbr, unitName, and activityTypes
  */
 async function updateUnits(unitData: UnitData[]): Promise<void> {
@@ -159,11 +159,12 @@ async function updateUnits(unitData: UnitData[]): Promise<void> {
     console.log('All units already exist in the database.');
   }
   
-  // Update activity types for all existing units
+  // Keep matching rows untouched: even a no-op Prisma update changes updatedAt.
+  // Retain the existing behavior for missing or changed standard-unit mappings.
   const unitsToUpdate = [];
   for (const unit of unitData) {
     const existingUnit = existingUnitsMap.get(unit.unitAbbr);
-    if (existingUnit) {
+    if (existingUnit && unit.activityTypes !== undefined && existingUnit.activityTypes !== unit.activityTypes) {
       unitsToUpdate.push({
         id: existingUnit.id,
         unitAbbr: unit.unitAbbr,

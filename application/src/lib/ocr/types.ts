@@ -3,7 +3,8 @@ export type OcrEventType = 'feed' | 'diaper' | 'sleep' | 'unknown';
 export type OcrFieldOrigin = 'source' | 'context' | 'missing' | 'ambiguous' | 'corrected';
 export type OcrEditableField =
   | 'eventType' | 'localDate' | 'localTime' | 'endLocalDate' | 'endLocalTime'
-  | 'feedType' | 'bottleType' | 'amount' | 'unit' | 'diaperType' | 'sleepType' | 'notes';
+  | 'feedType' | 'bottleType' | 'amount' | 'unit' | 'diaperType' | 'sleepType' | 'notes'
+  | 'offeredAmount' | 'formulaKcalOz' | 'formulaName' | 'bottleLabel' | 'sourceCaregiverName';
 
 export interface OcrCrop {
   readonly left: number;
@@ -38,6 +39,13 @@ export interface OcrCandidate {
   readonly bottleType: 'Formula' | 'Breast Milk' | 'Other' | null;
   readonly amount: number | null;
   readonly unit: 'ML' | 'OZ' | null;
+  /** Optional for backward-compatible review/retry of pre-journal drafts. Offered uses unit above. */
+  readonly offeredAmount?: number | null;
+  readonly formulaKcalOz?: number | null;
+  readonly formulaName?: string | null;
+  readonly bottleLabel?: string | null;
+  /** Source label only; never used to grant access or select the authenticated caretaker. */
+  readonly sourceCaregiverName?: string | null;
   readonly diaperType: 'WET' | 'DIRTY' | 'BOTH' | 'DRY' | null;
   readonly sleepType: 'NAP' | 'NIGHT_SLEEP' | null;
   readonly notes: string;

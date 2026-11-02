@@ -4,6 +4,7 @@ import { jsPDF } from 'jspdf';
 import {
   acquireOcrSlot, identifyOcrUpload, readTesseractTsv, recognizeOcrDocument,
   parseOcrCrop, validateOcrCrop, applyImageTransform, OCR_LIMITS,
+  usableNativePdfText, pdfPageHasRasterContent,
 } from '@/src/lib/ocr/intake';
 import { parseOcrPages } from '@/src/lib/ocr/parser';
 import { openOcrState, sealOcrState } from '@/src/lib/ocr/crypto';
@@ -192,4 +193,81 @@ describe('bounded local OCR intake', () => {
     expect(openOcrState(sealed, 'family-a:doc-a')).toEqual({ raw: 'Synthetic confidential text' });
     expect(() => openOcrState(sealed, 'family-b:doc-a')).toThrow();
   });
+});
+
+
+describe('native PDF extraction and real synthetic OCR qualification', () => {
+  it('rejects broken native text and conservatively identifies raster pages', () => {
+    expect(usableNativePdfText('2026-10-20\n08:15 bottle formula 90 mL')).toBe(true);
+    expect(usableNativePdfText(' \n\f')).toBe(false);
+    expect(usableNativePdfText('bottle \ufffd90 mL')).toBe(false);
+    expect(usableNativePdfText('bottle \u0000 90 mL')).toBe(false);
+    const header = 'page   num  type   width height color comp bpc  enc interp object ID x-ppi y-ppi size ratio\n--------------------------------------------------------------------------------';
+    expect(pdfPageHasRasterContent(header)).toBe(false);
+    expect(pdfPageHasRasterContent(header + '\n   2     0 image    1800   900 rgb     3   8 image  no      5  0   200   200 200K 3%')).toBe(true);
+    expect(pdfPageHasRasterContent('unrecognized output')).toBe(true);
+  });
+
+  it.skipIf(process.platform !== 'linux')('uses native text without assigning invented confidence and preserves a selected page number', async () => {
+    const pdf = new jsPDF();
+    pdf.text('Unselected first page', 20, 30);
+    pdf.addPage();
+    pdf.text('Unselected second page', 20, 30);
+    pdf.addPage();
+    pdf.setFontSize(20);
+    pdf.text(['2026-10-20', '08:15 bottle formula 90 mL', '14:00 bottle breast milk 3 oz'], 20, 30);
+    const pages = await recognizeOcrDocument(Buffer.from(pdf.output('arraybuffer')), { selectedPage: 3 });
+    expect(pages).toHaveLength(1);
+    expect(pages[0].page).toBe(3);
+    expect(pages[0].engine).toBe('poppler pdftotext; native PDF text');
+    expect(pages[0].confidence).toBeNull();
+    const feeds = parseOcrPages(pages, { timeFormat: '24h' }).filter(row => row.eventType === 'feed');
+    expect(feeds.map(row => [row.localDate, row.localTime, row.amount, row.unit, row.bottleType])).toEqual([
+      ['2026-10-20', '08:15', 90, 'ML', 'Formula'],
+      ['2026-10-20', '14:00', 3, 'OZ', 'Breast Milk'],
+    ]);
+    expect(feeds.every(row => !row.approved && row.source.page === 3)).toBe(true);
+    console.info('synthetic-native-pdf: 10/10 feeding fields match; approval remains required');
+  }, 60_000);
+
+  it.skipIf(process.platform !== 'linux')('falls back per page for scanned PDFs and mixed selectable-header/image pages', async () => {
+    const image = await syntheticCareImage();
+    const pdf = new jsPDF();
+    pdf.setFontSize(20);
+    pdf.text(['2026-10-20', '08:15 bottle formula 90 mL'], 20, 30);
+    pdf.addPage();
+    pdf.addImage(new Uint8Array(image), 'PNG', 10, 30, 190, 95);
+    pdf.addPage();
+    pdf.text('2026-10-20 care log', 20, 20);
+    pdf.addImage(new Uint8Array(image), 'PNG', 10, 40, 190, 95);
+    const pages = await recognizeOcrDocument(Buffer.from(pdf.output('arraybuffer')));
+    expect(pages.map(page => page.page)).toEqual([1, 2, 3]);
+    expect(pages[0].engine).toContain('native PDF text');
+    for (const page of pages.slice(1)) {
+      expect(page.engine).toContain('tesseract');
+      const feeds = parseOcrPages([page], { timeFormat: '24h' }).filter(row => row.eventType === 'feed');
+      expect(feeds.map(row => [row.localTime, row.amount, row.unit, row.bottleType])).toEqual([
+        ['08:15', 90, 'ML', 'Formula'], ['14:00', 3, 'OZ', 'Breast Milk'],
+      ]);
+      expect(feeds.every(row => !row.approved)).toBe(true);
+    }
+    console.info('synthetic-scanned-and-mixed-pdf: 16/16 feeding fields match; all pages locally processed');
+  }, 90_000);
+
+  it.skipIf(process.platform !== 'linux')('recognizes a low-contrast JPEG and corrected rotated image without inventing fields', async () => {
+    const image = await syntheticCareImage();
+    const fixtures = [
+      { name: 'low-contrast-jpeg', bytes: await sharp(image).linear(0.15, 190).jpeg({ quality: 90 }).toBuffer(), rotation: 0 },
+      { name: 'rotated-png', bytes: await sharp(image).rotate(90).png().toBuffer(), rotation: 270 },
+    ];
+    for (const fixture of fixtures) {
+      const pages = await recognizeOcrDocument(fixture.bytes, fixture.rotation);
+      const feeds = parseOcrPages(pages, { timeFormat: '24h' }).filter(row => row.eventType === 'feed');
+      expect(feeds.map(row => [row.localTime, row.amount, row.unit])).toEqual([
+        ['08:15', 90, 'ML'], ['14:00', 3, 'OZ'],
+      ]);
+      expect(feeds.every(row => !row.approved)).toBe(true);
+      console.info(`synthetic-${fixture.name}: 6/6 time/volume/unit fields match`);
+    }
+  }, 90_000);
 });

@@ -589,7 +589,7 @@
   "Consistency Score": "निरंतरता स्कोर",
   "Consumed": "सेवन किया गया",
   "Consumed (mL)": "पिया गया (mL)",
-  "Consumed volume cannot exceed offered volume.": "पिए गए दूध की मात्रा दी गई मात्रा से अधिक नहीं हो सकती।",
+  "Consumed volume cannot exceed offered volume.": "पी गई मात्रा दी गई मात्रा से अधिक नहीं हो सकती।",
   "Contact": "संपर्क",
   "Contact Details": "संपर्क विवरण",
   "Contact email for push notification service identification (mailto: format)": "पुश सूचना सेवा की पहचान के लिए संपर्क ईमेल (mailto: प्रारूप)",
@@ -3108,5 +3108,18 @@
   "Your Personal Profile": "आपकी निजी प्रोफ़ाइल",
   "Zero “did anyone change him?” texts sent today.": "आज “क्या किसी ने उसका डायपर बदला?” वाला एक भी मैसेज नहीं भेजा गया।",
   "Use current time until saved": "सहेजे जाने तक वर्तमान समय का उपयोग करें",
-  "If a matching bottle is found": "अगर मेल खाती बोतल मिलती है"
+  "If a matching bottle is found": "अगर मेल खाती बोतल मिलती है",
+  "Volume offered (same unit)": "दी गई मात्रा (उसी इकाई में)",
+  "Formula concentration (kcal/oz)": "फ़ॉर्मूला की सांद्रता (kcal/oz)",
+  "Formula name": "फ़ॉर्मूला का नाम",
+  "Bottle identifier": "बोतल की पहचान",
+  "Source caregiver name": "स्रोत में दर्ज देखभालकर्ता का नाम",
+  "Feeding amount is consumed volume. Leave unrecorded details blank. Source caregiver is a label, not an account assignment.": "खिलाने की मात्रा का अर्थ पी गई मात्रा है। जो विवरण दर्ज नहीं हैं उन्हें खाली छोड़ें। स्रोत में दर्ज देखभालकर्ता केवल एक नाम है, किसी खाते का चयन नहीं।",
+  "Invalid optional bottle metadata.": "बोतल का वैकल्पिक विवरण अमान्य है।",
+  "Invalid optional bottle quantity or concentration.": "बोतल की वैकल्पिक मात्रा या सांद्रता अमान्य है।",
+  "Offered volume requires the same explicit unit as consumed volume.": "दी गई और पी गई मात्रा के लिए एक ही इकाई स्पष्ट रूप से चुनें।",
+  "Confirm the consumed volume; offered or remaining volume is not consumption.": "पी गई मात्रा की पुष्टि करें; दी गई या बची हुई मात्रा, पी गई मात्रा नहीं है।",
+  "Multiple offered volumes need correction.": "दी गई एक से अधिक मात्राओं को सुधारना आवश्यक है।",
+  "An unlabelled quantity was not assigned to offered or consumed volume.": "बिना लेबल वाली मात्रा को दी गई या पी गई मात्रा नहीं माना गया।",
+  "A rejected event cannot also be approved.": "अस्वीकृत घटना को स्वीकृत भी नहीं किया जा सकता।"
 }

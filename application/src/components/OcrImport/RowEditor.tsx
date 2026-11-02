@@ -33,6 +33,8 @@ const fieldLabels: Record<OcrEditableField, string> = {
   eventType: 'Event type', localDate: 'Event date', localTime: 'Event time', endLocalDate: 'Sleep end date',
   endLocalTime: 'Sleep end time', feedType: 'Feeding method', bottleType: 'Milk designation', amount: 'Feeding amount',
   unit: 'Amount unit', diaperType: 'Diaper type', sleepType: 'Sleep type', notes: 'Notes',
+  offeredAmount: 'Volume offered (same unit)', formulaKcalOz: 'Formula concentration (kcal/oz)',
+  formulaName: 'Formula name', bottleLabel: 'Bottle identifier', sourceCaregiverName: 'Source caregiver name',
 };
 const originLabels: Record<OcrFieldOrigin, string> = {
   source: 'Recognized from source', context: 'Date or sheet context', missing: 'Not recorded',
@@ -103,6 +105,11 @@ export default function RowEditor({
           <ChoiceField label="Amount unit" value={row.unit ?? ''} onChange={value => change('unit', value as OcrCandidate['unit'] || null)} choices={[
             ['', 'Choose unit'], ['ML', 'mL'], ['OZ', 'US fluid ounces'],
           ]} />
+          <TextField label="Volume offered (same unit)" type="number" min={0} step="any" value={row.offeredAmount == null ? '' : String(row.offeredAmount)} onChange={value => change('offeredAmount', value === '' ? null : Number(value))} />
+          <TextField label="Formula concentration (kcal/oz)" type="number" min={0} step="any" value={row.formulaKcalOz == null ? '' : String(row.formulaKcalOz)} onChange={value => change('formulaKcalOz', value === '' ? null : Number(value))} />
+          <TextField label="Formula name" value={row.formulaName ?? ''} onChange={value => change('formulaName', value || null)} />
+          <TextField label="Bottle identifier" value={row.bottleLabel ?? ''} onChange={value => change('bottleLabel', value || null)} />
+          <TextField label="Source caregiver name" value={row.sourceCaregiverName ?? ''} onChange={value => change('sourceCaregiverName', value || null)} />
         </>}
         {row.eventType === 'diaper' && <ChoiceField label="Diaper type" value={row.diaperType ?? ''} onChange={value => change('diaperType', value as OcrCandidate['diaperType'] || null)} choices={[
           ['', 'Choose diaper type'], ['WET', 'Wet'], ['DIRTY', 'Dirty'], ['BOTH', 'Wet and dirty'], ['DRY', 'Dry'],
@@ -116,6 +123,7 @@ export default function RowEditor({
           <TimeChoice date={row.endLocalDate} time={row.endLocalTime} timeZone={timeZone} value={offsets?.end} onChange={value => onOffset('end', value)} end />
         </>}
       </div>
+      {row.eventType === 'feed' && <p className="ocr-hint">{t('Feeding amount is consumed volume. Leave unrecorded details blank. Source caregiver is a label, not an account assignment.')}</p>}
       {row.eventType === 'feed' && row.amount !== null && Number.isFinite(row.amount) && row.amount > 0 && row.unit && <p className="ocr-hint">{t('Equivalent volume')}: {normalizeAmountMl(row.amount, row.unit)} mL · {t('The entered unit is preserved.')}</p>}
       <Field label="Notes and stool characteristics">{id => <Textarea id={id} value={row.notes} maxLength={2000} rows={2} onChange={event => change('notes', event.target.value)} />}</Field>
       {!isRejected && issues.errors.length > 0 && <ul className="ocr-row-errors" aria-label={t('Fields to resolve')}>{issues.errors.map(message => <li key={message}>{t(message)}</li>)}</ul>}
