@@ -66,7 +66,7 @@ export default function BottleForm({ timeZone, saving, initial, onSave, onCancel
         <label>{t('Bottle label (optional)')}<input value={label} maxLength={80} onChange={e => setLabel(e.target.value)} disabled={saving} /></label>
         <label>{t('Exact time with UTC offset (optional)')}<input value={exactTime} maxLength={40} placeholder="2026-11-01T01:30:00-06:00" onChange={e => { setExactTime(e.target.value); setFollowNow(false); setRetryTime(null); }} disabled={saving} /></label>
       </div>
-      <label>{t('Notes')}<textarea value={notes} maxLength={2000} onChange={e => setNotes(e.target.value)} disabled={saving} /></label>
+      <label>{t('Notes')}<textarea aria-label={t('Notes')} value={notes} maxLength={2000} onChange={e => setNotes(e.target.value)} disabled={saving} /></label>
     </details>
     <div className="journal-actions"><button className="journal-primary" disabled={saving} type="submit">{t(saving ? 'Saving…' : initial ? 'Save changes' : 'Save bottle')}</button>
       {initial && <button type="button" disabled={saving} onClick={onCancel}>{t('Cancel')}</button>}</div>

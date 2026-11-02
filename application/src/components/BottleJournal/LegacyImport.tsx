@@ -62,7 +62,7 @@ export default function LegacyImport({ babyId, timeZone, request, onImported }: 
             <label>{t('Concentration (kcal/oz, optional)')}<input type="number" inputMode="decimal" step="any" value={row.formulaKcalOz ?? ''} disabled={busy || row.imported} onChange={e => edit(index, { formulaKcalOz: e.target.value === '' ? null : Number(e.target.value) })} /></label>
             <label>{t('Milk type')}<select value={row.bottleType} disabled={busy || row.imported} onChange={e => edit(index, { bottleType: e.target.value })}><option value="Formula">{t('Formula')}</option><option value="Breast Milk">{t('Breast Milk')}</option><option value="Other">{t('Other')}</option></select></label>
           </div>
-          <label>{t('Notes')}<textarea value={row.notes || ''} disabled={busy || row.imported} onChange={e => edit(index, { notes: e.target.value || null })} maxLength={2000} /></label>
+          <label>{t('Notes')}<textarea aria-label={t('Notes')} value={row.notes || ''} disabled={busy || row.imported} onChange={e => edit(index, { notes: e.target.value || null })} maxLength={2000} /></label>
           {row.sourceCaregiverName && <p>{t('Recorded by')}: {row.sourceCaregiverName}</p>}
           {row.issue && <p className="journal-warning">{t(row.issue)}</p>}
           {!row.imported && <label className={row.possible ? 'journal-warning' : ''}>{t(row.possible ? 'Possible duplicate' : 'If a matching bottle is found')}<select disabled={busy} value={row.duplicateDecision || ''} onChange={e => edit(index, { duplicateDecision: e.target.value })}><option value="">{t('Choose a decision')}</option><option value="skip">{t('Skip matching bottle')}</option><option value="keep">{t('Keep both bottles')}</option></select></label>}
