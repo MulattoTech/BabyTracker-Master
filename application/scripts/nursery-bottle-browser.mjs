@@ -113,6 +113,7 @@ export async function verifyNurseryBottle({ base, db, family, caretaker, token, 
     });
     assert.equal((await db.feedLog.findUniqueOrThrow({ where: { id: measuredId } })).caretakerId, caretaker.id);
     await dialog().getByText('Bottle saved.', { exact: true }).waitFor();
+    await form().waitFor({ state: 'detached' });
     assert.equal(await form().count(), 0, 'Confirmed result replaces the entry form');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true);
     assert.equal(directFeedPosts, 0);
