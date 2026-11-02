@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 const csv = [
   'id,child_id,start,end,amount,notes',
   'browser-pump-total,7,2026-10-20 08:00:10,2026-10-20 08:20:20,100,Original synthetic pumping note',
-  'browser-pump-zero,7,2026-10-20 09:00:10,2026-10-20 09:20:20,0,Stored in freezer is only a source note',
+  'browser-pump-zero,7,2026-03-08 01:55:10,2026-03-08 03:05:20,0,Stored in freezer is only a source note',
 ].join('\n');
 const warning = 'Baby Buddy does not record what happened to pumped milk. Imported sessions need review and do not add to stored milk. Open a pumping session to choose Stored, Fed or Discarded when known.';
 const hint = 'This pumping session needs review. It adds no milk to your stock and creates no feeding entry. Choose Stored, Fed or Discarded only when you know what happened.';
@@ -67,9 +67,9 @@ export async function verifyPumpingImport({ base, db, family, baby, caretaker, t
     assert.equal(imported.success, true); assert.equal(imported.data.created, 2); assert.equal(imported.data.duplicates, 0);
     await dialog.getByRole('heading', { name: 'Import completed', exact: true }).waitFor();
     const pumps = [];
-    for (const [sourceRecordId, amount, hour, notes] of [
-      ['browser-pump-total', 100, '13', 'Original synthetic pumping note'],
-      ['browser-pump-zero', 0, '14', 'Stored in freezer is only a source note'],
+    for (const [sourceRecordId, amount, start, end, duration, notes] of [
+      ['browser-pump-total', 100, '2026-10-20T13:00:10.000Z', '2026-10-20T13:20:20.000Z', 20, 'Original synthetic pumping note'],
+      ['browser-pump-zero', 0, '2026-03-08T07:55:10.000Z', '2026-03-08T08:05:20.000Z', 10, 'Stored in freezer is only a source note'],
     ]) {
       const provenance = await db.externalImportRecord.findFirstOrThrow({ where: { familyId: family.id, sourceRecordId } });
       assert.equal(provenance.providerId, 'baby-buddy'); assert.equal(provenance.sourceEntityType, 'pumping');
@@ -77,17 +77,18 @@ export async function verifyPumpingImport({ base, db, family, baby, caretaker, t
       const pump = await db.pumpLog.findUniqueOrThrow({ where: { id: provenance.targetRecordId } });
       assert.equal(pump.pumpAction, 'UNKNOWN'); assert.equal(pump.totalAmount, amount); assert.equal(pump.unitAbbr, 'ML');
       assert.equal(pump.leftAmount, null); assert.equal(pump.rightAmount, null); assert.equal(pump.notes, notes);
-      assert.equal(pump.startTime.toISOString(), `2026-10-20T${hour}:00:10.000Z`);
-      assert.equal(pump.endTime.toISOString(), `2026-10-20T${hour}:20:20.000Z`); assert.equal(pump.duration, 20);
+      assert.equal(pump.startTime.toISOString(), start);
+      assert.equal(pump.endTime.toISOString(), end); assert.equal(pump.duration, duration);
       const response = await request(`/api/pump-log?id=${pump.id}`);
       assert.equal(response.status, 200);
       const canonical = (await response.json()).data;
       assert.equal(canonical.pumpAction, 'UNKNOWN'); assert.equal(canonical.notes, notes); assert.equal(canonical.totalAmount, amount);
+      assert.equal(canonical.startTime, start); assert.equal(canonical.endTime, end); assert.equal(canonical.duration, duration);
       pumps.push(pump);
     }
     const after = { pumps: before.pumps + 2, feeds: before.feeds, imports: before.imports + 2 };
     assert.deepEqual(await counts(db), after); assert.equal(await stock(), stockBefore);
-    checks.push('Confirmed pumping imports preserve totals including zero, source endpoints, absent sides, notes and provenance while adding no stock or feed');
+    checks.push('Confirmed pumping imports preserve totals including zero, exact endpoints and DST elapsed minutes, absent sides, notes and provenance while adding no stock or feed');
 
     const openPump = async () => {
       await page.goto(`${base}/${family.slug}/full-log`, { waitUntil: 'networkidle' });

@@ -32,10 +32,10 @@ const request = (method: string, id?: string, body?: unknown) => new NextRequest
   `http://localhost/api/pump-log${id ? '?id=' + id : ''}`,
   { method, ...(body === undefined ? {} : { body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } }) },
 );
-const run = (rows = [sourceRow]) => state.db.$transaction(tx => executeExternalImport(tx, {
+const run = (rows = [sourceRow], sourceTimezone = 'America/Chicago') => state.db.$transaction(tx => executeExternalImport(tx, {
   familyId: 'pump-family', caretakerId: 'pump-caretaker',
   records: buildBabyBuddyImportRecords([{ name: 'Pumping.csv', content: [header, ...rows].join('\n') }], { pumpingUnit: 'ML' }),
-  configuration: { sourceTimezone: 'America/Chicago', childDestinations: { '7': { mode: 'existing', targetBabyId: 'pump-child' } } },
+  configuration: { sourceTimezone, childDestinations: { '7': { mode: 'existing', targetBabyId: 'pump-child' } } },
 }));
 const saved = (id: string) => state.db.pumpLog.findUniqueOrThrow({ where: { id } });
 const update = (id: string, body: unknown) => PUT(request('PUT', id, body));
@@ -79,6 +79,16 @@ afterAll(async () => {
 });
 
 describe('Baby Buddy pumping disposition on migrated SQLite and canonical API', () => {
+  it('calculates new imported pumping duration from actual instants across spring DST', async () => {
+    const id = (await run(['spring-pump,7,2026-03-08 01:55:10,2026-03-08 03:05:20,100,Synthetic spring source'])).records[0].targetRecordId;
+    expect(await saved(id)).toMatchObject({
+      startTime: new Date('2026-03-08T07:55:10Z'), endTime: new Date('2026-03-08T08:05:20Z'),
+      duration: 10, totalAmount: 100, unitAbbr: 'ML', pumpAction: 'UNKNOWN',
+    });
+    expect(await balance()).toBe(0);
+    expect(await state.db.feedLog.count()).toBe(0);
+  });
+
   it('persists unresolved sessions, zero amounts and provenance without inflating existing stock or inventing feeds', async () => {
     await state.db.pumpLog.create({ data: { familyId: 'pump-family', babyId: 'pump-child', startTime: new Date('2026-10-20Z'), totalAmount: 20, unitAbbr: 'ML', pumpAction: 'STORED' } });
     const before = await balance();
@@ -133,15 +143,61 @@ describe('Baby Buddy pumping disposition on migrated SQLite and canonical API', 
     }
   });
 
-  it('an unrelated edit preserves unknown action, missing sides and original duration across a clock change', async () => {
-    const id = (await run(['source-pump,7,2026-03-08 01:55:10,2026-03-08 03:05:20,100,Original source note'])).records[0].targetRecordId;
-    const original = await saved(id);
-    expect(original.duration).toBe(70); // Existing pumping import semantics, not rewritten by review.
+  it('replay and unrelated edits preserve old imported duration, unknown action and missing sides', async () => {
+    const rows = ['source-pump,7,2026-03-08 01:55:10,2026-03-08 03:05:20,100,Original source note'];
+    const id = (await run(rows)).records[0].targetRecordId;
+    // Model a retained historical import from before elapsed-time correction.
+    const original = await state.db.pumpLog.update({ where: { id }, data: { duration: 70 } });
+    expect(await run(rows)).toMatchObject({ created: 0, duplicates: 1, records: [{ targetRecordId: id }] });
+    expect(await saved(id)).toEqual(original);
     expect((await update(id, { notes: 'Caregiver review note' })).status).toBe(200);
     expect(await saved(id)).toMatchObject({ pumpAction: 'UNKNOWN', startTime: original.startTime, endTime: original.endTime,
       duration: 70, totalAmount: 100, leftAmount: null, rightAmount: null, notes: 'Caregiver review note' });
     expect(await balance()).toBe(0);
     expect(await state.db.feedLog.count()).toBe(0);
+  });
+
+  it.each([
+    ['fall', '2026-11-01 00:55:10', '2026-11-01 02:05:20', '2026-11-01T05:55:10Z', '2026-11-01T08:05:20Z', 130],
+    ['offset-fold', '2026-11-01 01:55:10-05:00', '2026-11-01 01:05:20-06:00', '2026-11-01T06:55:10Z', '2026-11-01T07:05:20Z', 10],
+    ['midnight', '2026-10-20 23:59:30', '2026-10-21 00:14:45', '2026-10-21T04:59:30Z', '2026-10-21T05:14:45Z', 15],
+    ['fractional', '2026-10-20T08:00:00.500Z', '2026-10-20T08:00:30.500Z', '2026-10-20T08:00:00.500Z', '2026-10-20T08:00:30.500Z', 1],
+    ['zero', '2026-10-20 08:00:00', '2026-10-20 08:00:00', '2026-10-20T13:00:00Z', '2026-10-20T13:00:00Z', 0],
+  ])('persists %s endpoints and rounded elapsed minutes without inventing stock', async (sourceRecordId, start, end, utcStart, utcEnd, duration) => {
+    const rows = [`${sourceRecordId},7,${start},${end},100,Synthetic timing source`];
+    const result = await run(rows);
+    const id = result.records[0].targetRecordId;
+    const original = await saved(id);
+    expect(original).toMatchObject({ startTime: new Date(utcStart), endTime: new Date(utcEnd), duration,
+      familyId: 'pump-family', babyId: 'pump-child', caretakerId: 'pump-caretaker',
+      totalAmount: 100, unitAbbr: 'ML', pumpAction: 'UNKNOWN', notes: 'Synthetic timing source' });
+    expect(await state.db.externalImportRecord.findFirstOrThrow({ where: { sourceRecordId } }))
+      .toMatchObject({ familyId: 'pump-family', providerId: 'baby-buddy', sourceEntityType: 'pumping', sourceChildId: '7', targetRecordId: id });
+    expect(await run(rows)).toMatchObject({ created: 0, duplicates: 1, records: [{ targetRecordId: id }] });
+    expect(await saved(id)).toEqual(original);
+    expect(await balance()).toBe(0);
+    expect(await state.db.feedLog.count()).toBe(0);
+  });
+
+  it.each([
+    ['gap', '2026-03-08 02:15:00', '2026-03-08 03:15:00', 'does not exist'],
+    ['fold', '2026-11-01 01:15:00', '2026-11-01 02:15:00', 'ambiguous'],
+    ['reversed-second', '2026-10-20 12:00:00', '2026-10-20 11:59:59', 'before start'],
+    ['reversed-offset', '2026-10-20 12:00:00Z', '2026-10-20 12:30:00+01:00', 'before start'],
+    ['calendar', '2026-02-30 12:00:00', '2026-03-02 12:10:00', 'calendar date'],
+  ])('rejects %s atomically without changing pumps, provenance, feeds or inventory', async (id, start, end, error) => {
+    await state.db.pumpLog.create({ data: { familyId: 'pump-family', babyId: 'pump-child', startTime: new Date('2026-10-20Z'), totalAmount: 20, unitAbbr: 'ML', pumpAction: 'STORED' } });
+    const original = await state.db.pumpLog.findMany();
+    await expect(run([sourceRow, `${id},7,${start},${end},100,Synthetic invalid row`])).rejects.toThrow(error);
+    expect(await state.db.pumpLog.findMany()).toEqual(original);
+    expect(await state.db.externalImportRecord.count()).toBe(0);
+    expect(await state.db.feedLog.count()).toBe(0);
+    expect(await balance()).toBe(20);
+  });
+
+  it('accepts explicit source offsets independently of the configured timezone', async () => {
+    const id = (await run(['offset-zone,7,2026-11-01 01:55:10-05:00,2026-11-01 01:05:20-06:00,100,Synthetic offset source'], 'Asia/Tokyo')).records[0].targetRecordId;
+    expect(await saved(id)).toMatchObject({ startTime: new Date('2026-11-01T06:55:10Z'), endTime: new Date('2026-11-01T07:05:20Z'), duration: 10 });
   });
 
   it('unknown edits, resolutions and deletion leave another session legacy feed untouched', async () => {

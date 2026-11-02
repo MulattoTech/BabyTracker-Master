@@ -5,6 +5,7 @@ import {
 } from '@/src/types/external-import';
 import { BabyBuddyCsvRow } from './parse';
 import { parseBabyBuddyNumber } from './numbers';
+import { normalizeImportTimestamp } from '../timestamp';
 
 function required(row: BabyBuddyCsvRow, field: string): string {
   const value = row[field]?.trim();
@@ -83,13 +84,11 @@ export function mapBabyBuddyPumping(
   unitAbbr: 'ML' | 'OZ',
 ): ExternalImportPumpRecord {
   const sourceChildId = required(row, 'child_id');
-  const startTime = toUtcInput(required(row, 'start'));
-  const endTime = toUtcInput(required(row, 'end'));
-  const duration = Math.round((new Date(`${endTime}Z`).getTime() - new Date(`${startTime}Z`).getTime()) / 60000);
-  if (!Number.isFinite(duration) || duration < 0) throw new Error('Pumping end time must not be before start time');
+  const startTime = normalizeImportTimestamp(required(row, 'start'), 'pumping');
+  const endTime = normalizeImportTimestamp(required(row, 'end'), 'pumping');
   return {
     targetType: 'pump', source: source('pumping', row), sourceChildId,
-    startTime, endTime, duration, totalAmount: numberValue(row, 'amount'),
+    startTime, endTime, totalAmount: numberValue(row, 'amount'),
     unitAbbr, pumpAction: 'UNKNOWN', notes: row.notes?.trim() || undefined,
   };
 }

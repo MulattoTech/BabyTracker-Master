@@ -19,6 +19,7 @@ import {
   mapBabyBuddyMedication,
   babyBuddyIntervalToDoseMinTime,
 } from '../src/lib/importers/baby-buddy';
+import { resolveExternalImportPumpTiming } from '../src/lib/importers/pumping-time';
 
 {
 // Consolidated from tests/babyBuddyMapping.test.ts
@@ -600,7 +601,7 @@ describe('remaining Baby Buddy mappings', () => {
       id: '3', child_id: '7', start: '2026-01-01 10:00:00',
       end: '2026-01-01 10:20:00', amount: '100', notes: '',
     }, 'ML')).toEqual(expect.objectContaining({
-      targetType: 'pump', duration: 20, totalAmount: 100,
+      targetType: 'pump', startTime: '2026-01-01T10:00:00', endTime: '2026-01-01T10:20:00', totalAmount: 100,
       unitAbbr: 'ML', pumpAction: 'UNKNOWN',
     }));
   });
@@ -629,9 +630,9 @@ describe('remaining Baby Buddy mappings', () => {
     ).toThrow('Unsupported unit for height: kg');
   });
 
-  it('rejects pumping with an end before its start', () => {
+  it('rejects pumping with an end before its start after resolving the source timezone', () => {
     expect(() =>
-      mapBabyBuddyPumping(
+      resolveExternalImportPumpTiming(mapBabyBuddyPumping(
         {
           id: '6',
           child_id: '7',
@@ -640,7 +641,7 @@ describe('remaining Baby Buddy mappings', () => {
           amount: '100',
         },
         'ML',
-      ),
+      ), 'UTC'),
     ).toThrow(
       'Pumping end time must not be before start time',
     );
