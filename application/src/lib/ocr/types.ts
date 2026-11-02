@@ -24,7 +24,9 @@ export interface OcrSource {
   readonly confidence: number | null;
   readonly contextDate?: string;
   readonly contextDateOrigin?: 'user' | 'page-header';
+  /** Requested page rotation after EXIF orientation; not a detected row angle. */
   readonly rotation?: number;
+  /** Page recognition region after orientation/rotation, before resize; not a row bounding box. */
   readonly crop?: OcrCrop;
 }
 
