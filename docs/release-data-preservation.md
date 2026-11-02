@@ -13,6 +13,9 @@ The promoter refuses `-Apply` without `-VerifyDataPreservation` before any
 inspection or mutation. Plan-only inspection still works with or without the
 switch. The lower-level updater retains its existing interface; production
 releases use the guarded promoter above.
+The backup helper refuses an unsuccessful service-state inspection before
+stopping, restarting or archiving anything. An already stopped service can still
+be backed up without starting it.
 
 ## Capture at the correct point
 
