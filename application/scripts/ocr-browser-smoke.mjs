@@ -135,6 +135,12 @@ try {
   assert.equal(await db.diaperLog.count(), 0);
   report.checks.push('Image upload creates only encrypted review draft');
   await page.getByLabel('Feeding amount', { exact: true }).fill('95');
+  const richBottle = { offeredAmount: 120, formulaKcalOz: 22, formulaName: 'Synthetic Formula', bottleLabel: 'A1', sourceCaregiverName: 'TestParent' };
+  await page.getByLabel('Volume offered (same unit)', { exact: true }).fill(String(richBottle.offeredAmount));
+  await page.getByLabel('Formula concentration (kcal/oz)', { exact: true }).fill(String(richBottle.formulaKcalOz));
+  await page.getByLabel('Formula name', { exact: true }).fill(richBottle.formulaName);
+  await page.getByLabel('Bottle identifier', { exact: true }).fill(richBottle.bottleLabel);
+  await page.getByLabel('Source caregiver name', { exact: true }).fill(richBottle.sourceCaregiverName);
   await page.getByRole('button', { name: 'Approve all valid rows I reviewed', exact: true }).click();
   await page.getByRole('button', { name: 'Save review draft', exact: true }).click();
   await page.getByText('Draft saved. No care events were imported.', { exact: true }).waitFor();
@@ -158,6 +164,15 @@ try {
   await page.getByRole('heading', { name: 'Import saved to the care timeline', exact: true }).waitFor();
   const feed = await db.feedLog.findFirstOrThrow();
   assert.equal(feed.amount, 95); assert.equal(feed.unitAbbr, 'ML'); assert.equal(feed.time.toISOString(), '2026-10-20T13:15:00.000Z');
+  for (const [field, expected] of Object.entries(richBottle)) assert.equal(feed[field], expected, `Canonical feed lost corrected ${field}`);
+  const canonicalFeed = await fetch(`${base}/api/feed-log?id=${feed.id}`, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(5000) });
+  assert.equal(canonicalFeed.status, 200);
+  const canonicalFeedBody = await canonicalFeed.json();
+  assert.equal(canonicalFeedBody.success, true);
+  assert.equal(canonicalFeedBody.data.id, feed.id);
+  assert.equal(canonicalFeedBody.data.amount, 95); assert.equal(canonicalFeedBody.data.unitAbbr, 'ML');
+  for (const [field, expected] of Object.entries(richBottle)) assert.equal(canonicalFeedBody.data[field], expected, `Canonical feed API lost corrected ${field}`);
+  report.checks.push('Five corrected OCR bottle fields persist in the same canonical feed and feed API');
   assert.equal(await db.diaperLog.count(), 1);
   const timeline = await fetch(`${base}/api/timeline?babyId=${baby.id}&startDate=2026-10-20T00:00:00Z&endDate=2026-10-21T00:00:00Z`, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(5000) });
   assert.equal(timeline.status, 200);
@@ -173,6 +188,12 @@ try {
   const history = page.getByRole('region', { name: 'Bottle history', exact: true });
   await history.getByText('95 ML', { exact: true }).waitFor();
   report.checks.push('Real corrected OCR import appears in Bottle Journal and daily totals');
+  const importedBottle = history.getByRole('listitem').filter({ has: page.getByRole('button', { name: 'Edit bottle 08:15', exact: true }) });
+  assert.equal(await importedBottle.count(), 1, 'The journal must show the imported bottle once');
+  await importedBottle.getByText('Formula · Offered 120 ML', { exact: true }).waitFor();
+  await importedBottle.getByText('Synthetic Formula · 22 kcal/oz · A1', { exact: true }).waitFor();
+  await importedBottle.getByText('TestParent', { exact: true }).waitFor();
+  report.checks.push('Bottle Journal displays corrected offered volume, formula concentration/name, bottle ID and source caregiver');
 
   const addBottle = page.getByRole('form', { name: 'Add bottle', exact: true });
   await addBottle.getByLabel('Feeding date and time', { exact: true }).fill('2026-10-20T10:20');
