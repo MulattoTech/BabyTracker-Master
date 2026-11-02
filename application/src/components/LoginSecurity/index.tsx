@@ -225,8 +225,8 @@ export default function LoginSecurity({ onUnlock, familySlug, familyName }: Logi
               onClick={handleLogoClick}
             >
               <Image
-                src="/sprout-128.png"
-                alt="Sprout Logo"
+                src="/sat-tracker-192.png"
+                alt="Sat Tracker Logo"
                 width={40}
                 height={40}
                 className="object-contain"

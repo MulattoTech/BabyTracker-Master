@@ -14,7 +14,7 @@ export function LandingFooter() {
     <footer className="ld-footer">
       <div className="ld-wrap">
         <Link className="ld-logo" href="/" style={{ fontSize: 17 }}>
-          <img src="/sprout-256.png" alt="" width={20} height={20} style={{ borderRadius: '50%' }} />
+          <img src="/sat-tracker-512.png" alt="" width={20} height={20} style={{ borderRadius: '50%' }} />
           <span>{t('Sprout Track')}</span>
         </Link>
         <nav>

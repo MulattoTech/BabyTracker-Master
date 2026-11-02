@@ -174,8 +174,8 @@ export default function FamilyManagerLoginPage() {
         <CardHeader className="text-center space-y-4">
           <div className="flex justify-center">
             <Image
-              src="/sprout-128.png"
-              alt="Sprout Logo"
+              src="/sat-tracker-192.png"
+              alt="Sat Tracker Logo"
               width={80}
               height={80}
               className="object-contain"

@@ -216,8 +216,8 @@ export default function FamilySelectPage() {
           <div className="text-center">
             <div className="w-24 h-24 p-1 flex items-center justify-center mb-4">
               <Image
-                src="/sprout-128.png"
-                alt="Sprout Logo"
+                src="/sat-tracker-192.png"
+                alt="Sat Tracker Logo"
                 width={128}
                 height={128}
                 className="object-contain"
@@ -247,8 +247,8 @@ export default function FamilySelectPage() {
         <div className="flex flex-col items-center space-y-6 pb-6 pl-6 pr-6">
           <div className="w-24 h-24 p-1 flex items-center justify-center">
             <Image
-              src="/sprout-128.png"
-              alt="Sprout Logo"
+              src="/sat-tracker-192.png"
+              alt="Sat Tracker Logo"
               width={128}
               height={128}
               className="object-contain"

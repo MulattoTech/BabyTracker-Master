@@ -865,8 +865,8 @@ function AppContent({ children }: { children: React.ReactNode }) {
                         className="w-16 h-16 flex items-center justify-center cursor-pointer transition-transform duration-200 hover:scale-110 mr-4"
                       >
                         <Image
-                          src="/sprout-128.png"
-                          alt="Sprout Logo"
+                          src="/sat-tracker-192.png"
+                          alt="Sat Tracker Logo"
                           width={64}
                           height={64}
                           className="object-contain drop-shadow-[2px_2px_3px_rgba(0,0,0,0.45)]"

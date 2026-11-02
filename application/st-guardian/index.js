@@ -68,7 +68,7 @@ const insertPing = db.prepare(`INSERT INTO health_pings (timestamp, status) VALU
 // Cache the logo image at startup
 let logoBuffer = null;
 try {
-  logoBuffer = fs.readFileSync(path.join(CONFIG.appDir, 'public', 'sprout-256.png'));
+  logoBuffer = fs.readFileSync(path.join(CONFIG.appDir, 'public', 'sat-tracker-512.png'));
 } catch (e) {
   // Logo won't be available
 }
@@ -267,7 +267,7 @@ function startHealthMonitor() {
       if (recentRestarts.length >= 3) {
         log('Crash-loop detected: 3+ restarts in 5 minutes. Entering maintenance mode.');
         state.maintenance = true;
-        state.maintenanceMessage = 'Sprout Track encountered repeated failures and is awaiting manual intervention.';
+        state.maintenanceMessage = 'Sat Tracker encountered repeated failures and is awaiting manual intervention.';
         return;
       }
 
@@ -286,7 +286,7 @@ function startHealthMonitor() {
       } else {
         log(`Restart failed (exit ${result.exitCode}): ${result.stderr}`);
         state.maintenance = true;
-        state.maintenanceMessage = 'Sprout Track failed to restart automatically. Manual intervention required.';
+        state.maintenanceMessage = 'Sat Tracker failed to restart automatically. Manual intervention required.';
       }
     }
   }, CONFIG.healthInterval);
@@ -297,13 +297,13 @@ function startHealthMonitor() {
 // =============================================================================
 
 function getMaintenancePage(message) {
-  const displayMessage = message || 'Sprout Track is under maintenance and will be back shortly.';
+  const displayMessage = message || 'Sat Tracker is under maintenance and will be back shortly.';
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sprout Track - Maintenance</title>
+  <title>Sat Tracker - Maintenance</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -437,8 +437,8 @@ function getMaintenancePage(message) {
 <body>
   <div class="card">
     <img class="logo" src="/uptime/logo.png" alt="" onerror="this.style.display='none';document.getElementById('logoFallback').style.display='block'">
-    <div class="logo-fallback hidden" id="logoFallback">🌱</div>
-    <h1 id="pageTitle">Sprout Track</h1>
+    <div class="logo-fallback hidden" id="logoFallback">☾</div>
+    <h1 id="pageTitle">Sat Tracker</h1>
     <p class="message" id="pageMessage">${escapeHtml(displayMessage)}</p>
 
     <!-- Generic maintenance view -->
@@ -541,7 +541,7 @@ function getMaintenancePage(message) {
         isUpdateMode = true;
         document.getElementById('genericView').classList.add('hidden');
         document.getElementById('updateView').classList.remove('hidden');
-        document.getElementById('pageTitle').textContent = 'Sprout Track is Updating';
+        document.getElementById('pageTitle').textContent = 'Sat Tracker is Updating';
         document.getElementById('pageMessage').textContent = 'Please wait while the application is being updated.';
         pollUpdate();
       } else {
@@ -659,7 +659,7 @@ async function handleUpdate(req, res) {
 
   // Enable maintenance mode
   state.maintenance = true;
-  state.maintenanceMessage = 'Sprout Track is updating...';
+  state.maintenanceMessage = 'Sat Tracker is updating...';
   log('Update triggered — entering maintenance mode');
 
   // Create job
@@ -1001,7 +1001,7 @@ function getUptimePage() {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sprout Track - Uptime</title>
+  <title>Sat Tracker - Uptime</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -1164,8 +1164,8 @@ function getUptimePage() {
 </head>
 <body>
   <div class="header">
-    <img src="/uptime/logo.png" alt="Sprout Track" onerror="this.style.display='none'">
-    <h1>Sprout Track</h1>
+    <img src="/uptime/logo.png" alt="Sat Tracker" onerror="this.style.display='none'">
+    <h1>Sat Tracker</h1>
     <p>Service Status</p>
   </div>
   <div class="container">
@@ -1292,7 +1292,7 @@ const proxy = httpProxy.createProxyServer({
 proxy.on('error', (err, req, res) => {
   state.appUp = false;
   if (res && !res.headersSent && res.writeHead) {
-    sendHtml(res, 502, getMaintenancePage('Sprout Track is temporarily unavailable.'));
+    sendHtml(res, 502, getMaintenancePage('Sat Tracker is temporarily unavailable.'));
   }
 });
 

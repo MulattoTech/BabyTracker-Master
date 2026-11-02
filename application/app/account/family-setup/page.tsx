@@ -126,7 +126,7 @@ export default function AccountFamilySetupPage() {
             <div className="saas-nav-content">
               <Link href="/" className="saas-logo">
                 <img 
-                  src="/sprout-256.png" 
+                  src="/sat-tracker-512.png"
                   alt="Sat Tracker Logo"
                   className="saas-logo-image"
                 />
@@ -164,7 +164,7 @@ export default function AccountFamilySetupPage() {
             <div className="saas-footer-brand">
               <Link href="/" className="saas-logo">
                 <img 
-                  src="/sprout-256.png" 
+                  src="/sat-tracker-512.png"
                   alt="Sat Tracker Logo"
                   className="saas-logo-image"
                 />
@@ -239,7 +239,7 @@ export default function AccountFamilySetupPage() {
             <div className="saas-nav-content">
               <Link href="/" className="saas-logo">
                 <img 
-                  src="/sprout-256.png" 
+                  src="/sat-tracker-512.png"
                   alt="Sat Tracker Logo"
                   className="saas-logo-image"
                 />
@@ -283,7 +283,7 @@ export default function AccountFamilySetupPage() {
             <div className="saas-footer-brand">
               <Link href="/" className="saas-logo">
                 <img 
-                  src="/sprout-256.png" 
+                  src="/sat-tracker-512.png"
                   alt="Sat Tracker Logo"
                   className="saas-logo-image"
                 />
@@ -361,7 +361,7 @@ export default function AccountFamilySetupPage() {
           <div className="saas-nav-content">
             <Link href="/" className="saas-logo">
               <img 
-                src="/sprout-256.png" 
+                src="/sat-tracker-512.png"
                 alt="Sat Tracker Logo"
                 className="saas-logo-image"
               />
@@ -392,7 +392,7 @@ export default function AccountFamilySetupPage() {
           <div className="saas-footer-brand">
             <Link href="/" className="saas-logo">
               <img 
-                src="/sprout-256.png" 
+                src="/sat-tracker-512.png"
                 alt="Sat Tracker Logo"
                 className="saas-logo-image"
               />

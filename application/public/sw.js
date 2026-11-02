@@ -24,10 +24,10 @@ self.addEventListener('push', (event) => {
   const payload = event.data ? event.data.json() : {};
   
   const options = {
-    title: payload.title || 'Sprout Track',
+    title: payload.title || 'Sat Tracker',
     body: payload.body || '',
-    icon: payload.icon || '/sprout-128.png',
-    badge: payload.badge || '/sprout-128.png',
+    icon: payload.icon || '/sat-tracker-192.png',
+    badge: payload.badge || '/sat-tracker-192.png',
     tag: payload.tag || 'default',
     data: payload.data || {},
     requireInteraction: false,
