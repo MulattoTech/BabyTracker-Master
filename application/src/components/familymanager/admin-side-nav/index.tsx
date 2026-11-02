@@ -96,8 +96,8 @@ export const AdminSideNav: React.FC<AdminSideNavProps> = ({
             <div className={cn("flex justify-between items-center min-h-20", adminSideNavStyles.header)}>
               <div className="flex items-center gap-3 flex-1">
                 <Image
-                  src="/sprout-128.png"
-                  alt="Sprout Logo"
+                  src="/sat-tracker-192.png"
+                  alt="Sat Tracker Logo"
                   width={40}
                   height={40}
                   className={adminSideNavStyles.logo}

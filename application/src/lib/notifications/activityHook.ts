@@ -320,8 +320,8 @@ export async function notifyActivityCreated(
           babyName,
         }),
         body: buildNotificationBody(normalizedType, babyName, actorName, userLanguage, activityData),
-        icon: '/sprout-128.png',
-        badge: '/sprout-128.png',
+        icon: '/sat-tracker-192.png',
+        badge: '/sat-tracker-192.png',
         tag: `activity-${babyId}-${activityType}-${Date.now()}`, // Unique tag for each notification
         data: {
           eventType: NotificationEventType.ACTIVITY_CREATED,

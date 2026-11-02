@@ -138,7 +138,7 @@ export function ShortLinkQrDialog({ open, onClose, shortUrl, slug }: ShortLinkQr
         img.onerror = () => {
           console.error('QR logo failed to load');
         };
-        img.src = '/sprout-256.png';
+        img.src = '/sat-tracker-512.png';
       })
       .catch((error) => {
         console.error('Error generating QR code:', error);

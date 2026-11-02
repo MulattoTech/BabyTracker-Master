@@ -73,8 +73,8 @@ export async function notifyFeedbackReply(
       const payload: NotificationPayload = {
         title: t('notification.feedback.reply.title', userLanguage),
         body: truncatedMessage,
-        icon: '/sprout-128.png',
-        badge: '/sprout-128.png',
+        icon: '/sat-tracker-192.png',
+        badge: '/sat-tracker-192.png',
         tag: `feedback-reply-${Date.now()}`,
       };
 

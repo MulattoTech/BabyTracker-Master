@@ -277,8 +277,8 @@ async function sendTimerNotification(
       activityType,
       timeElapsed,
     }),
-    icon: '/sprout-128.png',
-    badge: '/sprout-128.png',
+    icon: '/sat-tracker-192.png',
+    badge: '/sat-tracker-192.png',
     tag: `timer-${baby.id}-${eventType}`, // Same tag for deduplication
     data: {
       eventType,
@@ -649,8 +649,8 @@ export async function checkTimerExpirations(): Promise<number> {
                       medicineName: medicine.name,
                       timeElapsed,
                     }),
-                    icon: '/sprout-128.png',
-                    badge: '/sprout-128.png',
+                    icon: '/sat-tracker-192.png',
+                    badge: '/sat-tracker-192.png',
                     tag: `timer-${baby.id}-medicine-${medicine.id}`,
                     data: {
                       eventType: NotificationEventType.MEDICINE_TIMER_EXPIRED,
