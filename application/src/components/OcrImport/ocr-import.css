@@ -1,4 +1,4 @@
-.ocr-import { max-width: 1440px; margin: 0 auto; padding: 24px 20px 72px; color: #1e293b; }
+.ocr-import { min-height: 100%; max-width: 1440px; margin: 0 auto; padding: 24px 20px 72px; background: #f8fafc; color: #1e293b; }
 .ocr-import h1, .ocr-import h2, .ocr-import h3, .ocr-import p { margin: 0; }
 .ocr-import h1 { font-size: clamp(1.8rem, 3vw, 2.5rem); font-weight: 750; letter-spacing: -.035em; line-height: 1.15; }
 .ocr-import h2 { font-size: 1.1rem; font-weight: 700; }
@@ -105,10 +105,10 @@
 .ocr-empty { text-align: center; padding: 30px; }
 .ocr-empty p { margin-top: 10px; font-size: .85rem; line-height: 1.65; color: #64748b; }
 
-html.dark .ocr-import { color: #dfebf3; }
+html.dark .ocr-import { background: #111a26; color: #dfebf3; }
 html.dark .ocr-panel, html.dark .ocr-row { background: #19222e; border-color: #344153; }
 html.dark .ocr-hero > p, html.dark .ocr-muted, html.dark .ocr-field label, html.dark .ocr-panel-title p, html.dark .ocr-review-heading p, html.dark .ocr-approval, html.dark .ocr-evidence summary { color: #b2c1d2; }
-html.dark .ocr-hint, html.dark .ocr-empty p { color: #95a8bd; }
+html.dark .ocr-hint, html.dark .ocr-empty p, html.dark .ocr-workflow { color: #95a8bd; }
 html.dark .ocr-eyebrow, html.dark .ocr-panel-title > svg, html.dark .ocr-provenance dd, html.dark .ocr-metric-label { color: #73d7bd; }
 html.dark .ocr-badges span, html.dark .ocr-row-number, html.dark .ocr-totals-badge { background: #203c3a; color: #a0e5d3; }
 html.dark .ocr-select { background: #222e3b; color: #dbe6ef; border-color: #4a5d73; }
