@@ -15,6 +15,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify typed row preservation with synthetic SQLite
+        run: node scripts/verify-live-preservation.test.cjs
       - run: python -m unittest discover -s tests/ops -v
       - run: python scripts/modules.py list
       - name: Parse PowerShell operations scripts without executing them

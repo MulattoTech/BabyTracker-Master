@@ -1,6 +1,6 @@
 <# Owner-invoked promotion. No mutation without -Apply. Exact-main CI -> pinned image -> synthetic preview -> verified backup -> production health. #>
 [CmdletBinding()]
-param([switch]$Apply,[switch]$Build,[string]$Image)
+param([switch]$Apply,[switch]$Build,[string]$Image,[switch]$VerifyDataPreservation)
 $ErrorActionPreference='Stop'
 $root=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $repo='MulattoTech/BabyTracker-Master'
@@ -33,7 +33,7 @@ try {
   if(Compare-Object $expectedVolumes $actual){throw 'Production volume contract mismatch'}
   if(!$Image){$Image='babytracker:git-'+$revision.Substring(0,12)}
   if($Image -notmatch '^[A-Za-z0-9][A-Za-z0-9._/@:-]{1,250}$'){throw 'Invalid image reference'}
-  if(!$Apply){Write-Output "PROMOTION_PLAN_ONLY sha=$revision image=$Image acceptedRun=$($latest[0].id) productionChanged=false";return}
+  if(!$Apply){Write-Output "PROMOTION_PLAN_ONLY sha=$revision image=$Image acceptedRun=$($latest[0].id) productionChanged=false preservationRequested=$([bool]$VerifyDataPreservation)";return}
   $receiptDir=Join-Path $root '.local/releases'
   New-Item -ItemType Directory -Force $receiptDir|Out-Null
   $lock=Join-Path $root '.local/maintenance.lock'
@@ -65,12 +65,31 @@ try {
     # The existing deployment helper snapshots all volumes and verifies restoration.
     # Never roll back a migrated live database automatically: post-deploy writes could be lost.
     $env:BABYTRACKER_IMAGE=$null
-    & (Join-Path $PSScriptRoot 'update-babytracker.ps1') -Image $candidate.Id
+    $preservationDirectory = $null
+    if ($VerifyDataPreservation) {
+      $preservationDirectory = Join-Path $receiptDir ('preservation-' + [Guid]::NewGuid().ToString('N'))
+    }
+    & (Join-Path $PSScriptRoot 'update-babytracker.ps1') -Image $candidate.Id -VerifyDataPreservation:$VerifyDataPreservation -PreservationEvidenceDirectory $preservationDirectory
     if(!$?){throw 'Production health gate failed; preserve backups and investigate migration compatibility before rollback'}
     $after=(& docker inspect babytracker-sprout|ConvertFrom-Json)[0]
     if($after.Image -ne $candidate.Id -or $after.State.Health.Status -ne 'healthy'){throw 'Production revision not verified'}
     if(Compare-Object $expectedVolumes @($after.Mounts|ForEach-Object {$_.Name}|Sort-Object)){throw 'Post-deploy volume contract mismatch'}
+    $preservation = $null
+    if ($VerifyDataPreservation) {
+      $preservation = Get-Content -LiteralPath (Join-Path $preservationDirectory 'preservation.json') -Raw | ConvertFrom-Json
+      if ($preservation.status -cne 'PASS' -or $preservation.revision -cne $revision -or
+          $preservation.imageId -cne $candidate.Id -or $preservation.previousImageId -cne $live.Image -or
+          -not $preservation.allBaselineRowsPreserved -or $preservation.baselineManifestSha256 -notmatch '^[a-f0-9]{64}$') {
+        throw 'Current promotion has no valid preservation evidence; production success is not verified'
+      }
+    }
     $receipt=@{repository=$repo;revision=$revision;imageId=$candidate.Id;previousImageId=$live.Image;acceptanceRun=$latest[0].html_url;deployedAt=(Get-Date).ToUniversalTime().ToString('o');production='https://tracker.m-techlabs.com';preview='https://tracker-preview.m-techlabs.com';dataVolumesPreserved=$true}
+    $receipt.preservationStatus = if ($VerifyDataPreservation) { 'PASS' } else { 'NOT_REQUESTED' }
+    if ($preservation) {
+      $receipt.preservationBaselineSha256 = $preservation.baselineManifestSha256
+      $receipt.preservationEvidence = Join-Path $preservationDirectory 'preservation.json'
+      $receipt.preservationCoverage = $preservation.coverage
+    }
     $receipt|ConvertTo-Json -Depth 5|Set-Content (Join-Path $receiptDir 'deployed.json') -Encoding utf8
     Write-Output "PROMOTION_VERIFIED sha=$revision imageId=$($candidate.Id)"
   }finally{$lockStream.Dispose();Remove-Item -LiteralPath $lock -ErrorAction SilentlyContinue}
