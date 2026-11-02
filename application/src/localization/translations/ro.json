@@ -3149,5 +3149,6 @@
   "This pending bottle already has different values. Review pending entries before trying again.": "Această înregistrare în așteptare pentru un biberon are deja alte valori. Verifică înregistrările în așteptare înainte de a încerca din nou.",
   "This pending bottle changed in another tab. Refresh the journal before trying again.": "Această înregistrare în așteptare pentru un biberon a fost modificată în altă filă. Reîmprospătează jurnalul înainte de a încerca din nou.",
   "Waiting to sync": "În așteptarea sincronizării",
-  "Offline": "Offline"
+  "Offline": "Offline",
+  "Medication entries without an amount are preserved as notes with an unknown dose": "Înregistrările de medicamente fără cantitate sunt păstrate ca note cu doză necunoscută"
 }

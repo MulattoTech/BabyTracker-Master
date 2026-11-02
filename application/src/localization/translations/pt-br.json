@@ -3149,5 +3149,6 @@
   "This pending bottle already has different values. Review pending entries before trying again.": "Esta mamadeira pendente já contém valores diferentes. Revise os registros pendentes antes de tentar novamente.",
   "This pending bottle changed in another tab. Refresh the journal before trying again.": "Esta mamadeira pendente foi alterada em outra aba. Atualize o diário antes de tentar novamente.",
   "Waiting to sync": "Aguardando sincronização",
-  "Offline": "Sem conexão"
+  "Offline": "Sem conexão",
+  "Medication entries without an amount are preserved as notes with an unknown dose": "Os registros de medicamentos sem quantidade são preservados como notas com dose desconhecida"
 }

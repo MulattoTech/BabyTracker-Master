@@ -256,7 +256,7 @@ describe('Baby Buddy server-side record building', () => {
     ]);
   });
 
-  it('builds medicine records from a medication export', () => {
+  it('preserves medication entries with missing doses as unresolved notes', () => {
     const records = buildBabyBuddyImportRecords(
       [
         {
@@ -273,8 +273,12 @@ describe('Baby Buddy server-side record building', () => {
 
     expect(records.map(record => record.targetType)).toEqual([
       'medicine',
-      'medicine',
+      'note',
     ]);
+    expect(records[1]).toMatchObject({
+      source: { providerId: 'baby-buddy', entityType: 'medication', recordId: '2' },
+      content: expect.stringContaining('Dose amount: not recorded in the source.'),
+    });
   });
 });
 
@@ -726,8 +730,8 @@ describe('Baby Buddy medication mapping', () => {
     ).toBeUndefined();
   });
 
-  it('imports a missing dosage as zero', () => {
-    expect(
+  it('refuses to fabricate a numeric medication dose when the source is empty', () => {
+    expect(() =>
       mapBabyBuddyMedication({
         id: '4',
         child_id: '7',
@@ -735,8 +739,8 @@ describe('Baby Buddy medication mapping', () => {
         dosage: '',
         dosage_unit: '',
         time: '2026-01-02 08:00:00',
-      }).doseAmount,
-    ).toBe(0);
+      }),
+    ).toThrow('Medication dose is missing');
   });
 
   it('parses a comma-decimal dosage', () => {
