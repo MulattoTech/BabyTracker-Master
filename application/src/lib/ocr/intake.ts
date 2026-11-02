@@ -258,12 +258,6 @@ export async function recognizeOcrDocument(
 
   const mime = identifyOcrUpload(bytes);
   if (![0, 90, 180, 270].includes(rotation)) throw new OcrError('Choose a rotation of 0, 90, 180 or 270 degrees.');
-  if (process.platform !== 'linux' && (process.env.NODE_ENV === 'test' || process.env.VITEST)) {
-    const preview = await sharp(bytes).resize({ width: 1200, withoutEnlargement: true }).png().toBuffer();
-    return [{
-      page: 1, image: preview, text: '08:15 bottle formula 90 mL\n09:30 wet diaper', engine: 'synthetic-test-engine', confidence: 95, rotation, crop,
-    }];
-  }
   const engine = await verifiedEngine(signal);
   const dir = await mkdtemp(path.join(tmpdir(), 'babytracker-ocr-'));
   try {
