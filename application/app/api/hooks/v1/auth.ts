@@ -118,7 +118,8 @@ export function withApiKeyAuth(
 }
 
 /**
- * Validates that the babyId in the URL belongs to the family and matches any key restriction.
+ * Validates a current child in the key's family and any child restriction.
+ * Canonical removal sets deletedAt independently of the inactive flag.
  */
 export async function validateBabyAccess(
   babyId: string,
@@ -135,7 +136,7 @@ export async function validateBabyAccess(
   }
 
   const baby = await prisma.baby.findFirst({
-    where: { id: babyId, familyId: ctx.familyId, inactive: false },
+    where: { id: babyId, familyId: ctx.familyId, inactive: false, deletedAt: null },
   });
 
   if (!baby) {
