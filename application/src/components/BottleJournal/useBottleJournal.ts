@@ -9,17 +9,18 @@ export function useBottleJournal(babyId: string | undefined, day: string, timeZo
   const [error, setError] = useState(''), [notice, setNotice] = useState('');
   const [saving, setSaving] = useState(false), [refreshing, setRefreshing] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
-  const etag = useRef(''), inFlight = useRef(false), generation = useRef(0);
+  const etag = useRef(''), sequence = useRef(0);
+  const inFlight = useRef<{ identity: string; ticket: number } | null>(null);
   const identity = `${babyId}:${day}:${timeZone}`;
   const identityRef = useRef(identity); identityRef.current = identity;
   const refresh = useCallback(async (force = false) => {
-    if (!babyId || inFlight.current) return;
-    const current = identityRef.current, ticket = generation.current;
-    inFlight.current = true; setRefreshing(true);
+    if (!babyId || identity !== identityRef.current || (!force && inFlight.current?.identity === identity)) return;
+    const current = identity, ticket = ++sequence.current;
+    inFlight.current = { identity: current, ticket }; setRefreshing(true);
     try {
       const query = new URLSearchParams({ babyId, day, timeZone });
       const response = await authenticatedFetch('/api/bottle-journal?' + query, { cache: 'no-store', headers: !force && etag.current ? { 'If-None-Match': etag.current } : {} });
-      if (ticket !== generation.current || current !== identityRef.current) return;
+      if (ticket !== sequence.current || current !== identityRef.current) return;
       if (response.status !== 304) {
         const result = await response.json();
         if (!response.ok || !result.success) throw new Error(result.error || 'The journal could not refresh.');
@@ -27,12 +28,15 @@ export function useBottleJournal(babyId: string | undefined, day: string, timeZo
       }
       setLastSynced(new Date()); setError('');
     } catch (error) {
-      if (current === identityRef.current) setError(error instanceof Error ? error.message : 'The journal could not refresh.');
-    } finally { inFlight.current = false; if (current === identityRef.current) setRefreshing(false); }
-  }, [babyId, day, timeZone, authenticatedFetch]);
+      if (ticket === sequence.current && current === identityRef.current) setError(error instanceof Error ? error.message : 'The journal could not refresh.');
+    } finally {
+      if (inFlight.current?.ticket === ticket) inFlight.current = null;
+      if (ticket === sequence.current && current === identityRef.current) setRefreshing(false);
+    }
+  }, [babyId, day, timeZone, identity, authenticatedFetch]);
   useEffect(() => {
-    generation.current++; etag.current = ''; setData(null); setError(''); setNotice(''); setLastSynced(null);
-    // A previous child/day request may still be finishing; retry on the next tick.
+    etag.current = ''; setData(null); setError(''); setNotice(''); setLastSynced(null);
+    // A new selection and a confirmed save must refresh even if an older request is finishing.
     const start = setTimeout(() => void refresh(true), 0);
     const interval = setInterval(() => { if (document.visibilityState === 'visible') void refresh(); }, 15_000);
     const foreground = () => { if (document.visibilityState === 'visible') void refresh(); };
@@ -58,11 +62,14 @@ export function useBottleJournal(babyId: string | undefined, day: string, timeZo
     finally { setSaving(false); }
   }
   async function setTarget(targetMl: number | null) {
-    if (!babyId) return;
+    if (!babyId || saving) return;
+    const current = identityRef.current;
     setSaving(true); setError('');
-    try { await request('/api/bottle-journal', { babyId, targetMl }, 'PATCH'); setNotice('Intake target saved.'); etag.current = ''; await refresh(true); }
-    catch (error) { setError(error instanceof Error ? error.message : 'The intake target could not be saved.'); }
+    try {
+      await request('/api/bottle-journal', { babyId, targetMl }, 'PATCH');
+      if (current === identityRef.current) { setNotice('Intake target saved.'); etag.current = ''; await refresh(true); }
+    } catch (error) { if (current === identityRef.current) setError(error instanceof Error ? error.message : 'The intake target could not be saved.'); }
     finally { setSaving(false); }
   }
-  return { data: data?.babyId === babyId ? data : null, error, notice, saving, refreshing, lastSynced, refresh, save, setTarget, request };
+  return { data: data?.babyId === babyId && data.day === day && data.timeZone === timeZone ? data : null, error, notice, saving, refreshing, lastSynced, refresh, save, setTarget, request };
 }
