@@ -224,6 +224,24 @@ verified backup/restore, migration rehearsal, rollback using the previous immuta
 image, or production smoke/data-preservation checks. Those remain separate gates in
 `scripts/promote-release.ps1` and the release record.
 
+### Bottle Journal delivery after a saved record is removed
+
+New-bottle submissions use a stable UUID and a durable `ExternalImportRecord`
+receipt. The receipt remains after a feed is deleted through the canonical feed
+API. If a successful response was lost and the queued request arrives again after
+that deletion, the journal returns HTTP 409 and keeps the original deletion and
+receipt intact. A receipt with a different target, entity type, or original child
+also requires review. Unchanged retries still confirm the original feed once;
+intentional edits continue to use the current family, child, and exact revision.
+
+The browser keeps a 409 response as a blocked IndexedDB entry, including its
+original time, amount, unit, and request ID. Normal synchronization and reload do
+not retry blocked entries. After reviewing saved history, the caregiver can retry
+the same request or explicitly confirm discarding only its local pending copy.
+Local discard does not alter a canonical record or its receipt. The browser gate
+exercises this flow with a real lost response, a second caregiver's authenticated
+canonical deletion, reload, and both cancellation and confirmation of local discard.
+
 ## Tech Stack
 
 - Next.js with App Router
