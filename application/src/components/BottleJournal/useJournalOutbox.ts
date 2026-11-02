@@ -4,8 +4,9 @@ import { useFamily } from '@/src/context/family';
 import { journalScopeFromToken } from '@/src/lib/bottle-journal/outbox-identity';
 import { changePendingBottle, claimBottle, enqueueBottle, listPendingBottles, settleBottle, type PendingBottle } from '@/src/lib/bottle-journal/outbox';
 import type { BottlePayload } from './types';
+import { readNurseryUndo, type NurseryUndo } from '@/src/utils/nursery/undo';
 
-export function useJournalOutbox(babyId: string | undefined, onSynced: (row: PendingBottle) => void) {
+export function useJournalOutbox(babyId: string | undefined, onSynced: (row: PendingBottle, undo: NurseryUndo | null) => void) {
   const { family, authenticatedFetch } = useFamily();
   const [snapshot, setSnapshot] = useState<{ scope: string | null; rows: PendingBottle[] }>({ scope: null, rows: [] });
   const [error, setError] = useState(''), [syncing, setSyncing] = useState(false);
@@ -32,7 +33,7 @@ export function useJournalOutbox(babyId: string | undefined, onSynced: (row: Pen
         const row = await claimBottle(scope);
         if (!row) break;
         if (scope !== currentScope.current()) { await settleBottle(row, false, 401); break; }
-        let success = false, status = 0;
+        let success = false, status = 0, undo: NurseryUndo | null = null;
         try {
           const response = await authenticatedFetch('/api/bottle-journal', { method: 'POST', cache: 'no-store',
             headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(20_000),
@@ -40,12 +41,14 @@ export function useJournalOutbox(babyId: string | undefined, onSynced: (row: Pen
           status = response.status;
           const result = await response.json();
           success = response.ok && result.success === true && result.data?.id === row.requestId;
+          const candidate = success && result.data?.created === true ? readNurseryUndo(result.data.undo) : null;
+          if (candidate?.kind === 'bottle' && candidate.scope === scope && candidate.records[0].id === row.requestId) undo = candidate;
           // A malformed success response is uncertain delivery, never success.
           if (response.ok && !success) status = 0;
         } catch { if (status >= 200 && status < 300) status = 0; /* Unreadable success is uncertain delivery. */ }
         await settleBottle(row, success, status);
         if (success) confirmed.add(row.requestId);
-        if (success && scope === currentScope.current()) synced.current(row);
+        if (success && scope === currentScope.current()) synced.current(row, undo);
         if (!success) break;
       }
       await reload();

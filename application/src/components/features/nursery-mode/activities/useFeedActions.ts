@@ -4,8 +4,10 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocalization } from '@/src/context/localization';
 import { useBreastfeedSession } from './useBreastfeedSession';
 import { formatFeedNote, FeedNoteLabels } from '@/src/utils/nursery/activityDetail';
-import { ActivityHookArgs, ActivityView, ActionButton, formatMMSS, undoDeleteLog } from './types';
+import { ActivityHookArgs, ActivityView, ActionButton, formatMMSS } from './types';
 import { useNurseryBottle } from './useNurseryBottle';
+import { conditionalUndo } from './conditionalUndo';
+import { useNurseryOwner } from './useNurseryOwner';
 
 /**
  * Feed controls. Breastfeeding requests and first-stop recovery are owned by
@@ -13,6 +15,7 @@ import { useNurseryBottle } from './useNurseryBottle';
  */
 export function useFeedActions({ babyId, onLog, onUndoable }: ActivityHookArgs): ActivityView {
   const { t } = useLocalization();
+  const owner = useNurseryOwner(babyId);
   const bottle = useNurseryBottle({ babyId, onLog, onUndoable });
   const [lastBreastSide, setLastBreastSide] = useState<'LEFT' | 'RIGHT' | ''>('');
   const currentBaby = useRef(babyId);
@@ -47,7 +50,7 @@ export function useFeedActions({ babyId, onLog, onUndoable }: ActivityHookArgs):
     left: t('Left'), right: t('Right'),
   };
 
-  const breast = useBreastfeedSession(babyId, (intent, createdIds) => {
+  const breast = useBreastfeedSession(babyId, (intent, createdIds, undo) => {
     void refreshLastBreastSide();
     // Ending a zero-second session is valid and creates no feeding history.
     if (createdIds.length === 0) return;
@@ -56,10 +59,7 @@ export function useFeedActions({ babyId, onLog, onUndoable }: ActivityHookArgs):
       breastSides: [{ side: 'LEFT', seconds: intent.leftDuration }, { side: 'RIGHT', seconds: intent.rightDuration }],
     }, feedNoteLabels);
     onLog('feed', note, intent.stoppedAt);
-    if (createdIds.length > 0) onUndoable({
-      tileId: 'feed', message: t('Feed logged'),
-      undo: async () => (await Promise.all(createdIds.map(id => undoDeleteLog('/api/feed-log', id)))).every(Boolean),
-    });
+    if (undo) onUndoable(conditionalUndo(undo, t('Feed logged'), owner.scopeNow));
   });
   const { phase, session: activeFeed, leftTotal, rightTotal } = breast;
 

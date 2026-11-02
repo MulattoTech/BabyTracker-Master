@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { ActiveBreastFeed, BreastSide } from '@prisma/client';
+import { ActiveBreastFeed, BreastSide, type FeedLog } from '@prisma/client';
 import prisma from '../db';
 import { notifyActivityCreated, resetTimerNotificationState } from '@/src/lib/notifications/activityHook';
 import { layoutBreastFeedSession } from '@/src/utils/feedSessionLayout';
@@ -173,6 +173,8 @@ export interface EndSessionOptions {
   rightDuration?: number;
   pauseDuration?: number;
   expectedUpdatedAt?: unknown;
+  /** Capture the original side revisions before this transaction commits. */
+  onCreated?: (rows: FeedLog[], sessionId: string) => void;
 }
 
 export interface EndSessionResult {
@@ -240,7 +242,7 @@ export async function endBreastfeedSession(session: ActiveBreastFeed, opts: EndS
     // duplicate rows or erase a completed caregiver correction.
     const claimed = await tx.activeBreastFeed.deleteMany({ where: { ...session } });
     if (claimed.count !== 1) throw new BreastfeedSessionConflict();
-    const logs: { id: string; side: BreastSide | null; feedDuration: number | null }[] = [];
+    const logs: FeedLog[] = [];
     for (const block of blocks) {
       const log = await tx.feedLog.create({
         data: {
@@ -260,6 +262,7 @@ export async function endBreastfeedSession(session: ActiveBreastFeed, opts: EndS
       });
       logs.push(log);
     }
+    opts.onCreated?.(logs, sessionId);
     return logs;
   });
 

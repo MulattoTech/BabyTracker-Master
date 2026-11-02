@@ -3219,5 +3219,14 @@
   "This tab could not clear the stop review. Keep this page open and check browser storage.": "Denne fanen kunne ikke fjerne kontrollen av avslutningen. Hold siden åpen og kontroller nettleserlagringen.",
   "This tab could not read its saved stop review. Keep this page open and check the care log and browser storage.": "Denne fanen kunne ikke lese den lagrede kontrollen av avslutningen. Hold siden åpen og kontroller omsorgsloggen og nettleserlagringen.",
   "This tab could not save the stop time. Keep this page open and check browser storage before retrying. No request was sent on this attempt.": "Denne fanen kunne ikke lagre avslutningstidspunktet. Hold siden åpen og kontroller nettleserlagringen før du prøver igjen. Ingen forespørsel ble sendt i dette forsøket.",
-  "Your first stop time is kept. Reload to inspect the current session. Using the current timer discards this stop time.": "Tidspunktet for det første avslutningsforsøket beholdes. Last inn på nytt for å se gjeldende økt. Hvis du bruker gjeldende timer, forkastes dette tidspunktet."
+  "Your first stop time is kept. Reload to inspect the current session. Using the current timer discards this stop time.": "Tidspunktet for det første avslutningsforsøket beholdes. Last inn på nytt for å se gjeldende økt. Hvis du bruker gjeldende timer, forkastes dette tidspunktet.",
+  "Undo was not confirmed. Keep this action and retry or review the care log.": "Angringen ble ikke bekreftet. Behold denne handlingen og prøv igjen eller se omsorgsloggen.",
+  "This entry changed or was removed. Undo could not be confirmed. Review the care log.": "Denne oppføringen er endret eller fjernet. Angringen kunne ikke bekreftes. Se omsorgsloggen.",
+  "The caregiver or child changed. Return to the original caregiver and child to review this action.": "Omsorgspersonen eller barnet er endret. Gå tilbake til den opprinnelige omsorgspersonen og barnet for å gjennomgå handlingen.",
+  "Sign in again as the original caregiver before retrying Undo.": "Logg inn igjen som den opprinnelige omsorgspersonen før du prøver å angre på nytt.",
+  "Undoing…": "Angrer…",
+  "Retry Undo": "Prøv å angre igjen",
+  "Dismiss Undo review": "Lukk gjennomgang av angring",
+  "This food entry changed or its enjoyment update was not confirmed. Review the care log.": "Denne matoppføringen er endret, eller oppdateringen av vurderingen ble ikke bekreftet. Se omsorgsloggen.",
+  "Dismiss review": "Lukk gjennomgang"
 }

@@ -7,6 +7,7 @@ import { journalScopeFromToken } from '@/src/lib/bottle-journal/outbox-identity'
 import { captureBreastfeedStop, clearBreastfeedStop, readBreastfeedStop, saveBreastfeedStop,
   type BreastfeedStopIntent } from '@/src/utils/nursery/breastfeedStop';
 import { requestBreastfeedJSON } from '@/src/utils/nursery/breastfeedRequest';
+import { readNurseryUndo, type NurseryUndo } from '@/src/utils/nursery/undo';
 
 type Review = 'unchecked' | 'current' | 'changed' | 'missing' | 'completed';
 interface SessionView {
@@ -30,7 +31,7 @@ const missingError = 'No active session was found. Your stop may already be save
 /** Owns only breastfeeding timer requests and its per-tab first-stop recovery.
  * The shared API claims each revision; this hook never treats a missing session
  * as evidence that this tab's stop was saved. */
-export function useBreastfeedSession(babyId: string, onCompleted: (stop: BreastfeedStopIntent, ids: string[]) => void) {
+export function useBreastfeedSession(babyId: string, onCompleted: (stop: BreastfeedStopIntent, ids: string[], undo: NurseryUndo | null) => void) {
   const { family, authenticatedFetch } = useFamily();
   const environment = useRef({ family, babyId, authenticatedFetch, onCompleted });
   environment.current = { family, babyId, authenticatedFetch, onCompleted };
@@ -220,7 +221,10 @@ export function useBreastfeedSession(babyId: string, onCompleted: (stop: Breastf
         return;
       }
       show({ session: null, stop: null, review: 'unchecked', loaded: true, error: null });
-      environment.current.onCompleted(intent, ids as string[]);
+      const candidate = readNurseryUndo(data.undo);
+      const undo = candidate?.kind === 'breast' && candidate.scope === capture.scope && candidate.records.length === ids.length
+        && candidate.records.every(row => ids.includes(row.id)) ? candidate : null;
+      environment.current.onCompleted(intent, ids as string[], undo);
     } catch {
       if (isCurrent(capture)) show({ error: intent ? unconfirmedError : 'Review the breastfeeding timer before stopping it.' });
     } finally { finish(capture); }

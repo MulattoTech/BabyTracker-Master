@@ -3219,5 +3219,14 @@
   "This tab could not clear the stop review. Keep this page open and check browser storage.": "This tab could not clear the stop review. Keep this page open and check browser storage.",
   "This tab could not read its saved stop review. Keep this page open and check the care log and browser storage.": "This tab could not read its saved stop review. Keep this page open and check the care log and browser storage.",
   "This tab could not save the stop time. Keep this page open and check browser storage before retrying. No request was sent on this attempt.": "This tab could not save the stop time. Keep this page open and check browser storage before retrying. No request was sent on this attempt.",
-  "Your first stop time is kept. Reload to inspect the current session. Using the current timer discards this stop time.": "Your first stop time is kept. Reload to inspect the current session. Using the current timer discards this stop time."
+  "Your first stop time is kept. Reload to inspect the current session. Using the current timer discards this stop time.": "Your first stop time is kept. Reload to inspect the current session. Using the current timer discards this stop time.",
+  "Undo was not confirmed. Keep this action and retry or review the care log.": "Undo was not confirmed. Keep this action and retry or review the care log.",
+  "This entry changed or was removed. Undo could not be confirmed. Review the care log.": "This entry changed or was removed. Undo could not be confirmed. Review the care log.",
+  "The caregiver or child changed. Return to the original caregiver and child to review this action.": "The caregiver or child changed. Return to the original caregiver and child to review this action.",
+  "Sign in again as the original caregiver before retrying Undo.": "Sign in again as the original caregiver before retrying Undo.",
+  "Undoing…": "Undoing…",
+  "Retry Undo": "Retry Undo",
+  "Dismiss Undo review": "Dismiss Undo review",
+  "This food entry changed or its enjoyment update was not confirmed. Review the care log.": "This food entry changed or its enjoyment update was not confirmed. Review the care log.",
+  "Dismiss review": "Dismiss review"
 }

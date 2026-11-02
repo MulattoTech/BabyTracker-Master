@@ -7,6 +7,8 @@ import { toUTC, formatForResponse } from '../utils/timezone';
 import { checkWritePermission } from '../utils/writeProtection';
 import { notifyActivityCreated, resetTimerNotificationState } from '@/src/lib/notifications/activityHook';
 import { JournalError, validateBottleMetadata } from '@/src/lib/bottle-journal/validation';
+import { readNurseryUndoRequest, NurseryUndoError } from '../utils/nursery-undo';
+import { undoNurseryRows } from '../utils/nursery-undo-mutations';
 
 async function handlePost(req: NextRequest, authContext: AuthResult) {
   // Check write permissions for expired accounts
@@ -317,6 +319,12 @@ async function handleDelete(req: NextRequest, authContext: AuthResult) {
       );
     }
 
+    const undo = await readNurseryUndoRequest(req, 'feed', id);
+    if (undo) {
+      await undoNurseryRows(prisma, authContext, undo);
+      return NextResponse.json({ success: true });
+    }
+
     // Get family ID from request headers
     const existingFeedLog = await prisma.feedLog.findFirst({
       where: { id, familyId },
@@ -340,6 +348,7 @@ async function handleDelete(req: NextRequest, authContext: AuthResult) {
       success: true,
     });
   } catch (error) {
+    if (error instanceof NurseryUndoError) return error.response();
     console.error('Error deleting feed log:', error);
     return NextResponse.json<ApiResponse<void>>(
       {

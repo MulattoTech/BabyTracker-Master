@@ -7,66 +7,49 @@ import { UndoInfo } from './types';
 export interface UndoToastProps {
   undo: UndoInfo | null;
   onUndo: () => void;
-  onDismiss: () => void;
+  onDismiss: (undo: UndoInfo) => void;
+  busy?: boolean;
+  error?: string;
+  retryable?: boolean;
+  onReview?: () => void;
 }
 
 /**
- * Fixed bottom-center glass pill: "message · Undo".
- * Auto-dismisses 6s after each new toast (timer reset on undo change / unmount).
+ * Unattempted actions expire after six seconds. An in-flight or unconfirmed
+ * Undo stays visible until it settles or the caregiver dismisses its review.
  */
-export function UndoToast({ undo, onUndo, onDismiss }: UndoToastProps): ReactElement | null {
+export function UndoToast({ undo, onUndo, onDismiss, busy = false, error = '', retryable = false, onReview }: UndoToastProps): ReactElement | null {
   const { t } = useLocalization();
 
   useEffect(() => {
-    if (!undo) return;
-    const timer = setTimeout(onDismiss, 6000);
+    if (!undo || busy || error) return;
+    const timer = setTimeout(() => onDismiss(undo), 6000);
     return () => clearTimeout(timer);
-  }, [undo, onDismiss]);
+  }, [undo, onDismiss, busy, error]);
 
   if (!undo) return null;
 
   return (
     <div
-      className="nursery-toast"
-      role="status"
+      className={`nursery-toast${error ? ' nursery-toast-review' : ''}`}
+      role={error ? 'alert' : 'status'}
       aria-live="polite"
-      style={{
-        position: 'fixed',
-        bottom: 'calc(clamp(24px, 5vh, 48px) + env(safe-area-inset-bottom))',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        zIndex: 300,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 14,
-        padding: '10px 12px 10px 20px',
-        borderRadius: 9999,
-        background: 'rgba(20,22,31,.92)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255,255,255,.12)',
-        boxShadow: '0 8px 40px rgba(0,0,0,.4)',
-        color: '#fff',
-      }}
     >
-      <span style={{ fontSize: 'clamp(13px, 1.2vw, 15px)' }}>{undo.message}</span>
-      <button
-        type="button"
-        onClick={onUndo}
-        style={{
-          minHeight: 44,
-          padding: '0 18px',
-          borderRadius: 9999,
-          border: '1px solid rgba(255,255,255,.2)',
-          background: 'rgba(255,255,255,.12)',
-          color: '#fff',
-          fontSize: 'clamp(13px, 1.2vw, 15px)',
-          fontWeight: 600,
-          cursor: 'pointer',
-        }}
-      >
-        {t('Undo')}
-      </button>
+      <span className="nursery-toast-copy">
+        <span>{undo.message}</span>
+        {error && <span className="nursery-toast-error">{t(error)}</span>}
+      </span>
+      <div className="nursery-toast-actions">
+        {(!error || retryable) && (
+          <button type="button" className="nursery-undo-control" onClick={onUndo} disabled={busy}>
+            {t(busy ? 'Undoing…' : error ? 'Retry Undo' : 'Undo')}
+          </button>
+        )}
+        {error && <>
+          <button type="button" className="nursery-undo-control" onClick={onReview}>{t('Review care log')}</button>
+          <button type="button" className="nursery-undo-control" onClick={() => onDismiss(undo)}>{t('Dismiss Undo review')}</button>
+        </>}
+      </div>
     </div>
   );
 }

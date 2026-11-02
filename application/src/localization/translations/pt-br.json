@@ -3219,5 +3219,14 @@
   "This tab could not clear the stop review. Keep this page open and check browser storage.": "Esta aba não conseguiu limpar a revisão da finalização. Mantenha esta página aberta e verifique o armazenamento do navegador.",
   "This tab could not read its saved stop review. Keep this page open and check the care log and browser storage.": "Esta aba não conseguiu ler a revisão da finalização salva. Mantenha esta página aberta e verifique o registro de cuidados e o armazenamento do navegador.",
   "This tab could not save the stop time. Keep this page open and check browser storage before retrying. No request was sent on this attempt.": "Esta aba não conseguiu salvar o horário de finalização. Mantenha esta página aberta e verifique o armazenamento do navegador antes de tentar novamente. Nenhuma solicitação foi enviada nesta tentativa.",
-  "Your first stop time is kept. Reload to inspect the current session. Using the current timer discards this stop time.": "O horário da primeira tentativa de finalizar é mantido. Recarregue para consultar a sessão atual. Usar o temporizador atual descarta esse horário."
+  "Your first stop time is kept. Reload to inspect the current session. Using the current timer discards this stop time.": "O horário da primeira tentativa de finalizar é mantido. Recarregue para consultar a sessão atual. Usar o temporizador atual descarta esse horário.",
+  "Undo was not confirmed. Keep this action and retry or review the care log.": "A ação de desfazer não foi confirmada. Mantenha esta ação e tente novamente ou consulte o registro de cuidados.",
+  "This entry changed or was removed. Undo could not be confirmed. Review the care log.": "Este registro foi alterado ou removido. Não foi possível confirmar a ação de desfazer. Consulte o registro de cuidados.",
+  "The caregiver or child changed. Return to the original caregiver and child to review this action.": "O cuidador ou a criança mudou. Volte ao cuidador e à criança originais para revisar esta ação.",
+  "Sign in again as the original caregiver before retrying Undo.": "Entre novamente como o cuidador original antes de tentar desfazer de novo.",
+  "Undoing…": "Desfazendo…",
+  "Retry Undo": "Tentar desfazer novamente",
+  "Dismiss Undo review": "Fechar revisão de desfazer",
+  "This food entry changed or its enjoyment update was not confirmed. Review the care log.": "Este registro de alimentação foi alterado ou a atualização da avaliação não foi confirmada. Consulte o registro de cuidados.",
+  "Dismiss review": "Fechar revisão"
 }

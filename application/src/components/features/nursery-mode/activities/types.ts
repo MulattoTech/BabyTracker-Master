@@ -68,6 +68,9 @@ export interface ActivityView {
 export interface UndoInfo {
   tileId: 'feed' | 'pump' | 'diaper' | 'sleep' | 'food';
   message: string;
+  /** Conditional Nursery actions are bound to their original owner and record. */
+  scope?: string;
+  actionId?: string;
   /** Reverts the just-logged action (delete the entry, or resume a session); resolves true on success. */
   undo: () => Promise<boolean>;
 }
@@ -93,6 +96,8 @@ export interface ActivityHookArgs {
   toUTCString: (d: Date | null | undefined) => string | null;
   onLog: (tileId: string, note: string, at?: string) => void;
   onUndoable: (u: UndoInfo) => void; // instant logs only (bottle, diaper)
+  /** Clear a local summary after a previously unconfirmed Undo is explicitly retried. */
+  onUndoConfirmed?: (tileId: string) => void;
   enableBreastMilkTracking?: boolean;
   /** Locations offered by useSleepActions' location picker; defaults to ['Crib', 'Contact']. */
   sleepLocations?: string[];

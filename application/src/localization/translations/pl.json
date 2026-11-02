@@ -3223,5 +3223,14 @@
   "This tab could not clear the stop review. Keep this page open and check browser storage.": "Ta karta nie mogła usunąć weryfikacji zakończenia. Pozostaw stronę otwartą i sprawdź pamięć przeglądarki.",
   "This tab could not read its saved stop review. Keep this page open and check the care log and browser storage.": "Ta karta nie mogła odczytać zapisanej weryfikacji zakończenia. Pozostaw stronę otwartą i sprawdź dziennik opieki oraz pamięć przeglądarki.",
   "This tab could not save the stop time. Keep this page open and check browser storage before retrying. No request was sent on this attempt.": "Ta karta nie mogła zapisać czasu zakończenia. Pozostaw stronę otwartą i sprawdź pamięć przeglądarki przed ponowieniem. W tej próbie nie wysłano żadnego żądania.",
-  "Your first stop time is kept. Reload to inspect the current session. Using the current timer discards this stop time.": "Czas pierwszej próby zakończenia jest zachowany. Wczytaj ponownie, aby sprawdzić bieżącą sesję. Użycie bieżącego licznika odrzuci ten czas zakończenia."
+  "Your first stop time is kept. Reload to inspect the current session. Using the current timer discards this stop time.": "Czas pierwszej próby zakończenia jest zachowany. Wczytaj ponownie, aby sprawdzić bieżącą sesję. Użycie bieżącego licznika odrzuci ten czas zakończenia.",
+  "Undo was not confirmed. Keep this action and retry or review the care log.": "Cofnięcie nie zostało potwierdzone. Zachowaj tę czynność i spróbuj ponownie lub sprawdź dziennik opieki.",
+  "This entry changed or was removed. Undo could not be confirmed. Review the care log.": "Ten wpis został zmieniony lub usunięty. Nie udało się potwierdzić cofnięcia. Sprawdź dziennik opieki.",
+  "The caregiver or child changed. Return to the original caregiver and child to review this action.": "Zmieniono opiekuna lub dziecko. Wróć do pierwotnego opiekuna i dziecka, aby sprawdzić tę czynność.",
+  "Sign in again as the original caregiver before retrying Undo.": "Zaloguj się ponownie jako pierwotny opiekun przed kolejną próbą cofnięcia.",
+  "Undoing…": "Cofanie…",
+  "Retry Undo": "Ponów cofnięcie",
+  "Dismiss Undo review": "Zamknij sprawdzanie cofnięcia",
+  "This food entry changed or its enjoyment update was not confirmed. Review the care log.": "Ten wpis dotyczący jedzenia został zmieniony lub aktualizacja oceny nie została potwierdzona. Sprawdź dziennik opieki.",
+  "Dismiss review": "Zamknij sprawdzanie"
 }

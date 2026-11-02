@@ -267,6 +267,36 @@ exercises the real Nursery controls and canonical API with synthetic failure,
 restart, expired-auth, response-loss and two-tab scenarios. The release browser
 gate requires these checks.
 
+### Conditional Undo
+
+Nursery diaper, food, bottle, completed breastfeeding and pumping writes return
+an Undo descriptor for their original authenticated owner and exact saved scalar
+values. The existing DELETE routes accept that strict descriptor as an optional
+precondition. Bodyless manual deletes keep their existing behavior. Undo never
+fetches a newer row to replace its original baseline. Bottle and pump receipt
+replays confirm the save without issuing a new Undo descriptor.
+
+Breastfeeding Undo claims the complete original one- or two-side group in one
+transaction. Pump Undo also claims the original linked feeding row, or verifies
+that no feeding row existed. Changes to either member, group membership, ownership
+or the child prevent the whole deletion. Food's immediate enjoyment update is
+conditional on the same original descriptor and advances Undo only after its own
+update is confirmed. Receipts survive deletion.
+
+The view checks caregiver, child and request generation before applying late
+callbacks. A newer activity summary is not cleared by an older Undo response.
+Unattempted toasts expire after six seconds; an in-flight or failed Undo remains
+visible with explicit retry or care-log review. Later saves do not replace that
+retained descriptor. A missing row on retry remains a review outcome, including
+when a successful deletion's response was lost.
+
+`tests/nurseryUndo.test.ts` covers strict metadata and transport outcomes.
+`tests/nurseryUndo.integration.test.ts` uses real USER logins, migrated SQLite,
+independent Prisma clients, peer corrections, transaction rollback and fresh
+transactions through both clients after contention. The sixteen scenarios in
+`scripts/nursery-undo-browser.mjs` exercise actual compiled Nursery controls;
+the release gate requires `nurseryUndoChecksPassed`.
+
 Pure logic extracted to `src/utils/nursery/` is covered in `tests/`:
 
 - `nursery-settings.test.ts` — `normalizeNurserySettings` clamping/coercion.
@@ -280,6 +310,5 @@ Pure logic extracted to `src/utils/nursery/` is covered in `tests/`:
 - `nursery-food-activity.test.ts` — `foodActivity.ts` (picker sorting, meta-line note).
 - `nursery-activity-freshness.test.ts` — `activityFreshness.ts` (24 h meta-line cutoff).
 
-Other component/hook behavior (drawer interactions, the container's polling/undo
-flow) is exercised manually via the running app; there is no React-render test
-harness for this feature.
+The compiled browser acceptance modules cover the recovery and Undo interactions.
+There is no separate React-render test harness for this feature.

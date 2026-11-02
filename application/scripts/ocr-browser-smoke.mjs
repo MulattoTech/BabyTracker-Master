@@ -19,6 +19,7 @@ import { verifyCareContactEditors } from './care-contact-editor-browser.mjs';
 import { verifyNurseryPumpRecovery } from './nursery-pump-browser.mjs';
 import { verifyNurseryBottle } from './nursery-bottle-browser.mjs';
 import { verifyBreastfeedingRecovery } from './breastfeeding-recovery-browser.mjs';
+import { verifyNurseryUndo } from './nursery-undo-browser.mjs';
 const require = createRequire(import.meta.url);
 const { PrismaClient } = require('@prisma/client');
 const { createPrismaAdapter } = require('../prisma/prisma-adapter.js');
@@ -345,6 +346,8 @@ try {
   report.nurseryBottleChecksPassed = true;
   report.checks.push(...await verifyBreastfeedingRecovery({ base, db, family, baby, caretaker, token, secret, context }));
   report.breastfeedingRecoveryChecksPassed = true;
+  report.checks.push(...await verifyNurseryUndo({ base, db, family, secret, context }));
+  report.nurseryUndoChecksPassed = true;
   const userToken = jwt.sign({ id: caretaker.id, name: caretaker.name, role: 'USER', familyId: family.id, familySlug: family.slug }, secret, { expiresIn: '5m' });
   const denied = await fetch(`${base}/api/ocr/documents?babyId=${baby.id}`, { headers: { Authorization: `Bearer ${userToken}` }, signal: AbortSignal.timeout(5000) });
   assert.equal(denied.status, 403); await denied.body?.cancel();
