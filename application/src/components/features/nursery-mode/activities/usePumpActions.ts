@@ -23,6 +23,11 @@ export function usePumpActions({ babyId, onLog, onUndoable, enableBreastMilkTrac
   const { t } = useLocalization();
   const { family, authenticatedFetch } = useFamily();
   const [session, setSession] = useState<PumpSessionSnapshot | null>(null);
+  const persistedSnapshot = useRef<PumpSessionSnapshot | null>(null);
+  const adoptSession = useCallback((snapshot: PumpSessionSnapshot | null) => {
+    persistedSnapshot.current = snapshot;
+    setSession(snapshot);
+  }, []);
   const [legacy, setLegacy] = useState<PumpSessionSnapshot | null>(null);
   const [loadedScope, setLoadedScope] = useState<string | null>(null);
   const loadedScopeRef = useRef<string | null>(null);
@@ -63,7 +68,7 @@ export function usePumpActions({ babyId, onLog, onUndoable, enableBreastMilkTrac
       const saved = read?.status === 'saved' ? read.snapshot : null;
       loadedScopeRef.current = scope;
       setLoadedScope(scope);
-      setSession(saved);
+      adoptSession(saved);
       setLegacy(!saved && scope ? loadPumpSession(babyId) : null);
       setError(saved?.pending ? awaitingConfirmation : '');
     };
@@ -77,26 +82,34 @@ export function usePumpActions({ babyId, onLog, onUndoable, enableBreastMilkTrac
     window.addEventListener('focus', onFocus);
     window.addEventListener('storage', onStorage);
     return () => { window.removeEventListener('focus', onFocus); window.removeEventListener('storage', onStorage); };
-  }, [babyId, readScope]);
+  }, [babyId, readScope, adoptSession]);
 
   useEffect(() => {
     if (!loadedScope || loadedScope !== readScope()) return;
-    if (!session) return;
+    // Frozen submissions are persisted explicitly before dispatch. Re-saving
+    // one from a later passive effect could resurrect it after a 4xx rejection.
+    // Running ticks are derived from the persisted resume time; they do not
+    // write whole snapshots back over another tab's user edits.
+    if (!session || session.phase === 'timing' || session.pending || session === persistedSnapshot.current) return;
     if (session.scope !== loadedScope) return;
     let active = true;
     void mutatePumpSession(babyId, loadedScope, { kind: 'save', snapshot: session }).then(result => {
       if (!active || currentScope.current() !== loadedScope) return;
       if (result.status === 'changed' && result.snapshot) {
-        setSession(result.snapshot); setError(result.snapshot.requestId === session.requestId ? awaitingConfirmation : newerSessionMessage);
+        adoptSession(result.snapshot); setError(result.snapshot.requestId === session.requestId ? awaitingConfirmation : newerSessionMessage);
       } else if (result.status === 'locking-unavailable') setError(lockingError);
       else if (result.status === 'unavailable' || result.status === 'invalid') setError(storageError);
     });
     return () => { active = false; };
-  }, [babyId, loadedScope, session, readScope]);
+  }, [babyId, loadedScope, session, readScope, adoptSession]);
 
   useEffect(() => {
     if (session?.phase !== 'timing') return;
-    const tick = () => setSession(value => value?.phase === 'timing' ? { ...value, elapsed: elapsedNow(value) } : value);
+    const tick = () => setSession(value => {
+      if (value?.phase !== 'timing') return value;
+      const elapsed = elapsedNow(value);
+      return elapsed === value.elapsed ? value : { ...value, elapsed };
+    });
     tick();
     const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
@@ -107,11 +120,11 @@ export function usePumpActions({ babyId, onLog, onUndoable, enableBreastMilkTrac
     if (!scope || scope !== loadedScope || (session && scope !== session.scope)) { setError(identityError); return false; }
     return !submittingRef.current;
   };
-  const beginSession = (draft: PumpSessionSnapshot) => {
+  const beginSession = (draft: PumpSessionSnapshot, kind: 'create' | 'save' = 'create') => {
     setSession(draft); setLegacy(null); setError('');
-    void mutatePumpSession(babyId, draft.scope!, { kind: 'create', snapshot: draft }).then(result => {
+    void mutatePumpSession(babyId, draft.scope!, { kind, snapshot: draft }).then(result => {
       if (currentScope.current() !== draft.scope) return;
-      if (result.status === 'changed' && result.snapshot) { setSession(result.snapshot); setError(newerSessionMessage); }
+      if (result.status === 'changed' && result.snapshot) { adoptSession(result.snapshot); setError(newerSessionMessage); }
       else if (result.status === 'locking-unavailable') setError(lockingError);
       else if (result.status === 'unavailable' || result.status === 'invalid') setError(storageError);
     });
@@ -129,14 +142,14 @@ export function usePumpActions({ babyId, onLog, onUndoable, enableBreastMilkTrac
   };
   const resume = () => {
     if (!session || !canAct() || session.pending) return;
-    setSession({ ...session, phase: 'timing', resumeTime: Date.now(), endTime: undefined });
+    beginSession({ ...session, phase: 'timing', resumeTime: Date.now(), endTime: undefined }, 'save');
   };
   const switchSide = () => {
     if (!session || session.activeSide === 'both' || !canAct() || session.pending) return;
     const elapsed = elapsedNow(session);
-    setSession({ ...session, activeSide: session.activeSide === 'left' ? 'right' : 'left',
+    beginSession({ ...session, activeSide: session.activeSide === 'left' ? 'right' : 'left',
       sideDuration: { ...session.sideDuration, [session.activeSide]: session.sideDuration[session.activeSide] + elapsed },
-      elapsed: 0, pauseAccumulated: 0, resumeTime: Date.now(), phase: 'timing', endTime: undefined });
+      elapsed: 0, pauseAccumulated: 0, resumeTime: Date.now(), phase: 'timing', endTime: undefined }, 'save');
   };
 
   const submit = async (action: PumpAction, stopped = session) => {
@@ -145,7 +158,7 @@ export function usePumpActions({ babyId, onLog, onUndoable, enableBreastMilkTrac
     if (readBeforeSave.status === 'unavailable' || readBeforeSave.status === 'invalid') { setError(storageError); return; }
     const storedBeforeSave = readBeforeSave.status === 'saved' ? readBeforeSave.snapshot : null;
     if (storedBeforeSave && storedBeforeSave.requestId !== stopped.requestId) {
-      setSession(storedBeforeSave); setError(newerSessionMessage); return;
+      adoptSession(storedBeforeSave); setError(newerSessionMessage); return;
     }
     submittingRef.current = true; setSubmitting(true); setError('');
     const scope = stopped.scope!;
@@ -157,34 +170,45 @@ export function usePumpActions({ babyId, onLog, onUndoable, enableBreastMilkTrac
       const saved = read.status === 'saved' ? read.snapshot : null;
       if (saved?.requestId === stopped.requestId) return false;
       if (currentScope.current() === scope) {
-        setSession(saved); setError(saved ? newerSessionMessage : '');
+        adoptSession(saved); setError(saved ? newerSessionMessage : '');
       }
       return true;
     };
     try {
+      if (!pending) {
+        // Finish persisting even invalid user input before showing a validation
+        // failure. A reload immediately after that message must keep the choice
+        // and amounts, not just the last asynchronous timer snapshot.
+        const intent = { ...stopped, pumpAction: action };
+        const recorded = await mutatePumpSession(babyId, scope, { kind: 'create', snapshot: intent });
+        if (currentScope.current() !== scope) return;
+        if (recorded.status === 'changed') { adoptSession(recorded.snapshot); setError(recorded.snapshot ? newerSessionMessage : ''); return; }
+        if (recorded.status !== 'saved') throw new Error(recorded.status === 'locking-unavailable' ? lockingError : storageError);
+      }
       pending ??= preparePumpSubmission(stopped, babyId, action);
       const frozen = { ...stopped, phase: 'selecting_action' as const, pumpAction: pending.pumpAction, pending };
       // Persist before dispatch. A crash after the server commits must leave the
       // exact request available, including its original child, end time and unit.
       const persisted = await mutatePumpSession(babyId, scope, { kind: stopped.pending ? 'save' : 'create', snapshot: frozen });
       if (currentScope.current() !== scope) return;
-      if (persisted.status === 'changed') { setSession(persisted.snapshot); setError(persisted.snapshot ? newerSessionMessage : ''); return; }
+      if (persisted.status === 'changed') { adoptSession(persisted.snapshot); setError(persisted.snapshot ? newerSessionMessage : ''); return; }
       if (persisted.status !== 'saved') throw new Error(persisted.status === 'locking-unavailable' ? lockingError : storageError);
-      setSession(persisted.snapshot);
+      adoptSession(persisted.snapshot);
       const response = await authenticatedFetch('/api/pump-log', { method: 'POST', cache: 'no-store',
         headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(20_000), body: JSON.stringify(pending) });
       const data = await response.json();
       if (!response.ok || data.success !== true || data.requestId !== pending.requestId || typeof data.data?.id !== 'string') {
         if (adoptChangedDraft()) return;
         if (currentScope.current() === scope) {
-          // These rejections occur before any care write. Permit correction with
-          // the same stable ID. Conflicts and uncertain outcomes stay frozen.
-          if ([400, 401, 403, 404].includes(response.status)) {
+          // A first attempt rejected before a care write can be corrected.
+          // After any uncertain attempt, even a later auth/validation rejection
+          // says nothing about that earlier transaction: keep its exact request.
+          if (!stopped.pending && [400, 401, 403, 404].includes(response.status)) {
             const rejected = await mutatePumpSession(babyId, scope, { kind: 'reject', requestId: pending.requestId, pending });
             if (currentScope.current() !== scope) return;
-            if (rejected.status === 'changed') { setSession(rejected.snapshot); setError(rejected.snapshot ? newerSessionMessage : ''); return; }
+            if (rejected.status === 'changed') { adoptSession(rejected.snapshot); setError(rejected.snapshot ? newerSessionMessage : ''); return; }
             if (rejected.status !== 'saved') { setError(rejected.status === 'locking-unavailable' ? lockingError : storageError); return; }
-            setSession(rejected.snapshot);
+            adoptSession(rejected.snapshot);
           }
           setError(response.status === 401 || response.status === 403
             ? 'Sign in again to save this pumping session. Your input has been kept.'
@@ -201,7 +225,7 @@ export function usePumpActions({ babyId, onLog, onUndoable, enableBreastMilkTrac
       const newerSession = removed.status === 'changed' ? removed.snapshot : null;
       if (stopped.recoveredLegacy && loadPumpSession(babyId)?.startTime === stopped.startTime) clearPumpSession(babyId);
       if (currentScope.current() !== scope) return;
-      setSession(newerSession); setLegacy(null); setError(newerSession?.pending ? awaitingConfirmation : '');
+      adoptSession(newerSession); setLegacy(null); setError(newerSession?.pending ? awaitingConfirmation : '');
       onLog('pump', formatPumpNote({ side: stopped.activeSide, leftAmount: pending.leftAmount ?? null,
         rightAmount: pending.rightAmount ?? null, unitAbbr: pending.unitAbbr,
         durationSeconds: stopped.sideDuration.left + stopped.sideDuration.right + stopped.elapsed, action: pending.pumpAction },
@@ -212,7 +236,17 @@ export function usePumpActions({ babyId, onLog, onUndoable, enableBreastMilkTrac
       if (pending && !localFailure && adoptChangedDraft()) return;
       if (currentScope.current() === scope) setError(localFailure ? failure.message
         : pending ? awaitingConfirmation : failure instanceof Error ? failure.message : awaitingConfirmation);
-    } finally { submittingRef.current = false; setSubmitting(false); }
+    } finally {
+      submittingRef.current = false; setSubmitting(false);
+      // Storage events for this owner were held while the request was in
+      // flight. Observe the newest replacement once more before showing it.
+      if (currentScope.current() === scope) {
+        const latest = readPumpSession(babyId, scope);
+        if (latest.status === 'saved' && latest.snapshot.requestId !== stopped.requestId) {
+          adoptSession(latest.snapshot); setError(newerSessionMessage);
+        }
+      }
+    }
   };
   const stop = () => {
     if (!session || !canAct() || session.pending) return;
@@ -231,10 +265,10 @@ export function usePumpActions({ babyId, onLog, onUndoable, enableBreastMilkTrac
     try {
       const result = await mutatePumpSession(babyId, session.scope!, { kind: 'remove', requestId: session.requestId!, pending: session.pending });
       if (currentScope.current() !== session.scope) return;
-      if (result.status === 'changed') { setSession(result.snapshot); setError(result.snapshot ? newerSessionMessage : ''); return; }
+      if (result.status === 'changed') { adoptSession(result.snapshot); setError(result.snapshot ? newerSessionMessage : ''); return; }
       if (result.status !== 'removed') { setError(result.status === 'locking-unavailable' ? lockingError : storageError); return; }
       // Deliberate local dismissal is not a server success or a record deletion.
-      setSession(null); setLegacy(null); setError('');
+      adoptSession(null); setLegacy(null); setError('');
     } finally { submittingRef.current = false; setSubmitting(false); }
   };
 
@@ -291,5 +325,6 @@ export function usePumpActions({ babyId, onLog, onUndoable, enableBreastMilkTrac
     buttons = (['left', 'right', 'both'] as const).map(side => ({ key: `start${side}`, label: t(side === 'left' ? 'Start Left' : side === 'right' ? 'Start Right' : 'Start Both'), onClick: () => start(side), disabled: !loadedScope || submitting }));
   }
   return { id: 'pump', icon: 'pump', label: t('Pump'), statusText, errorText: error ? t(error) : null,
-    active: session?.phase === 'timing' || session?.phase === 'paused', question: session?.phase === 'selecting_action', amountPrompt, buttons };
+    active: session?.phase === 'timing' || session?.phase === 'paused', question: session?.phase === 'selecting_action', amountPrompt, buttons,
+    buttonsWrap: !!session?.pending || !!legacy };
 }

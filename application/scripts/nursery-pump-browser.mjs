@@ -34,6 +34,8 @@ export async function verifyNurseryPumpRecovery({ base, db, family, baby, careta
     page.on('pageerror', error => errors.push(error.message));
     await page.clock.setFixedTime(new Date('2026-10-22T13:00:00Z'));
     await page.goto(`${base}/${family.slug}/nursery-mode`, { waitUntil: 'networkidle' });
+    await page.getByRole('button', { name: 'Switch Baby', exact: true }).click();
+    await page.getByRole('option', { name: baby.firstName, exact: true }).click();
   };
   const pumpFor = target => target.locator('.nursery-card').filter({ has: target.getByRole('heading', { name: 'Pump', exact: true }) });
   const pump = () => pumpFor(page);
@@ -65,6 +67,8 @@ export async function verifyNurseryPumpRecovery({ base, db, family, baby, careta
     await pump().getByRole('button', { name: 'Fed', exact: true }).click();
     await alert('Enter a valid non-negative pumping amount.');
     const original = await read(page);
+    assert.ok(original, `The initial session must be durable: ${JSON.stringify(await page.evaluate(() => ({ secure: isSecureContext, locks: !!navigator.locks,
+      drafts: Object.keys(localStorage).filter(key => key.startsWith('nurseryPumpSession')).map(key => [key, localStorage.getItem(key)]) })))}`);
     assert.equal(original.phase, 'selecting_action'); assert.equal(original.pumpAction, 'FED');
     assert.equal(original.sideDuration.left, 120); assert.equal(original.elapsed, 240);
     await page.reload({ waitUntil: 'networkidle' }); await values('-1', '55');
@@ -82,6 +86,7 @@ export async function verifyNurseryPumpRecovery({ base, db, family, baby, careta
     await pump().locator('input').nth(0).fill('45');
     await pump().getByRole('button', { name: 'Fed', exact: true }).click();
     await alert('Synthetic rejected pumping save'); await values('45', '55');
+    await page.screenshot({ path: 'test-results/nursery-pump-rejected-save.png' });
     assert.equal((await read(page)).requestId, original.requestId);
     assert.equal(await page.getByText('Pump logged', { exact: true }).count(), 0);
     await db.settings.updateMany({ where: { familyId: family.id }, data: { defaultBottleUnit: 'OZ' } });
@@ -118,6 +123,10 @@ export async function verifyNurseryPumpRecovery({ base, db, family, baby, careta
 
     rejectedStatus = 500; await page.route('**/api/pump-log', reject);
     await pump().getByRole('button', { name: 'Fed', exact: true }).click(); await alert(waiting); await values('45', '55', true);
+    await page.waitForFunction(() => [...document.querySelectorAll('.nursery-card.question .nursery-card-actions button')].every(button => {
+      const rect = button.getBoundingClientRect(); return rect.left >= -1 && rect.right <= innerWidth + 1;
+    }), undefined, { timeout: 3000 });
+    await page.screenshot({ path: 'test-results/nursery-pump-pending-recovery.png' });
     const frozen = await read(page); assert.equal(frozen.pending.requestId, original.requestId);
     await page.unroute('**/api/pump-log', reject);
     const timedOut = new Promise(resolve => { releaseHeld = resolve; });
@@ -161,6 +170,11 @@ export async function verifyNurseryPumpRecovery({ base, db, family, baby, careta
     assert.equal(linked.length, 1); assert.equal(linked[0].amount, 100); assert.equal(linked[0].caretakerId, caretaker.id);
     assert.equal(await stock(), stockBefore);
     await page.unroute('**/api/pump-log', loseResponse);
+    rejectedStatus = 403; await page.route('**/api/pump-log', reject);
+    await pump().getByRole('button', { name: 'Retry saved pumping session', exact: true }).click();
+    await alert('Sign in again to save this pumping session. Your input has been kept.');
+    await values('45', '55', true); assert.deepEqual((await read(page)).pending, frozen.pending);
+    await page.unroute('**/api/pump-log', reject);
     await page.reload({ waitUntil: 'networkidle' }); await alert(waiting);
     await page.clock.setFixedTime(new Date('2026-10-23T18:00:00Z'));
     const replay = page.waitForResponse(response => response.url() === `${base}/api/pump-log` && response.request().method() === 'POST');
@@ -223,14 +237,35 @@ export async function verifyNurseryPumpRecovery({ base, db, family, baby, careta
     await otherPump.getByRole('button', { name: 'Dismiss saved session', exact: true }).click();
     await otherPump.getByRole('button', { name: 'Start Both', exact: true }).click();
     await otherPump.getByRole('button', { name: 'Stop', exact: true }).click();
+    await other.waitForFunction(([key, requestId]) => {
+      const saved = JSON.parse(localStorage.getItem(key) || 'null');
+      return saved?.phase === 'selecting_action' && saved?.requestId !== requestId;
+    }, [key, captured.requestId]);
+    // Force the exact ordering that used to echo A's adopted blank snapshot
+    // over B's queued input edits. The production Web Lock is used, not mocked.
+    await other.evaluate(async key => {
+      let acquired;
+      const ready = new Promise(resolve => { acquired = resolve; });
+      const hold = new Promise(resolve => { window.__releaseNurseryLock = resolve; });
+      void navigator.locks.request(key, async () => { acquired(); await hold; });
+      await ready;
+    }, key);
     await otherPump.locator('input').nth(0).fill('70'); await otherPump.locator('input').nth(1).fill('80');
+    await other.waitForFunction(async key => (await navigator.locks.query()).pending.filter(lock => lock.name === key).length >= 2, key);
     const newer = await read(other); assert.notEqual(newer.requestId, captured.requestId);
     releaseHeld(); releaseHeld = null;
     await alert('A newer pumping session is saved on this browser. It has been kept.');
-    assert.deepEqual(await read(page), newer); await values('70', '80'); assert.deepEqual(await counts(db), afterCommit);
+    await other.evaluate(() => window.__releaseNurseryLock());
+    await other.waitForFunction(async key => {
+      const locks = await navigator.locks.query();
+      return ![...locks.pending, ...locks.held].some(lock => lock.name === key);
+    }, key);
+    assert.deepEqual(await read(page), { ...newer, amountLeft: '70', amountRight: '80' });
+    await page.waitForFunction(() => [...document.querySelectorAll('.nursery-amount-field input')].map(input => input.value).join(',') === '70,80');
+    await values('70', '80'); assert.deepEqual(await counts(db), afterCommit);
     await page.unroute('**/api/pump-log');
     await other.close();
-    checks.push('Two-tab late rejection cannot overwrite a newer saved session; deliberate dismissal changes only the local draft and never reports server success');
+    checks.push('Real cross-tab Web Lock interleaving prevents a late rejection or adopted snapshot from overwriting newer input; deliberate local dismissal never deletes care records');
 
     // Storage can become unreadable after dispatch. A missing key and a failed
     // read are not interchangeable; keep the only in-memory copy on failure.
@@ -251,8 +286,42 @@ export async function verifyNurseryPumpRecovery({ base, db, family, baby, careta
     assert.deepEqual(await counts(db), { pumps: before.pumps + 2, feeds: before.feeds + 1, receipts: before.receipts + 2 });
     assert.equal(await stock(), stockBefore + 150);
     checks.push('An unreadable local draft after server failure retains the in-memory fields; restored storage and manual retry save one correct stock entry');
+
+    const legacyKey = `nurseryPumpSessionV1:${baby.id}`;
+    const legacy = { phase: 'paused', activeSide: 'both', startTime: '2026-10-23T17:50:00.000Z',
+      sideDuration: { left: 0, right: 0 }, pauseAccumulated: 180, resumeTime: null, elapsed: 180, amountLeft: '12', amountRight: '13' };
+    await page.evaluate(({ key, legacy }) => localStorage.setItem(key, JSON.stringify(legacy)), { key: legacyKey, legacy });
+    await page.reload({ waitUntil: 'networkidle' });
+    await pump().getByRole('button', { name: 'Review in mL as this caregiver', exact: true }).waitFor();
+    assert.equal(await read(page), null, 'An unscoped legacy timer must not silently acquire a caregiver');
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await page.locator('.nursery-drawer').getByRole('button', { name: 'Big Tiles', exact: true }).click();
+    await page.locator('.nursery-drawer').getByRole('button', { name: 'Close', exact: true }).click();
+    const tile = page.locator('.nursery-tile').filter({ has: page.locator('.tlabel').filter({ hasText: /^Pump$/ }) });
+    await tile.locator('.tmain').click();
+    const modal = page.getByRole('dialog', { name: 'Pump', exact: true });
+    await modal.getByRole('button', { name: 'Review in mL as this caregiver', exact: true }).click();
+    await modal.getByRole('button', { name: 'Stop', exact: true }).click();
+    assert.equal(await modal.locator('input').nth(0).inputValue(), '12'); assert.equal(await modal.locator('input').nth(1).inputValue(), '13');
+    rejectedStatus = 403; await page.route('**/api/pump-log', reject);
+    await modal.getByRole('button', { name: 'Stored', exact: true }).click();
+    await modal.getByRole('alert').filter({ hasText: 'Sign in again to save this pumping session.' }).waitFor();
+    assert.equal(await modal.isVisible(), true, 'A failed Big Tiles save must keep its amount dialog open');
+    assert.equal(await modal.locator('input').nth(0).inputValue(), '12');
+    await page.screenshot({ path: 'test-results/nursery-pump-modal-recovery.png' });
+    await page.unroute('**/api/pump-log', reject);
+    const legacySaved = page.waitForResponse(response => response.url() === `${base}/api/pump-log` && response.request().method() === 'POST');
+    await modal.getByRole('button', { name: 'Stored', exact: true }).click();
+    assert.equal((await legacySaved).status(), 200);
+    await page.waitForFunction(([current, old]) => localStorage.getItem(current) === null && localStorage.getItem(old) === null, [key, legacyKey]);
+    assert.deepEqual(await counts(db), { pumps: before.pumps + 3, feeds: before.feeds + 1, receipts: before.receipts + 3 });
+    assert.equal(await stock(), stockBefore + 175);
+    checks.push('Legacy timers require explicit caregiver/unit review; Big Tiles keeps the amount dialog open after rejection and clears both drafts only after confirmed saving');
     assert.deepEqual(errors, []);
     return checks;
+  } catch (error) {
+    error.message = `Nursery recovery after ${checks.at(-1) || 'initial timer'}: ${error.message}`;
+    throw error;
   } finally {
     releaseHeld?.();
     await owned.setOffline(false).catch(() => {});

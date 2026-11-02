@@ -189,13 +189,17 @@ write keeps the amounts, timer and selected disposition available for correction
 Before any POST, the exact request is persisted. Network interruption, timeout,
 server failure or an unreadable response keeps that request immutable until the
 caregiver retries it. Reload and browser restart do not generate a new ID or end
-time. The authenticated API stores a receipt with the pump/feed transaction and
+time. A later authentication or validation rejection cannot unfreeze an already
+uncertain request. The authenticated API stores a receipt with the pump/feed
+transaction and
 only replays an unchanged, still-owned record. Changed or deleted records require
 care-log review; a receipt survives deletion so a late retry cannot resurrect it.
 
 All scoped draft mutations use Web Locks and recheck the current request ID and
 pending payload inside the lock. A late response or stale timer snapshot cannot
-overwrite another tab's newer draft or unfreeze a dispatched request. Browsers
+overwrite another tab's newer draft or unfreeze a dispatched request. The UI
+adopts restored snapshots without writing them back; running timer ticks derive
+from persisted resume times without rewriting the draft. Browsers
 without Web Locks, and browsers with unavailable local storage, retain the visible
 input and block dispatch with an explanation. They cannot promise durable recovery
 until those browser capabilities are available. A storage read failure is distinct
