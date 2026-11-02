@@ -5,7 +5,7 @@ import { journalScopeFromToken } from '@/src/lib/bottle-journal/outbox-identity'
 import { changePendingBottle, claimBottle, enqueueBottle, listPendingBottles, settleBottle, type PendingBottle } from '@/src/lib/bottle-journal/outbox';
 import type { BottlePayload } from './types';
 
-export function useJournalOutbox(babyId: string | undefined, onSynced: () => void) {
+export function useJournalOutbox(babyId: string | undefined, onSynced: (row: PendingBottle) => void) {
   const { family, authenticatedFetch } = useFamily();
   const [snapshot, setSnapshot] = useState<{ scope: string | null; rows: PendingBottle[] }>({ scope: null, rows: [] });
   const [error, setError] = useState(''), [syncing, setSyncing] = useState(false);
@@ -45,7 +45,7 @@ export function useJournalOutbox(babyId: string | undefined, onSynced: () => voi
         } catch { if (status >= 200 && status < 300) status = 0; /* Unreadable success is uncertain delivery. */ }
         await settleBottle(row, success, status);
         if (success) confirmed.add(row.requestId);
-        if (success && scope === currentScope.current()) synced.current();
+        if (success && scope === currentScope.current()) synced.current(row);
         if (!success) break;
       }
       await reload();

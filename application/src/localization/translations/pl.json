@@ -3205,5 +3205,6 @@
   "This pumping request was already saved and has different values or was removed. Review the care log before making another entry.": "",
   "This pumping session is being saved. Keep the session and retry after the other request finishes.": "",
   "This session may already be in the care log. Check it before dismissing. Dismiss only this browser’s saved pumping session? This does not delete any care records.": "",
-  "Waiting for confirmation": ""
+  "Waiting for confirmation": "",
+  "Enter the amount you observed, choose the milk type, and check the unit before saving.": "Wpisz zaobserwowaną ilość, wybierz rodzaj mleka i sprawdź jednostkę przed zapisaniem."
 }

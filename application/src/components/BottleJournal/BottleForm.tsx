@@ -6,15 +6,15 @@ import { localTimeToInstant } from '@/src/lib/bottle-journal/validation';
 import { convertVolume, normalizeVolumeUnit } from '@/src/utils/unit-conversion';
 import type { BottlePayload, BottleRow } from './types';
 
-interface Props { timeZone: string; saving: boolean; initial?: BottleRow; onSave: (bottle: BottlePayload, id: string, editing?: BottleRow) => Promise<boolean>; onCancel: () => void }
-export default function BottleForm({ timeZone, saving, initial, onSave, onCancel }: Props) {
+interface Props { timeZone: string; saving: boolean; initial?: BottleRow; initialUnit?: 'ML' | 'OZ'; requireMilkChoice?: boolean; showCancel?: boolean; onSaved?: () => void; onSave: (bottle: BottlePayload, id: string, editing?: BottleRow) => Promise<boolean>; onCancel: () => void }
+export default function BottleForm({ timeZone, saving, initial, initialUnit = 'ML', requireMilkChoice = false, showCancel = false, onSaved, onSave, onCancel }: Props) {
   const { t } = useLocalization();
   const [localTime, setLocalTime] = useState(() => formatInTimeZone(initial?.time || new Date(), timeZone, "yyyy-MM-dd'T'HH:mm"));
-  const [unit, setUnit] = useState(initial ? normalizeVolumeUnit(initial.unitAbbr) || initial.unitAbbr || 'OZ' : 'ML');
+  const [unit, setUnit] = useState(initial ? normalizeVolumeUnit(initial.unitAbbr) || initial.unitAbbr || 'OZ' : initialUnit);
   const [followNow, setFollowNow] = useState(!initial), [retryTime, setRetryTime] = useState<string | null>(null);
   const [amount, setAmount] = useState(initial?.amount == null ? '' : String(initial.amount));
   const [offered, setOffered] = useState(initial?.offeredAmount == null ? '' : String(initial.offeredAmount));
-  const [milk, setMilk] = useState(initial?.bottleType || 'Formula');
+  const [milk, setMilk] = useState(initial?.bottleType || (requireMilkChoice ? '' : 'Formula'));
   const [kcal, setKcal] = useState(initial?.formulaKcalOz == null ? '' : String(initial.formulaKcalOz));
   const [formula, setFormula] = useState(initial?.formulaName || ''), [label, setLabel] = useState(initial?.bottleLabel || '');
   const [notes, setNotes] = useState(initial?.notes || ''), [error, setError] = useState('');
@@ -40,7 +40,7 @@ export default function BottleForm({ timeZone, saving, initial, onSave, onCancel
       const saved = await onSave({ time, amount: amount === '' ? null : Number(amount), offeredAmount: offered === '' ? null : Number(offered),
         unitAbbr: unit, bottleType: milk, formulaKcalOz: kcal === '' ? null : Number(kcal), formulaName: formula || null,
         bottleLabel: label || null, notes: notes || null, sourceCaregiverName: initial?.sourceCaregiverName || null }, id, initial);
-      if (saved) { setRequestId(null); setRetryTime(null); setFollowNow(true); setAmount(''); setOffered(''); setNotes(''); setLabel(''); setExactTime(''); setLocalTime(formatInTimeZone(new Date(), timeZone, "yyyy-MM-dd'T'HH:mm")); onCancel(); }
+      if (saved) { setRequestId(null); setRetryTime(null); setFollowNow(true); setAmount(''); setOffered(''); setNotes(''); setLabel(''); setExactTime(''); if (requireMilkChoice) setMilk(''); setLocalTime(formatInTimeZone(new Date(), timeZone, "yyyy-MM-dd'T'HH:mm")); (onSaved || onCancel)(); }
     } catch (error) { setError(error instanceof Error ? error.message : 'Check this bottle before saving.'); }
   }
   return <form className="journal-card journal-form" onSubmit={submit} aria-label={t(initial ? 'Edit bottle' : 'Add bottle')}>
@@ -48,7 +48,8 @@ export default function BottleForm({ timeZone, saving, initial, onSave, onCancel
     {error && <p className="journal-error" role="alert">{t(error)}</p>}
     <div className="journal-fields">
       <label>{t('Feeding date and time')}<input type="datetime-local" value={localTime} onChange={e => { setLocalTime(e.target.value); setFollowNow(false); setRetryTime(null); setExactTime(''); }} required disabled={saving} /></label>
-      <label>{t('Milk type')}<select aria-label={t('Milk type')} value={milk} onChange={e => setMilk(e.target.value)} disabled={saving}>
+      <label>{t('Milk type')}<select aria-label={t('Milk type')} value={milk} onChange={e => setMilk(e.target.value)} disabled={saving} required={requireMilkChoice}>
+        {requireMilkChoice && <option value="" disabled>{t('Choose a milk type.')}</option>}
         <option value="Formula">{t('Formula')}</option><option value="Breast Milk">{t('Breast Milk')}</option><option value="Formula/Breast">{t('Formula and breast milk')}</option><option value="Other">{t('Other')}</option>
       </select></label>
       <label>{t('Consumed')}<div className="journal-volume"><input type="number" inputMode="decimal" min="0" step="any" required value={amount} onChange={e => setAmount(e.target.value)} disabled={saving} />
@@ -69,7 +70,7 @@ export default function BottleForm({ timeZone, saving, initial, onSave, onCancel
       <label>{t('Notes')}<textarea aria-label={t('Notes')} value={notes} maxLength={2000} onChange={e => setNotes(e.target.value)} disabled={saving} /></label>
     </details>
     <div className="journal-actions"><button className="journal-primary" disabled={saving} type="submit">{t(saving ? 'Saving…' : initial ? 'Save changes' : 'Save bottle')}</button>
-      {initial && <button type="button" disabled={saving} onClick={onCancel}>{t('Cancel')}</button>}</div>
+      {(initial || showCancel) && <button type="button" disabled={saving} onClick={onCancel}>{t('Cancel')}</button>}</div>
     <p className="journal-muted">{t(initial ? 'Wait for Bottle saved before closing. If the connection drops, keep this form open and retry.' : 'New bottles can wait on this browser while offline. Wait for a saved or pending confirmation before closing. Historical edits require a connection.')}</p>
   </form>;
 }

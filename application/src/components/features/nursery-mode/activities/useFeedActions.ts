@@ -5,37 +5,23 @@ import { useLocalization } from '@/src/context/localization';
 import { ActiveBreastFeedResponse } from '@/app/api/types';
 import { formatFeedNote, FeedNoteLabels } from '@/src/utils/nursery/activityDetail';
 import { ActivityHookArgs, ActivityView, ActionButton, formatMMSS, undoDeleteLog } from './types';
-import { cacheDefaultBottleUnit, readCachedDefaultBottleUnit } from '@/src/utils/defaultBottleUnit';
-import type { BottleUnit } from '@/src/utils/defaultBottleUnit';
+import { useNurseryBottle } from './useNurseryBottle';
 
 type FeedPhase = 'idle' | 'feeding' | 'paused';
 
 /**
  * Feed activity state machine — transplanted 1:1 from FeedTile.tsx.
- * Bottle instant log (avg amount) + breastfeed via /api/active-breastfeed
+ * Explicit bottle review + breastfeed via /api/active-breastfeed
  * server session (POST start, PUT ?action=switch|pause|resume, DELETE finalize).
  */
-export function useFeedActions({ babyId, toUTCString, onLog, onUndoable }: ActivityHookArgs): ActivityView {
+export function useFeedActions({ babyId, onLog, onUndoable }: ActivityHookArgs): ActivityView {
   const { t } = useLocalization();
-  const [avgBottleAmount, setAvgBottleAmount] = useState<number | null>(null);
-  const [defaultUnit, setDefaultUnit] = useState<BottleUnit>(() => readCachedDefaultBottleUnit());
+  const bottle = useNurseryBottle({ babyId, onLog, onUndoable });
   const [submitting, setSubmitting] = useState(false);
   const [phase, setPhase] = useState<FeedPhase>('idle');
   const [activeFeed, setActiveFeed] = useState<ActiveBreastFeedResponse | null>(null);
   const [currentElapsed, setCurrentElapsed] = useState(0);
   const [lastBreastSide, setLastBreastSide] = useState<'LEFT' | 'RIGHT' | ''>('');
-
-  const refreshDefaultUnit = useCallback(async () => {
-    const authToken = localStorage.getItem('authToken');
-    const headers = { Authorization: authToken ? `Bearer ${authToken}` : '' };
-
-    try {
-      const settingsRes = await fetch('/api/settings', { headers, cache: 'no-store' });
-      const settingsData = await settingsRes.json();
-      const unit = cacheDefaultBottleUnit(settingsData.success && settingsData.data?.defaultBottleUnit);
-      if (unit) setDefaultUnit(unit);
-    } catch { /* keep the cached/default unit */ }
-  }, []);
 
   // "· Last used" hint — re-read after each completed breast feed so it points
   // at the side to use next, not the one from before this session's feeds.
@@ -52,49 +38,10 @@ export function useFeedActions({ babyId, toUTCString, onLog, onUndoable }: Activ
     } catch { /* no last side available */ }
   }, [babyId]);
 
-  // Fetch bottle defaults
+  // The breast-side hint remains independent of the bottle review form.
   useEffect(() => {
-    const fetchDefaults = async () => {
-      const authToken = localStorage.getItem('authToken');
-      const headers = { Authorization: authToken ? `Bearer ${authToken}` : '' };
-
-      await refreshDefaultUnit();
-
-      try {
-        const feedRes = await fetch(`/api/feed-log?babyId=${babyId}&type=BOTTLE`, { headers });
-        const feedData = await feedRes.json();
-        if (feedData.success && feedData.data?.length > 0) {
-          const bottleFeeds = feedData.data
-            .filter((f: any) => f.type === 'BOTTLE' && f.amount != null)
-            .slice(0, 20);
-          if (bottleFeeds.length > 0) {
-            const total = bottleFeeds.reduce((sum: number, f: any) => sum + f.amount, 0);
-            const avg = Math.round((total / bottleFeeds.length) * 10) / 10;
-            setAvgBottleAmount(avg);
-          }
-        }
-      } catch { /* no average available */ }
-
-      await refreshLastBreastSide();
-    };
-
-    if (babyId) fetchDefaults();
-  }, [babyId, refreshDefaultUnit, refreshLastBreastSide]);
-
-  // Android can resume a warm PWA without remounting its React tree. Re-read
-  // the server preference when the app becomes active again.
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') refreshDefaultUnit();
-    };
-
-    window.addEventListener('focus', refreshDefaultUnit);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      window.removeEventListener('focus', refreshDefaultUnit);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [refreshDefaultUnit]);
+    if (babyId) void refreshLastBreastSide();
+  }, [babyId, refreshLastBreastSide]);
 
   // Check for existing active breastfeed session on mount / baby change
   useEffect(() => {
@@ -154,42 +101,6 @@ export function useFeedActions({ babyId, toUTCString, onLog, onUndoable }: Activ
       Authorization: authToken ? `Bearer ${authToken}` : '',
     };
   };
-
-  // Bottle instant log
-  const submitBottle = useCallback(async () => {
-    if (submitting) return;
-    setSubmitting(true);
-    try {
-      const now = toUTCString(new Date());
-      const payload: any = { babyId, time: now, type: 'BOTTLE' };
-      if (avgBottleAmount != null) {
-        payload.amount = avgBottleAmount;
-        payload.unitAbbr = defaultUnit;
-      }
-      const res = await fetch('/api/feed-log', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (data.success) {
-        const note = formatFeedNote({ type: 'BOTTLE', amount: avgBottleAmount, unitAbbr: defaultUnit }, feedNoteLabels);
-        onLog('feed', note);
-        if (data.data?.id) {
-          const logId = data.data.id;
-          onUndoable({
-            tileId: 'feed',
-            message: t('Bottle logged'),
-            undo: () => undoDeleteLog('/api/feed-log', logId),
-          });
-        }
-      }
-    } catch (err) {
-      console.error('Error logging bottle feed:', err);
-    } finally {
-      setSubmitting(false);
-    }
-  }, [babyId, avgBottleAmount, defaultUnit, toUTCString, onLog, onUndoable, submitting, t]);
 
   // Start breastfeed session
   const startBreastFeed = useCallback(async (side: 'LEFT' | 'RIGHT') => {
@@ -346,7 +257,7 @@ export function useFeedActions({ babyId, toUTCString, onLog, onUndoable }: Activ
     ];
   } else {
     buttons = [
-      { key: 'bottle', label: avgBottleAmount ? `${t('Bottle')} (${avgBottleAmount})` : t('Bottle'), onClick: submitBottle, disabled: submitting },
+      { key: 'bottle', label: t('Bottle'), onClick: bottle.open, disabled: submitting || !bottle.available },
       {
         key: 'breastL',
         label: lastBreastSide === 'LEFT' ? `${t('Left Breast')} · ${t('Last used')}` : t('Left Breast'),
@@ -362,13 +273,19 @@ export function useFeedActions({ babyId, toUTCString, onLog, onUndoable }: Activ
     ];
   }
 
+  if (phase !== 'idle' && bottle.needsReview) {
+    buttons.push({ key: 'pendingBottles', label: t('Pending bottles on this browser'), onClick: bottle.open, disabled: !bottle.available });
+  }
+
   return {
     id: 'feed',
     icon: 'bottle',
     label: t('Feed'),
-    statusText,
+    statusText: statusText || (bottle.pending ? t('Pending bottles on this browser') : null),
     active: phase !== 'idle',
     question: false,
     buttons,
+    buttonsWrap: phase !== 'idle' && bottle.needsReview,
+    overlay: bottle.overlay,
   };
 }

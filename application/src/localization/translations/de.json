@@ -3201,5 +3201,6 @@
   "This pumping request was already saved and has different values or was removed. Review the care log before making another entry.": "Diese Abpumpanfrage wurde bereits gespeichert und enthält jetzt andere Werte oder wurde entfernt. Prüfe das Betreuungsprotokoll, bevor du einen weiteren Eintrag erstellst.",
   "This pumping session is being saved. Keep the session and retry after the other request finishes.": "Diese Abpumpsitzung wird gerade gespeichert. Behalte die Sitzung und versuche es erneut, wenn die andere Anfrage abgeschlossen ist.",
   "This session may already be in the care log. Check it before dismissing. Dismiss only this browser’s saved pumping session? This does not delete any care records.": "Diese Sitzung ist möglicherweise bereits im Betreuungsprotokoll. Prüfe es zuerst. Nur die in diesem Browser gespeicherte Abpumpsitzung verwerfen? Dabei werden keine Betreuungseinträge gelöscht.",
-  "Waiting for confirmation": "Warten auf Bestätigung"
+  "Waiting for confirmation": "Warten auf Bestätigung",
+  "Enter the amount you observed, choose the milk type, and check the unit before saving.": "Gib die beobachtete Menge ein, wähle die Milchart und prüfe die Einheit vor dem Speichern."
 }
