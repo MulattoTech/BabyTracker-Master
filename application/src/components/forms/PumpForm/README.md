@@ -139,6 +139,34 @@ stale values return `409`. Legacy clients that omit it retain overlapping-write
 protection but do not gain late stale-form detection. Empty and same-value
 corrections remain valid and preserve care fields while advancing the revision.
 
+### Owned feeding records
+
+Canonical pumping corrections and deletions use the same atomic reconciliation
+as hooks. A directly linked feed must belong to the pump's original family and
+child. An unlinked legacy feed is adopted only when its original caregiver,
+time, positive quantity, unit, and exact generated notes match one pump
+unambiguously. A similar timestamp or note prefix alone does not prove ownership.
+Missing quantities and `UNKNOWN` disposition never identify a legacy feed.
+Ambiguous ownership, inconsistent source links, and independently soft-deleted
+feeds return `409` without changing either record. Already deleted pumps cannot
+be corrected or deleted again. Deletion claims the complete server-read pump
+snapshot, so an overlapping correction cannot be silently erased.
+
+Ownership and removed-record conflicts carry `PUMP_RECONCILIATION_REQUIRED` with
+a safe explanation. The editor keeps the draft, displays the reason, and allows
+the latest pump values to be inspected. It keeps saving and draft replacement
+blocked: loading a pump alone cannot repair ambiguous feeding ownership. The
+caregiver must review the pumping and feeding history before reopening the
+correction. Ordinary revision conflicts retain their explicit reload/replace
+workflow; neither conflict automatically retries a write.
+
+An explicit correction to another child in the same authenticated family remains
+supported. Ownership is checked against the original child first, then the pump
+and its one owned feed move together. The original caregiver attribution is
+preserved, and unrelated feeds for either child remain unchanged. A target child
+outside that family or already deleted is rejected before any care write. These changes do not
+introduce client revision preconditions for DELETE or for legacy PUT callers.
+
 ### Multi-Family Support
 
 The API obtains the family from the authenticated context. Record lookup and the

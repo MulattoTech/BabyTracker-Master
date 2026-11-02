@@ -114,6 +114,7 @@ export default function PumpForm({
   const [breastMilkTrackingEnabled, setBreastMilkTrackingEnabled] = useState(true);
   const [editBaseline, setEditBaseline] = useState<PumpLogResponse | null>(null);
   const [hasConflict, setHasConflict] = useState(false);
+  const [reconciliationError, setReconciliationError] = useState('');
   const [latestPump, setLatestPump] = useState<PumpLogResponse | null>(null);
   const [loadingLatest, setLoadingLatest] = useState(false);
   const [latestError, setLatestError] = useState('');
@@ -307,6 +308,7 @@ export default function PumpForm({
       editEpoch.current += 1;
       setEditBaseline(null);
       setHasConflict(false);
+      setReconciliationError('');
       setLatestPump(null);
       setLatestError('');
       setLoadingLatest(false);
@@ -496,7 +498,7 @@ export default function PumpForm({
   };
 
   const replaceDraftWithLatest = () => {
-    if (!latestPump || loadingLatest) return;
+    if (!latestPump || loadingLatest || reconciliationError) return;
     populatePumpFields(latestPump);
     setEditBaseline({ ...latestPump });
     setHasConflict(false);
@@ -573,7 +575,12 @@ export default function PumpForm({
       
       if (!response.ok) {
         if (response.status === 409 && editBaseline) {
+          const conflict = await response.json().catch(() => null);
+          if (epoch !== editEpoch.current) return;
           setHasConflict(true);
+          setReconciliationError(conflict?.code === 'PUMP_RECONCILIATION_REQUIRED'
+            ? typeof conflict.error === 'string' ? conflict.error : 'This pumping session needs a review of its pumping and feeding history before it can be changed.'
+            : '');
           setLatestPump(null);
           setLatestError('');
           return;
@@ -672,7 +679,7 @@ export default function PumpForm({
         <FormPageContent>
           {hasConflict && !isAdjustMode && (
             <PumpConflictReview latest={latestPump} loading={loadingLatest} error={latestError}
-              onLoad={loadLatestPump} onReplace={replaceDraftWithLatest} />
+              reconciliationError={reconciliationError} onLoad={loadLatestPump} onReplace={replaceDraftWithLatest} />
           )}
           {/* Mode Switch - only show when not editing and breast milk tracking is enabled */}
           {breastMilkTrackingEnabled && !activity && !adjustmentActivity && (

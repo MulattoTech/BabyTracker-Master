@@ -8,20 +8,13 @@ import { checkWritePermission } from '../utils/writeProtection';
 import { notifyActivityCreated } from '@/src/lib/notifications/activityHook';
 import {
   autoPumpFeedNotes,
-  AUTO_PUMP_FEED_PREFIX,
-  planAutoFeedSync,
   shouldHaveAutoPumpFeed,
 } from '@/src/utils/breastMilkInventory';
 import { normalizeVolumeUnit } from '@/src/utils/unit-conversion';
 import { isPumpAction } from '@/src/utils/pumpAction';
 import { preparePumpFields } from './fields';
-import { checkPumpRevision, PUMP_REVISION_CONFLICT } from '@/src/utils/pumpRevision';
-
-class PumpUpdateConflictError extends Error {
-  constructor() {
-    super(PUMP_REVISION_CONFLICT);
-  }
-}
+import { checkPumpRevision } from '@/src/utils/pumpRevision';
+import { deletePumpWithFeed, PumpReconciliationConflict, updatePumpWithFeed } from '../utils/pumpReconciliation';
 
 async function handlePost(req: NextRequest, authContext: AuthResult) {
   // Check write permissions for expired accounts
@@ -196,7 +189,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
     // their family — never trust a client-sent babyId across families.
     if (body.babyId !== undefined && body.babyId !== existingPumpLog.babyId) {
       const targetBaby = await prisma.baby.findFirst({
-        where: { id: body.babyId, familyId: userFamilyId },
+        where: { id: body.babyId, familyId: userFamilyId, deletedAt: null },
       });
       if (!targetBaby) {
         return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Baby not found in this family.' }, { status: 404 });
@@ -212,7 +205,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       body.unitAbbr = normalizedUnit;
     }
 
-    const data: any = { ...prepared.data };
+    const data: Prisma.PumpLogUncheckedUpdateManyInput = { ...prepared.data };
     
     // Add other fields
     if (body.unitAbbr !== undefined) data.unitAbbr = body.unitAbbr;
@@ -225,112 +218,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       data.pumpAction = body.pumpAction;
     }
 
-    const finalStartTime = prepared.startTime;
-    const finalTotalAmount = prepared.totalAmount;
-    const finalPumpAction = body.pumpAction ?? existingPumpLog.pumpAction;
-    const finalUnitAbbr = body.unitAbbr !== undefined ? body.unitAbbr : existingPumpLog.unitAbbr;
-    const finalNotes = body.notes !== undefined ? body.notes : existingPumpLog.notes;
-    const finalBabyId = body.babyId !== undefined ? body.babyId : existingPumpLog.babyId;
-
-    const familySettings = await prisma.settings.findFirst({
-      where: { familyId: userFamilyId },
-      select: { enableBreastMilkTracking: true },
-    });
-    const trackingEnabled = familySettings?.enableBreastMilkTracking !== false;
-
-    const pumpLog = await prisma.$transaction(async (tx) => {
-      // Validation and derived fields use the snapshot read above. Claim that
-      // exact state before reading or changing its owned feed. updatedAt alone
-      // is insufficient because another writer can share its millisecond value.
-      const claimed = await tx.pumpLog.updateMany({
-        where: {
-          id,
-          familyId: userFamilyId,
-          babyId: existingPumpLog.babyId,
-          caretakerId: existingPumpLog.caretakerId,
-          startTime: existingPumpLog.startTime,
-          endTime: existingPumpLog.endTime,
-          duration: existingPumpLog.duration,
-          leftAmount: existingPumpLog.leftAmount,
-          rightAmount: existingPumpLog.rightAmount,
-          totalAmount: existingPumpLog.totalAmount,
-          unitAbbr: existingPumpLog.unitAbbr,
-          pumpAction: existingPumpLog.pumpAction,
-          notes: existingPumpLog.notes,
-          createdAt: existingPumpLog.createdAt,
-          updatedAt: existingPumpLog.updatedAt,
-          deletedAt: existingPumpLog.deletedAt,
-        } satisfies Prisma.PumpLogWhereInput,
-        data: {
-          ...data,
-          // Even an unchanged form must claim the snapshot before feed sync.
-          updatedAt: new Date(Math.max(Date.now(), existingPumpLog.updatedAt.getTime() + 1)),
-        },
-      });
-      if (claimed.count !== 1) throw new PumpUpdateConflictError();
-      const updatedPumpLog = await tx.pumpLog.findFirstOrThrow({ where: { id, familyId: userFamilyId } });
-
-      const linkedAutoFeed = await tx.feedLog.findFirst({
-        where: {
-          sourcePumpId: id,
-          familyId: userFamilyId,
-          babyId: existingPumpLog.babyId,
-        },
-      });
-      // Only a previously FED pump can own an unlinked legacy automatic feed.
-      const legacyAutoFeed = linkedAutoFeed || existingPumpLog.pumpAction !== 'FED' ? null : await tx.feedLog.findFirst({
-        where: {
-          sourcePumpId: null,
-          babyId: existingPumpLog.babyId,
-          familyId: userFamilyId,
-          time: existingPumpLog.startTime,
-          type: 'BOTTLE',
-          bottleType: 'Breast Milk',
-          ...(existingPumpLog.totalAmount != null ? { amount: existingPumpLog.totalAmount } : {}),
-          notes: { startsWith: AUTO_PUMP_FEED_PREFIX },
-          deletedAt: null,
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      const plan = planAutoFeedSync({
-        shouldHaveAutoFeed: shouldHaveAutoPumpFeed({
-          trackingEnabled,
-          pumpAction: finalPumpAction,
-          totalAmount: finalTotalAmount,
-        }),
-        linkedAutoFeedId: linkedAutoFeed?.id,
-        legacyAutoFeedId: legacyAutoFeed?.id,
-      });
-
-      if (plan.action === 'upsert') {
-        const feedData = {
-          time: finalStartTime,
-          type: 'BOTTLE' as const,
-          amount: finalTotalAmount,
-          unitAbbr: finalUnitAbbr || 'OZ',
-          bottleType: 'Breast Milk',
-          notes: autoPumpFeedNotes(finalNotes),
-          sourcePumpId: id,
-          deletedAt: null,
-          babyId: finalBabyId,
-          caretakerId: existingPumpLog.caretakerId,
-          familyId: userFamilyId,
-        };
-
-        if (plan.updateId) {
-          await tx.feedLog.update({ where: { id: plan.updateId }, data: feedData });
-        } else {
-          await tx.feedLog.create({ data: feedData });
-        }
-      } else if (plan.action === 'delete') {
-        for (const feedId of plan.deleteIds) {
-          await tx.feedLog.delete({ where: { id: feedId } });
-        }
-      }
-
-      return updatedPumpLog;
-    });
+    const pumpLog = await updatePumpWithFeed(prisma, existingPumpLog, data);
 
     // Format dates as ISO strings for response
     const response: PumpLogResponse = {
@@ -347,8 +235,8 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
-    if (error instanceof PumpUpdateConflictError) {
-      return NextResponse.json<ApiResponse<null>>({ success: false, error: error.message }, { status: 409 });
+    if (error instanceof PumpReconciliationConflict) {
+      return NextResponse.json({ success: false, error: error.message, code: error.code }, { status: 409 });
     }
     console.error('Error updating pump log:', error);
     return NextResponse.json<ApiResponse<PumpLogResponse>>(
@@ -496,49 +384,15 @@ async function handleDelete(req: NextRequest, authContext: AuthResult) {
       );
     }
 
-    await prisma.$transaction(async (tx) => {
-      const linkedAutoFeed = await tx.feedLog.findFirst({
-        where: {
-          sourcePumpId: id,
-          familyId: userFamilyId,
-          babyId: existingPumpLog.babyId,
-        },
-      });
-      // UNKNOWN imports must never delete a matching feed from another session.
-      const legacyAutoFeed = linkedAutoFeed || existingPumpLog.pumpAction !== 'FED' ? null : await tx.feedLog.findFirst({
-        where: {
-          sourcePumpId: null,
-          babyId: existingPumpLog.babyId,
-          familyId: userFamilyId,
-          time: existingPumpLog.startTime,
-          type: 'BOTTLE',
-          bottleType: 'Breast Milk',
-          ...(existingPumpLog.totalAmount != null ? { amount: existingPumpLog.totalAmount } : {}),
-          notes: { startsWith: AUTO_PUMP_FEED_PREFIX },
-          deletedAt: null,
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      const plan = planAutoFeedSync({
-        shouldHaveAutoFeed: false,
-        linkedAutoFeedId: linkedAutoFeed?.id,
-        legacyAutoFeedId: legacyAutoFeed?.id,
-      });
-
-      if (plan.action === 'delete') {
-        for (const feedId of plan.deleteIds) {
-          await tx.feedLog.delete({ where: { id: feedId } });
-        }
-      }
-
-      await tx.pumpLog.delete({ where: { id } });
-    });
+    await deletePumpWithFeed(prisma, existingPumpLog);
 
     return NextResponse.json<ApiResponse<void>>({
       success: true,
     });
   } catch (error) {
+    if (error instanceof PumpReconciliationConflict) {
+      return NextResponse.json({ success: false, error: error.message, code: error.code }, { status: 409 });
+    }
     console.error('Error deleting pump log:', error);
     return NextResponse.json<ApiResponse<void>>(
       {
