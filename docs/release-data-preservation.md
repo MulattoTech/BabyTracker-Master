@@ -9,6 +9,13 @@ Use PowerShell 7 for the owner-invoked promotion:
 The existing exact-main CI, image provenance, isolated preview, backup, restore,
 health and volume checks still apply. A private full-startup migration rehearsal
 and the synthetic previous-image rollback drill remain separate prerequisites.
+The promoter refuses `-Apply` without `-VerifyDataPreservation` before any
+inspection or mutation. Plan-only inspection still works with or without the
+switch. The lower-level updater retains its existing interface; production
+releases use the guarded promoter above.
+The backup helper refuses an unsuccessful service-state inspection before
+stopping, restarting or archiving anything. An already stopped service can still
+be backed up without starting it.
 
 ## Capture at the correct point
 
@@ -67,7 +74,7 @@ promotion success message and the new deployment receipt. The candidate and
 private evidence remain for investigation; no database restore or rollback runs
 automatically, because it could discard post-deploy writes.
 
-Successful promotion records `preservationStatus: PASS`, the baseline digest,
-the private evidence location and the coverage statement. Without the optional
-switch it explicitly records `NOT_REQUESTED`; ordinary health and volume checks
-do not establish old-row preservation.
+Successful production promotion records `preservationStatus: PASS`, the baseline
+digest, the private evidence location and the coverage statement. Historical
+receipts with `NOT_REQUESTED` do not establish old-row preservation and cannot
+qualify a new production promotion.
