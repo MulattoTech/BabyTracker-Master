@@ -3202,5 +3202,22 @@
   "This pumping session is being saved. Keep the session and retry after the other request finishes.": "Questa sessione di estrazione è in fase di salvataggio. Conservala e riprova quando l’altra richiesta sarà terminata.",
   "This session may already be in the care log. Check it before dismissing. Dismiss only this browser’s saved pumping session? This does not delete any care records.": "Questa sessione potrebbe essere già nel registro delle cure. Controllalo prima di scartarla. Scartare solo la sessione di estrazione conservata in questo browser? Nessuna voce del registro verrà eliminata.",
   "Waiting for confirmation": "In attesa di conferma",
-  "Enter the amount you observed, choose the milk type, and check the unit before saving.": "Inserisci la quantità osservata, scegli il tipo di latte e controlla l’unità prima di salvare."
+  "Enter the amount you observed, choose the milk type, and check the unit before saving.": "Inserisci la quantità osservata, scegli il tipo di latte e controlla l’unità prima di salvare.",
+  "Could not reload the breastfeeding session. Your current timer and stop review have been kept.": "Impossibile ricaricare la sessione di allattamento. Il timer attuale e la verifica dell’interruzione sono stati conservati.",
+  "Discard stop and use current timer": "Scarta interruzione e usa timer attuale",
+  "Dismiss stop review": "Chiudi verifica dell’interruzione",
+  "No active session was found. Your stop may already be saved. Check the care log before dismissing this review.": "Nessuna sessione attiva trovata. L’interruzione potrebbe essere già salvata. Controlla il registro delle cure prima di chiudere questa verifica.",
+  "Reload current session": "Ricarica sessione attuale",
+  "Retry stopped feed": "Riprova a terminare la poppata",
+  "Review the breastfeeding timer before stopping it.": "Verifica il timer di allattamento prima di fermarlo.",
+  "Sign in as a caregiver for this child before changing the breastfeeding timer.": "Accedi come persona che si prende cura di questo bambino prima di modificare il timer di allattamento.",
+  "Stop review": "Verifica interruzione",
+  "Stop was not confirmed. Your first stop time is kept. Retry or reload the current session and review the care log.": "L’interruzione non è stata confermata. L’ora del primo tentativo viene conservata. Riprova oppure ricarica la sessione attuale e controlla il registro delle cure.",
+  "The feed was saved, but this tab could not clear its stop review. Check the care log before dismissing it.": "La poppata è stata salvata, ma questa scheda non ha potuto cancellare la verifica dell’interruzione. Controlla il registro delle cure prima di chiuderla.",
+  "The session changed. Your first stop time is kept. Reload and review the current timer before choosing what to do.": "La sessione è cambiata. L’ora del primo tentativo di interruzione viene conservata. Ricarica e verifica il timer attuale prima di decidere.",
+  "The timer change was not confirmed. Reload the current breastfeeding session before trying again.": "La modifica del timer non è stata confermata. Ricarica la sessione di allattamento attuale prima di riprovare.",
+  "This tab could not clear the stop review. Keep this page open and check browser storage.": "Questa scheda non ha potuto cancellare la verifica dell’interruzione. Tieni aperta la pagina e controlla lo spazio di archiviazione del browser.",
+  "This tab could not read its saved stop review. Keep this page open and check the care log and browser storage.": "Questa scheda non ha potuto leggere la verifica dell’interruzione salvata. Tieni aperta la pagina e controlla il registro delle cure e lo spazio di archiviazione del browser.",
+  "This tab could not save the stop time. Keep this page open and check browser storage before retrying. No request was sent on this attempt.": "Questa scheda non ha potuto salvare l’ora di interruzione. Tieni aperta la pagina e controlla lo spazio di archiviazione del browser prima di riprovare. In questo tentativo non è stata inviata alcuna richiesta.",
+  "Your first stop time is kept. Reload to inspect the current session. Using the current timer discards this stop time.": "L’ora del primo tentativo di interruzione viene conservata. Ricarica per verificare la sessione attuale. Usando il timer attuale, quell’ora viene scartata."
 }

@@ -400,6 +400,15 @@ Breastfeeds also support timer actions backed by the same live session as the in
 
 Ending creates one `FeedLog` per side that accrued time, linked by a shared `sessionId` so they count as one nursing session, and returns the created log ids and durations. The rows carry real sequential spans: the side used first starts at the session start, and the other side starts where the first ended plus any paused time, so each row's `startTime`/`endTime`/`feedDuration` (seconds) reflects when that side was actually in use. Each row also records `pauseDuration` -- the session's total paused seconds (same value on both rows; `null` on records created before this field existed).
 
+Timer changes and ending now claim the complete active-session snapshot. Ending
+removes that snapshot and writes all side rows in one transaction, so a failed
+row write leaves the original session and care history intact. If another
+caregiver changed or ended the session after it was read, the hook returns
+`409 FEED_CONFLICT`; reload the current activity before deciding what to do.
+Invalid accumulated durations return `400 INVALID_FEED_SESSION` without writes.
+Repeated end requests do not create another completed session, but a missing
+active session alone does not prove that a particular earlier request succeeded.
+
 **action:** `start`, `switch`, `pause`, `resume`, `end`, or `log` (default when omitted)
 
 Timer action responses include the live session state: `activeSide`, `isPaused`, `leftDuration`/`rightDuration` (seconds), and `isActive`.

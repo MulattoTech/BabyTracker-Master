@@ -16,6 +16,26 @@ export type SessionUpdateAction = 'switch' | 'pause' | 'resume' | 'swap';
 
 export const SESSION_UPDATE_ACTIONS: SessionUpdateAction[] = ['switch', 'pause', 'resume', 'swap'];
 
+export class BreastfeedSessionConflict extends Error {
+  constructor(message = 'This breastfeeding session changed. Reload the current session and review it before trying again.') { super(message); }
+}
+
+export class BreastfeedSessionInputError extends Error {}
+
+const validDuration = (value: unknown): value is number => typeof value === 'number'
+  && Number.isSafeInteger(value) && value >= 0 && value <= 2_147_483_647;
+const invalidDuration = () => new BreastfeedSessionInputError('Breastfeeding durations must be non-negative whole seconds within the supported range.');
+
+/** Optional for older callers. New controls retain the revision they displayed. */
+function checkSessionRevision(expected: unknown, session: ActiveBreastFeed) {
+  if (expected === undefined) return;
+  if (typeof expected !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(expected)
+    || !Number.isFinite(Date.parse(expected)) || new Date(expected).toISOString() !== expected) {
+    throw new BreastfeedSessionInputError('Invalid breastfeeding revision. Reload the current session before changing it.');
+  }
+  if (expected !== session.updatedAt.toISOString()) throw new BreastfeedSessionConflict();
+}
+
 export interface StartSessionParams {
   babyId: string;
   side: BreastSide;
@@ -116,15 +136,31 @@ export function applySessionAction(
 export async function updateBreastfeedSession(
   session: ActiveBreastFeed,
   action: SessionUpdateAction,
-  side?: BreastSide
+  side?: BreastSide,
+  expectedUpdatedAt?: unknown,
 ): Promise<ActiveBreastFeed | null> {
+  checkSessionRevision(expectedUpdatedAt, session);
+  if (side !== undefined && side !== 'LEFT' && side !== 'RIGHT') {
+    throw new BreastfeedSessionInputError('Breastfeeding side must be LEFT or RIGHT.');
+  }
   const now = new Date();
+  if ((!session.isPaused && session.currentSideStartTime && session.currentSideStartTime > now)
+    || (session.isPaused && session.pausedAt && session.pausedAt > now)) throw invalidDuration();
   const updateData = applySessionAction(session, action, now, side);
   if (!updateData) return null;
+  for (const duration of [updateData.leftDuration, updateData.rightDuration, updateData.pauseDuration]) {
+    if (duration !== undefined && !validDuration(duration)) throw invalidDuration();
+  }
 
-  return prisma.activeBreastFeed.update({
-    where: { id: session.id },
-    data: updateData,
+  return prisma.$transaction(async tx => {
+    // Durations were calculated from this exact authenticated snapshot. Claim
+    // every scalar, including the family/child, before changing the timer.
+    const claimed = await tx.activeBreastFeed.updateMany({
+      where: { ...session },
+      data: { ...updateData, updatedAt: new Date(Math.max(Date.now(), session.updatedAt.getTime() + 1)) },
+    });
+    if (claimed.count !== 1) throw new BreastfeedSessionConflict();
+    return tx.activeBreastFeed.findUniqueOrThrow({ where: { id: session.id } });
   });
 }
 
@@ -135,6 +171,8 @@ export interface EndSessionOptions {
   /** Optional duration overrides (seconds), e.g. from form adjustments */
   leftDuration?: number;
   rightDuration?: number;
+  pauseDuration?: number;
+  expectedUpdatedAt?: unknown;
 }
 
 export interface EndSessionResult {
@@ -150,6 +188,11 @@ export interface EndSessionResult {
  * in-app end-feed flow.
  */
 export async function endBreastfeedSession(session: ActiveBreastFeed, opts: EndSessionOptions): Promise<EndSessionResult> {
+  if (session.familyId !== opts.familyId) throw new BreastfeedSessionConflict();
+  checkSessionRevision(opts.expectedUpdatedAt, session);
+  for (const duration of [opts.leftDuration, opts.rightDuration, opts.pauseDuration]) {
+    if (duration !== undefined && !validDuration(duration)) throw invalidDuration();
+  }
   const now = new Date();
 
   const elapsed = (session.currentSideStartTime && !session.isPaused)
@@ -160,7 +203,8 @@ export async function endBreastfeedSession(session: ActiveBreastFeed, opts: EndS
   const trailingPause = session.isPaused && session.pausedAt
     ? Math.floor((now.getTime() - session.pausedAt.getTime()) / 1000)
     : 0;
-  const finalPauseDuration = session.pauseDuration + trailingPause;
+  if (elapsed < 0 || trailingPause < 0) throw invalidDuration();
+  const finalPauseDuration = opts.pauseDuration !== undefined ? opts.pauseDuration : session.pauseDuration + trailingPause;
 
   const finalLeftDuration = session.activeSide === 'LEFT'
     ? session.leftDuration + elapsed
@@ -171,6 +215,7 @@ export async function endBreastfeedSession(session: ActiveBreastFeed, opts: EndS
 
   const leftDur = opts.leftDuration !== undefined ? opts.leftDuration : finalLeftDuration;
   const rightDur = opts.rightDuration !== undefined ? opts.rightDuration : finalRightDuration;
+  if (![leftDur, rightDur, finalPauseDuration].every(validDuration)) throw invalidDuration();
 
   // Legacy in-flight sessions (null firstSide) fall back to the opposite of
   // activeSide to preserve the previous sort order.
@@ -182,35 +227,41 @@ export async function endBreastfeedSession(session: ActiveBreastFeed, opts: EndS
     rightDuration: rightDur,
     pauseDuration: finalPauseDuration,
   });
+  if (!Number.isFinite(session.sessionStartTime.getTime())
+    || blocks.some(block => !Number.isFinite(block.startTime.getTime()) || !Number.isFinite(block.endTime.getTime()))) {
+    throw invalidDuration();
+  }
 
   // Both rows share a sessionId so they always count as one nursing session
   const sessionId = randomUUID();
-  const feedLogs: { id: string; side: BreastSide | null; feedDuration: number | null }[] = [];
-
-  for (const block of blocks) {
-    const log = await prisma.feedLog.create({
-      data: {
-        babyId: session.babyId,
-        // Each side's `time` is its own start: the linked-session list shows
-        // `time`, and the edit form writes startTime back into `time` on
-        // update, so a session-end stamp here would disagree with both (#240)
-        time: block.startTime,
-        type: 'BREAST',
-        side: block.side,
-        startTime: block.startTime,
-        endTime: block.endTime,
-        feedDuration: block.duration,
-        pauseDuration: finalPauseDuration,
-        sessionId,
-        caretakerId: opts.caretakerId,
-        familyId: opts.familyId,
-      },
-    });
-    feedLogs.push(log);
-  }
-
-  // Delete the active session
-  await prisma.activeBreastFeed.delete({ where: { id: session.id } });
+  const feedLogs = await prisma.$transaction(async tx => {
+    // Claim the active snapshot before creating either side. A failed feed
+    // write restores the session; a later ending or timer action cannot create
+    // duplicate rows or erase a completed caregiver correction.
+    const claimed = await tx.activeBreastFeed.deleteMany({ where: { ...session } });
+    if (claimed.count !== 1) throw new BreastfeedSessionConflict();
+    const logs: { id: string; side: BreastSide | null; feedDuration: number | null }[] = [];
+    for (const block of blocks) {
+      const log = await tx.feedLog.create({
+        data: {
+          babyId: session.babyId,
+          // Keep each side's actual start, including the existing pause layout.
+          time: block.startTime,
+          type: 'BREAST',
+          side: block.side,
+          startTime: block.startTime,
+          endTime: block.endTime,
+          feedDuration: block.duration,
+          pauseDuration: finalPauseDuration,
+          sessionId,
+          caretakerId: opts.caretakerId,
+          familyId: opts.familyId,
+        },
+      });
+      logs.push(log);
+    }
+    return logs;
+  });
 
   // Notify subscribers about completed breastfeed and reset feed timer (non-blocking)
   notifyActivityCreated(session.babyId, 'feed', { accountId: opts.accountId, caretakerId: opts.caretakerId }, { type: 'BREAST' }).catch(console.error);

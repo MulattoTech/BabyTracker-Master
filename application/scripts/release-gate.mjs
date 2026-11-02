@@ -72,6 +72,7 @@ try {
   assert.equal(browser.careContactEditorChecksPassed, true, 'Actual medicine/vaccine edits must preserve unchanged contacts and send only deliberate selection changes');
   assert.equal(browser.nurseryPumpRecoveryChecksPassed, true, 'Real Nursery failure retention, restart, authentication, exact replay and cross-tab preservation must run');
   assert.equal(browser.nurseryBottleChecksPassed, true, 'Explicit nursery bottle quantities, frozen units, durable delivery and recovery must run');
+  assert.equal(browser.breastfeedingRecoveryChecksPassed, true, 'Atomic breastfeeding completion, retained stop times, explicit conflict review, storage guards and bounded recovery must run');
   assert.deepEqual(browser.cleanup?.errors, [], 'Owned browser/server cleanup must be verified');
   assert.equal(browser.cleanup?.server?.exited, true, 'Synthetic server exit must be verified');
   assert.equal(browser.cleanup?.browser?.exited, true, 'Synthetic browser exit must be verified');

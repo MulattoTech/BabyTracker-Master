@@ -179,7 +179,7 @@ export function BigTile({ view, log, iconColor, iconShape }: BigTileProps): Reac
                 ))}
               </div>
             )}
-            {view.statusText && !view.active && (
+            {view.statusText && (!view.active || view.showStatusInDialog) && (
               <div style={{ textAlign: 'center', fontSize: 14, color: 'rgba(255,255,255,.75)' }}>{view.statusText}</div>
             )}
             <div className={`nursery-modal-list${searchPrompt ? ' masked' : ''}`}>

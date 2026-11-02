@@ -3202,5 +3202,22 @@
   "This pumping session is being saved. Keep the session and retry after the other request finishes.": "Diese Abpumpsitzung wird gerade gespeichert. Behalte die Sitzung und versuche es erneut, wenn die andere Anfrage abgeschlossen ist.",
   "This session may already be in the care log. Check it before dismissing. Dismiss only this browser’s saved pumping session? This does not delete any care records.": "Diese Sitzung ist möglicherweise bereits im Betreuungsprotokoll. Prüfe es zuerst. Nur die in diesem Browser gespeicherte Abpumpsitzung verwerfen? Dabei werden keine Betreuungseinträge gelöscht.",
   "Waiting for confirmation": "Warten auf Bestätigung",
-  "Enter the amount you observed, choose the milk type, and check the unit before saving.": "Gib die beobachtete Menge ein, wähle die Milchart und prüfe die Einheit vor dem Speichern."
+  "Enter the amount you observed, choose the milk type, and check the unit before saving.": "Gib die beobachtete Menge ein, wähle die Milchart und prüfe die Einheit vor dem Speichern.",
+  "Could not reload the breastfeeding session. Your current timer and stop review have been kept.": "Die Stillsitzung konnte nicht neu geladen werden. Der aktuelle Timer und die Prüfung des Beendens bleiben erhalten.",
+  "Discard stop and use current timer": "Beenden verwerfen und aktuellen Timer verwenden",
+  "Dismiss stop review": "Prüfung des Beendens schließen",
+  "No active session was found. Your stop may already be saved. Check the care log before dismissing this review.": "Keine aktive Sitzung gefunden. Das Beenden wurde möglicherweise bereits gespeichert. Prüfen Sie das Betreuungsprotokoll, bevor Sie diese Prüfung schließen.",
+  "Reload current session": "Aktuelle Sitzung neu laden",
+  "Retry stopped feed": "Beenden erneut versuchen",
+  "Review the breastfeeding timer before stopping it.": "Prüfen Sie den Stilltimer, bevor Sie ihn beenden.",
+  "Sign in as a caregiver for this child before changing the breastfeeding timer.": "Melden Sie sich als Betreuungsperson dieses Kindes an, bevor Sie den Stilltimer ändern.",
+  "Stop review": "Beenden prüfen",
+  "Stop was not confirmed. Your first stop time is kept. Retry or reload the current session and review the care log.": "Das Beenden wurde nicht bestätigt. Der erste Zeitpunkt bleibt erhalten. Versuchen Sie es erneut oder laden Sie die aktuelle Sitzung neu und prüfen Sie das Betreuungsprotokoll.",
+  "The feed was saved, but this tab could not clear its stop review. Check the care log before dismissing it.": "Die Mahlzeit wurde gespeichert, aber dieser Tab konnte die Prüfung des Beendens nicht löschen. Prüfen Sie vor dem Schließen das Betreuungsprotokoll.",
+  "The session changed. Your first stop time is kept. Reload and review the current timer before choosing what to do.": "Die Sitzung wurde geändert. Der erste Zeitpunkt des Beendens bleibt erhalten. Laden Sie den aktuellen Timer neu und prüfen Sie ihn, bevor Sie entscheiden.",
+  "The timer change was not confirmed. Reload the current breastfeeding session before trying again.": "Die Timer-Änderung wurde nicht bestätigt. Laden Sie die aktuelle Stillsitzung neu, bevor Sie es erneut versuchen.",
+  "This tab could not clear the stop review. Keep this page open and check browser storage.": "Dieser Tab konnte die Prüfung des Beendens nicht löschen. Lassen Sie diese Seite geöffnet und prüfen Sie den Browserspeicher.",
+  "This tab could not read its saved stop review. Keep this page open and check the care log and browser storage.": "Dieser Tab konnte die gespeicherte Prüfung des Beendens nicht lesen. Lassen Sie diese Seite geöffnet und prüfen Sie das Betreuungsprotokoll und den Browserspeicher.",
+  "This tab could not save the stop time. Keep this page open and check browser storage before retrying. No request was sent on this attempt.": "Dieser Tab konnte den Zeitpunkt des Beendens nicht speichern. Lassen Sie diese Seite geöffnet und prüfen Sie den Browserspeicher vor einem neuen Versuch. Bei diesem Versuch wurde keine Anfrage gesendet.",
+  "Your first stop time is kept. Reload to inspect the current session. Using the current timer discards this stop time.": "Der Zeitpunkt Ihres ersten Beenden-Versuchs bleibt erhalten. Laden Sie die aktuelle Sitzung zur Prüfung neu. Wenn Sie den aktuellen Timer verwenden, wird dieser Zeitpunkt verworfen."
 }
