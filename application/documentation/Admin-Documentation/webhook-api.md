@@ -501,7 +501,7 @@ Pump uses the same start/end/log pattern as sleep:
 { "type": "pump", "action": "log", "duration": 20, "leftAmount": 3, "rightAmount": 2, "unitAbbr": "OZ" }
 ```
 
-Optional fields: `leftAmount`, `rightAmount`, `totalAmount`, `unitAbbr`, `pumpAction` (`STORED`, `FED`, or `DISCARDED`; case-insensitive, default `STORED`; an unrecognized value returns `400 INVALID_PUMP_ACTION`)
+Optional fields: `leftAmount`, `rightAmount`, `totalAmount`, `unitAbbr`, `pumpAction` (`STORED`, `FED`, `DISCARDED`, or `UNKNOWN`; case-insensitive, default `STORED`; an unrecognized value returns `400 INVALID_PUMP_ACTION`)
 
 `totalAmount` is a writable field, not just a derived one: send it alone (without `leftAmount`/`rightAmount`) to record a total without attributing it to either side. If `totalAmount` and one or both sides are sent together, a non-null explicit `totalAmount` wins over the sum of the sides. If only `leftAmount`/`rightAmount` are sent, `totalAmount` is derived as their sum. Explicit `0` on `leftAmount`/`rightAmount`/`totalAmount` is stored as `0` (a genuine empty pump), distinct from omitting the field entirely (stored as `null`, unknown).
 
@@ -512,6 +512,12 @@ Pumping amounts accept numbers or numeric strings. Values must be finite, non-ne
 Omitting `time` uses the current time. A supplied pumping time must be a valid ISO timestamp; impossible calendar dates, empty values, and non-string values return `400 INVALID_TIME`. Explicit offsets are respected; timestamps without an offset use UTC. Ending a timer requires a time at or after its start and records elapsed whole minutes, including across daylight-saving offset changes.
 
 When ending an existing timer, omitted amounts, unit, and disposition retain their recorded values. An imported `UNKNOWN` disposition remains unresolved unless explicitly corrected; ending a timer alone does not turn it into stored milk. If sides are supplied without a non-null total, the total is calculated from those sides and any retained other side. A non-null explicit total, including zero, remains authoritative.
+
+**Pumping and linked feeds:** With breast-milk tracking enabled, a logged or ended `FED` pump with a positive known total has one linked breast-milk bottle feed, matching the manual pumping API. The feed keeps the pump's child, family, original caregiver, start time, amount, unit, and generated notes. It records the immediate feeding and does not consume stored milk a second time. A timer start alone, `UNKNOWN`, missing or zero total, or disabled tracking does not create a feed.
+
+Pumping corrections and deletions reconcile their owned feed in the same database transaction. Repeated corrections reuse the linked feed; changing away from `FED` removes it, and only `STORED` contributes pumped volume to inventory. Legacy feeds without a link are adopted only when their original child/family/caregiver, time, quantity, unit, and generated notes match unambiguously. A different family's/child's link, ambiguous legacy ownership, or an independently soft-deleted feed is a conflict rather than permission to overwrite or resurrect care history. Already deleted pumps cannot be edited or ended through hooks.
+
+Overlapping pump corrections, timer endings, or deletions return `409 PUMP_CONFLICT` when another writer has changed the original record; the winning pump and feed remain intact. Read the latest activity and review the intended correction before retrying. Successful corrections advance the record's `updatedAt` even within one millisecond. A completed timer cannot be ended again. These guarantees do not make `start` or `log` requests idempotent: after a lost response, inspect the recorded activities before issuing another create request.
 
 #### Bath
 

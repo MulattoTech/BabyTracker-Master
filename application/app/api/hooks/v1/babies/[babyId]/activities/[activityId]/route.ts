@@ -1,11 +1,12 @@
 import { NextRequest } from 'next/server';
-import type { Prisma } from '@prisma/client';
+import type { Prisma, PumpLog } from '@prisma/client';
 import prisma from '../../../../../../db';
 import { withApiKeyAuth, ApiKeyContext, validateBabyAccess } from '../../../../auth';
 import { checkRateLimit } from '../../../../rate-limiter';
 import { hookSuccess, hookError } from '../../../../response';
 import { BATH_TYPES, BOTTLE_TYPES, DIAPER_COLORS, DIAPER_CONDITIONS, FEED_SIDES, PUMP_ACTIONS, SLEEP_QUALITIES, normalizeEnumValue } from '../../../../field-values';
 import { prepareHookPumpFields, type PumpValidationContext } from '../../../../pump-validation';
+import { deletePumpWithFeed, PumpReconciliationConflict, updatePumpWithFeed } from '@/app/api/utils/pumpReconciliation';
 
 const VALID_TYPES = ['sleep', 'feed', 'diaper', 'note', 'pump', 'play', 'bath', 'measurement', 'medicine', 'supplement'] as const;
 type ActivityType = typeof VALID_TYPES[number];
@@ -30,7 +31,7 @@ type FoundActivity = {
   id: string;
   babyId: string;
   time?: Date;
-  pump?: PumpValidationContext;
+  pump?: PumpLog;
 };
 
 const TYPE_ALIASES: Record<string, ActivityType> = {
@@ -509,7 +510,7 @@ async function updateActivity(type: ActivityType, activityId: string, babyId: st
     case 'pump': {
       const built = await buildPumpData(body, existing.pump!);
       if (built.error) return { error: built.error, status: 400 };
-      const row = await prisma.pumpLog.update({ where: { id: activityId }, data: built.data! });
+      const row = await updatePumpWithFeed(prisma, existing.pump!, built.data!);
       return { result: summary(type, row.id, row.babyId, 'updated', row.startTime, { startTime: row.startTime.toISOString(), endTime: toIso(row.endTime), duration: row.duration, totalAmount: row.totalAmount, unitAbbr: row.unitAbbr, pumpAction: row.pumpAction }) };
     }
     case 'play': {
@@ -559,7 +560,7 @@ async function deleteActivity(existing: FoundActivity): Promise<void> {
       await prisma.note.delete({ where: { id: existing.id } });
       return;
     case 'pump':
-      await prisma.pumpLog.delete({ where: { id: existing.id } });
+      await deletePumpWithFeed(prisma, existing.pump!);
       return;
     case 'play':
       await prisma.playLog.delete({ where: { id: existing.id } });
@@ -613,6 +614,7 @@ async function handlePut(req: NextRequest, ctx: ApiKeyContext, routeContext?: Ro
     if (updated.error) return hookError(updated.status === 404 ? 'ACTIVITY_NOT_FOUND' : 'INVALID_UPDATE', updated.error, updated.status ?? 400, rl.headers);
     return hookSuccess(updated.result!, { familyId: ctx.familyId, babyId }, rl.headers);
   } catch (error) {
+    if (error instanceof PumpReconciliationConflict) return hookError('PUMP_CONFLICT', error.message, 409, rl.headers);
     console.error('Error updating activity via hooks API:', error);
     return hookError('INTERNAL_ERROR', 'Failed to update activity', 500, rl.headers);
   }
@@ -644,6 +646,7 @@ async function handleDelete(req: NextRequest, ctx: ApiKeyContext, routeContext?:
     await deleteActivity(existing);
     return hookSuccess(summary(existing.type, existing.id, existing.babyId, 'deleted', existing.time), { familyId: ctx.familyId, babyId }, rl.headers);
   } catch (error) {
+    if (error instanceof PumpReconciliationConflict) return hookError('PUMP_CONFLICT', error.message, 409, rl.headers);
     console.error('Error deleting activity via hooks API:', error);
     return hookError('INTERNAL_ERROR', 'Failed to delete activity', 500, rl.headers);
   }
