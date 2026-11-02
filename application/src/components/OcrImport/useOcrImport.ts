@@ -15,6 +15,7 @@ export function useOcrImport(babyId: string | undefined, defaultTimeZone: string
   const [duplicateDecisions, setDuplicateDecisions] = useState<NonNullable<OcrReviewRequest['duplicateDecisions']>>({});
   const [preview, setPreview] = useState<OcrReviewPreview | null>(null);
   const [acknowledgeWarnings, setAcknowledgeWarnings] = useState(false);
+  const [purgeAfterImport, setPurgeAfterImport] = useState(false);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -46,7 +47,7 @@ export function useOcrImport(babyId: string | undefined, defaultTimeZone: string
   const acceptDocument = (view: OcrDocumentView) => {
     setUtcOffsets(view.utcOffsets ?? {});
     setDocument(view); setRows(view.rows); setTimeZone(view.sourceTimezone); setDirty(false);
-    setPreview(null); setAcknowledgeWarnings(false); setDuplicateDecisions(view.duplicateDecisions ?? {});
+    setPreview(null); setAcknowledgeWarnings(false); setPurgeAfterImport(false); setDuplicateDecisions(view.duplicateDecisions ?? {});
     setHistory(current => [view, ...current.filter(item => item.id !== view.id)]);
   };
   const perform = async <T,>(name: string, operation: (signal: AbortSignal) => Promise<T>, accept: (value: T) => void, message = '') => {
@@ -151,7 +152,7 @@ export function useOcrImport(babyId: string | undefined, defaultTimeZone: string
     setUtcOffsets({});
     invalidate();
   };
-  const payload = (): OcrReviewRequest => ({ revision: document!.revision, rows, timeZone, utcOffsets, duplicateDecisions, acknowledgeWarnings });
+  const payload = (): OcrReviewRequest => ({ revision: document!.revision, rows, timeZone, utcOffsets, duplicateDecisions, acknowledgeWarnings, purgeSourceAfterCommit: purgeAfterImport });
   const open = (id: string) => {
     if (dirty && !window.confirm(t('Discard unsaved draft changes and open another document?'))) return;
     return perform('open', signal => ocrRequest<OcrDocumentView>(`/${encodeURIComponent(id)}`, { signal }), acceptDocument);
@@ -183,7 +184,7 @@ export function useOcrImport(babyId: string | undefined, defaultTimeZone: string
   return { history, document, rows, timeZone, utcOffsets, duplicateDecisions, preview, acknowledgeWarnings,
     busy, error, notice, dirty, edit, approve, approveValid, reject, merge, revert, changeTimeZone, setOffset, add, remove,
     bulkDate, open, upload, requestReview, purge, refreshHistory, cancel,
-    setAcknowledgeWarnings, changeDuplicateDecision };
+    setAcknowledgeWarnings, changeDuplicateDecision, purgeAfterImport, setPurgeAfterImport };
 }
 
 export type OcrImportController = ReturnType<typeof useOcrImport>;

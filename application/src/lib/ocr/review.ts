@@ -67,7 +67,7 @@ export function readReviewRequest(input: unknown, document: OcrDocument): OcrRev
       utcOffsets[id] = selection;
     }
   }
-  return { revision: value.revision as number, rows, timeZone: value.timeZone, acknowledgeWarnings: value.acknowledgeWarnings === true, duplicateDecisions, utcOffsets };
+  return { revision: value.revision as number, rows, timeZone: value.timeZone, acknowledgeWarnings: value.acknowledgeWarnings === true, duplicateDecisions, utcOffsets, purgeSourceAfterCommit: value.purgeSourceAfterCommit === true };
 }
 
 export function reviewTimes(row: OcrCandidate, review: OcrReviewRequest) {

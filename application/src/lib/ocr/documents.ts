@@ -10,10 +10,36 @@ import { openOcrState, sealOcrState } from './crypto';
 import { OcrError } from './errors';
 import { findOcrDuplicates, ocrScope, OriginalOcrState, readReviewRequest, reviewHash, reviewIssues, toSproutRecords } from './review';
 import type { OcrDocumentView, OcrReviewRequest, OcrReviewPreview } from './contracts';
+import { readOcrRedactionOptions, redactOcrText, type OcrRedactionOptions } from './redaction';
 
 export interface OcrActor { familyId: string; actorId: string | null }
 const storageDir = 'ocr';
 const scope = (document: Pick<OcrDocument, 'id' | 'familyId'>, kind: string) => `${ocrScope(document)}:${kind}`;
+
+function sourceFiles(document: OcrDocument): string[] {
+  let previews: unknown;
+  try { previews = JSON.parse(document.previewFiles || '[]'); }
+  catch { throw new OcrError('Invalid stored source references.', 500); }
+  if (!Array.isArray(previews)) throw new OcrError('Invalid stored source references.', 500);
+  const files: unknown[] = previews.map(page => page?.file);
+  if (document.sourceFile) files.push(document.sourceFile);
+  if (files.some(file => typeof file !== 'string' || !/^[a-f\d-]{36}\.enc$/i.test(file))) {
+    throw new OcrError('Invalid stored source reference.', 500);
+  }
+  return [...new Set(files as string[])];
+}
+
+// Call only AFTER the transaction has revoked access and detached the file refs.
+// Failed unlinks are encrypted orphans, retried by the existing retention sweeper.
+// purgedAt records access revocation; it is not a promise of physical secure erasure.
+function unlinkPurgedSources(files: string[]) {
+  let pending = false;
+  for (const file of files) {
+    try { deleteEncryptedFile(file, storageDir); }
+    catch { pending = true; }
+  }
+  if (pending) console.error('OCR source access revoked; encrypted file cleanup is pending retention maintenance.');
+}
 
 export function ocrDocumentView(document: OcrDocument): OcrDocumentView {
   const original = openOcrState<OriginalOcrState>(document.originalState, scope(document, 'original'));
@@ -30,7 +56,9 @@ export function ocrDocumentView(document: OcrDocument): OcrDocumentView {
     sourceTimezone: review.timeZone, revision: document.revision, rows: review.rows, originalRows: original.rows,
     committedAt: document.committedAt?.toISOString() || null,
     result: document.resultJson ? JSON.parse(document.resultJson) : null,
-    sourceExpiresAt: document.sourceExpiresAt.toISOString(), hasSource: !!document.sourceFile && document.sourceExpiresAt > new Date(),
+    sourceExpiresAt: document.sourceExpiresAt.toISOString(),
+    purgedAt: document.purgedAt?.toISOString() || null,
+    hasSource: Boolean(document.sourceFile && !document.purgedAt && document.sourceExpiresAt > new Date()),
     createdAt: document.createdAt.toISOString(),
     utcOffsets: review.utcOffsets, duplicateDecisions: review.duplicateDecisions,
     pages,
@@ -56,7 +84,7 @@ export async function createOcrDocument(db: PrismaClient, actor: OcrActor, input
   if (input.defaultDate && !isOcrDate(input.defaultDate)) throw new OcrError('Enter a complete source date or leave it blank.');
   try { new Intl.DateTimeFormat('en', { timeZone: input.timeZone }); } catch { throw new OcrError('Choose a valid time zone.'); }
   if (!input.timeZone || !['24h', '12h', 'unknown'].includes(input.timeFormat)) throw new OcrError('Choose the document time zone and clock format.');
-  if (!Number.isInteger(input.retentionDays) || input.retentionDays < 1 || input.retentionDays > 365) throw new OcrError('Source retention must be between 1 and 365 days.');
+  if (!Number.isInteger(input.retentionDays) || input.retentionDays < 0 || input.retentionDays > 365) throw new OcrError('Source retention must be between 0 and 365 days.');
   const mimeType = identifyOcrUpload(input.bytes);
   const sourceHash = createHash('sha256').update(input.bytes).digest('hex');
   const unique = { familyId: actor.familyId, babyId: baby.id, sourceHash };
@@ -94,7 +122,7 @@ export async function createOcrDocument(db: PrismaClient, actor: OcrActor, input
       mimeType, byteSize: input.bytes.length, sourceFile, previewFiles: JSON.stringify(previews), pageCount: pages.length,
       parserVersion: OCR_PARSER_VERSION, sourceTimezone: input.timeZone, originalState,
       reviewState: sealOcrState(review, scope(reference, 'review')),
-      sourceExpiresAt: new Date(Date.now() + input.retentionDays * 86_400_000),
+      sourceExpiresAt: input.retentionDays === 0 ? new Date(Date.now() + 3_600_000) : new Date(Date.now() + input.retentionDays * 86_400_000),
       audits: { create: { action: 'upload', actorId: actor.actorId, snapshot: sealOcrState({
         sourceHash,
         parserVersion: OCR_PARSER_VERSION,
@@ -151,7 +179,7 @@ export async function commitOcrReview(db: PrismaClient, actor: OcrActor, id: str
     const hash = reviewHash(review);
     if (document.committedAt) {
       if (hash !== document.commitHash) throw new OcrError('This document was already imported with a different review. No records were changed.', 409);
-      return ocrDocumentView(document);
+      return { view: ocrDocumentView(document), files: [] as string[] };
     }
     if (!review.acknowledgeWarnings) throw new OcrError('Confirm that every approved event was checked against the source.');
     const approved = new Set(review.rows.filter(row => row.approved).map(row => row.id));
@@ -228,12 +256,24 @@ export async function commitOcrReview(db: PrismaClient, actor: OcrActor, id: str
     };
 
     await audit(tx, document, actor, 'commit', auditPayload);
+    const files = review.purgeSourceAfterCommit ? sourceFiles(document) : [];
+    if (review.purgeSourceAfterCommit) await audit(tx, document, actor, 'purge-source', {
+      sourceHash: document.sourceHash, reason: 'auto-purge-on-commit', cleanup: 'scheduled-after-commit',
+    });
+
     const saved = await tx.ocrDocument.update({ where: { id }, data: {
-      reviewState: sealOcrState(review, scope(document, 'review')), resultJson: JSON.stringify(result), sourceTimezone: review.timeZone,
+      reviewState: sealOcrState(review, scope(document, 'review')),
+      resultJson: JSON.stringify(result),
+      sourceTimezone: review.timeZone,
+      ...(review.purgeSourceAfterCommit ? { sourceFile: null, previewFiles: '[]', purgedAt: new Date() } : {}),
     } });
-    return ocrDocumentView(saved);
+    return { view: ocrDocumentView(saved), files };
   }, { maxWait: 10_000, timeout: 30_000 });
-  try { return await commit(); } catch (error) {
+  try {
+    const result = await commit();
+    unlinkPurgedSources(result.files);
+    return result.view;
+  } catch (error) {
     // A conflicting request can commit while this request waits. Return its durable receipt only for the exact same review.
     if (['P2002', 'P2034', 'P2028'].includes((error as { code?: string }).code || '')) {
       const current = await requireOcrDocument(db, actor, id);
@@ -245,26 +285,22 @@ export async function commitOcrReview(db: PrismaClient, actor: OcrActor, id: str
 }
 
 export async function purgeOcrSource(db: PrismaClient, actor: OcrActor, id: string): Promise<OcrDocumentView> {
-  const document = await requireOcrDocument(db, actor, id);
-  const files: string[] = JSON.parse(document.previewFiles).map((page: { file: string }) => page.file);
-  if (document.sourceFile) files.push(document.sourceFile);
-  // Exact server-generated names only. A source purge never deletes care events or their audit.
-  for (const file of files) {
-    if (!/^[a-f\d-]{36}\.enc$/i.test(file)) throw new OcrError('Invalid stored source reference.', 500);
-    deleteEncryptedFile(file, storageDir);
-  }
-  const saved = await db.$transaction(async tx => {
-    await audit(tx, document, actor, 'purge-source', { sourceHash: document.sourceHash });
-    return tx.ocrDocument.update({ where: { id }, data: { sourceFile: null, previewFiles: '[]', purgedAt: new Date() } });
+  const result = await db.$transaction(async tx => {
+    const document = await requireOcrDocument(tx, actor, id);
+    const files = sourceFiles(document);
+    await audit(tx, document, actor, 'purge-source', { sourceHash: document.sourceHash, cleanup: 'scheduled-after-commit' });
+    const saved = await tx.ocrDocument.update({ where: { id }, data: { sourceFile: null, previewFiles: '[]', purgedAt: new Date() } });
+    return { view: ocrDocumentView(saved), files };
   });
-  return ocrDocumentView(saved);
+  unlinkPurgedSources(result.files);
+  return result.view;
 }
 
 export async function readOcrSource(db: PrismaClient, actor: OcrActor, id: string, page?: number): Promise<{ bytes: Buffer; mimeType: string }> {
   const document = await requireOcrDocument(db, actor, id);
-  if (document.sourceExpiresAt <= new Date()) {
+  if (document.sourceExpiresAt <= new Date() || document.purgedAt !== null || !document.sourceFile) {
     if (document.sourceFile) await purgeOcrSource(db, actor, id);
-    throw new OcrError('The source retention period has ended. Import history is still available.', 410);
+    throw new OcrError('The source file was not found or was purged under the retention policy. Import history is still available.', 410);
   }
   const previews = JSON.parse(document.previewFiles || '[]') as { page: number; file: string }[];
   let file: string | null = null;
@@ -279,4 +315,68 @@ export async function readOcrSource(db: PrismaClient, actor: OcrActor, id: strin
   if (!file) throw new OcrError('Source file not found.', 404);
   if (!/^[a-f\d-]{36}\.enc$/i.test(file)) throw new OcrError('Invalid stored source reference.', 500);
   return { bytes: decryptFile(file, storageDir), mimeType: page === undefined ? document.mimeType : 'image/png' };
+}
+
+export async function redactOcrDocument(
+  db: PrismaClient,
+  actor: OcrActor,
+  id: string,
+  input: Partial<OcrRedactionOptions> = { redactNotes: true, purgeSource: true }
+): Promise<OcrDocumentView> {
+  const options = readOcrRedactionOptions(input);
+  const result = await db.$transaction(async tx => {
+    const document = await requireOcrDocument(tx, actor, id);
+    const files = options.purgeSource ? sourceFiles(document) : [];
+    let originalState = document.originalState;
+    let reviewState = document.reviewState;
+    if (options.redactNotes) {
+      // Unlike ordinary review edits, explicit redaction removes all OCR text copies.
+      // Decryption errors abort the transaction; never report partial redaction as success.
+      originalState = sealOcrState(redactOcrText(openOcrState<OriginalOcrState>(
+        document.originalState, scope(document, 'original'),
+      )), scope(document, 'original'));
+      const review = redactOcrText(openOcrState<OcrReviewRequest>(document.reviewState, scope(document, 'review')));
+      review.revision = document.revision + 1;
+      if (!document.committedAt) {
+        review.rows = review.rows.map(row => ({ ...row, approved: false }));
+        review.acknowledgeWarnings = false;
+      }
+      reviewState = sealOcrState(review, scope(document, 'review'));
+    }
+    // Claim the revision before changing snapshots, preventing stale drafts from
+    // restoring text after a concurrent redaction. Care records are never changed.
+    const changed = await tx.ocrDocument.updateMany({
+      where: { id, familyId: actor.familyId, revision: document.revision },
+      data: {
+        originalState, reviewState, revision: { increment: 1 },
+        ...(options.redactNotes ? {
+          originalName: 'redacted-document',
+          resultJson: document.resultJson ? JSON.stringify(redactOcrText(JSON.parse(document.resultJson))) : null,
+        } : {}),
+        ...(options.purgeSource ? { sourceFile: null, previewFiles: '[]', purgedAt: new Date() } : {}),
+      },
+    });
+    if (changed.count !== 1) throw new OcrError('A newer review exists. Reload it before redacting.', 409);
+    if (options.redactNotes) {
+      const snapshots = await tx.ocrAudit.findMany({ where: { documentId: id } });
+      for (const snapshot of snapshots) {
+        const state = openOcrState<unknown>(snapshot.snapshot, scope(document, 'audit'));
+        await tx.ocrAudit.update({ where: { id: snapshot.id }, data: {
+          snapshot: sealOcrState(redactOcrText(state), scope(document, 'audit')),
+        } });
+      }
+    }
+    await audit(tx, document, actor, 'redact', {
+      sourceHash: document.sourceHash,
+      redactedAt: new Date().toISOString(),
+      purgedSource: options.purgeSource,
+      redactedNotes: options.redactNotes,
+      cleanup: options.purgeSource ? 'scheduled-after-commit' : 'not-requested',
+      canonicalCareRecordsChanged: false,
+    });
+    const saved = await tx.ocrDocument.findUniqueOrThrow({ where: { id } });
+    return { view: ocrDocumentView(saved), files };
+  }, { maxWait: 10_000, timeout: 30_000 });
+  unlinkPurgedSources(result.files);
+  return result.view;
 }

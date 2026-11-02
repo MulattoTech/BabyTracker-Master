@@ -30,7 +30,8 @@ function resolveDatabaseUrl(url, fallback, schemaDir = path.join(process.cwd(), 
   if (!value.startsWith('file:')) return value;
   const target = value.slice('file:'.length).replace(/\?.*$/, '');
   if (target === ':memory:' || target.startsWith('/')) return `file:${target}`;
-  return `file:${path.resolve(schemaDir, target)}`;
+  const resolver = schemaDir.startsWith('/') ? path.posix.resolve : path.resolve;
+  return `file:${resolver(schemaDir, target)}`;
 }
 
 /**
