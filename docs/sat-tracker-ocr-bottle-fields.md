@@ -9,7 +9,10 @@ executor from PR #58. They preserve the existing canonical FeedLog backend.
 - Explicit offered/prepared and consumed/taken/drank/drunk labels are distinguished.
 - A single ordinary bottle volume retains the established consumed-volume behavior.
 - An offered-only quantity never becomes consumed volume.
-- Remaining volume is not subtracted to invent consumption.
+- Remaining, left, unused, discarded and other residual-only quantities never
+  become consumed volume. Remaining volume is not subtracted to invent consumption.
+- Conflicting prefix/suffix role labels, negated labels and unclear label direction
+  require correction. Punctuation-delimited suffix labels are supported.
 - Separately recorded mL/oz offered and consumed values are normalized into the
   consumed value's unit. The untouched source line remains available for comparison.
 - Concentration requires an explicit `kcal/oz` or `kcal per oz` unit. Ranges,
@@ -28,6 +31,9 @@ The review form exposes all optional fields. Editing clears approval. Server
 validation bounds quantities and text, requires consistent offered/consumed units,
 and rejects consumed volume above offered volume. Corrected values retain field
 provenance and pass through the existing external-import transaction.
+Merging draft rows converts copied consumed or offered quantities into the target
+row's established unit. A quantity without a source unit remains unresolved, and
+a unit from another row cannot silently reinterpret an existing unitless quantity.
 
 ## Compatibility
 
@@ -45,6 +51,10 @@ inside labelled identifiers or names also cannot become event timestamps.
 
 An explicit complete ISO date heading applies only within its own page.
 Ambiguous numeric dates, missing years and invalid dates require review.
+Full dotted dates and year-first slash dates clear any supplied default date;
+their year tokens cannot become military clock times. Only a complete canonical
+ISO date is resolved automatically. A two-part dotted clock such as `14.15`
+retains its time interpretation.
 A date does not carry silently from one page to the next.
 
 ## Tests

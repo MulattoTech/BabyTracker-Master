@@ -39,11 +39,38 @@ export function mergeOcrRows(target: OcrCandidate, source: OcrCandidate): OcrCan
     merged.eventType = source.eventType;
     fieldSources.eventType = 'corrected';
   }
-  for (const field of ['localDate', 'localTime', 'endLocalDate', 'endLocalTime', 'feedType', 'bottleType', 'amount', 'unit', 'diaperType', 'sleepType', 'offeredAmount', 'formulaKcalOz', 'formulaName', 'bottleLabel', 'sourceCaregiverName'] as const) {
+  for (const field of ['localDate', 'localTime', 'endLocalDate', 'endLocalTime', 'feedType', 'bottleType', 'diaperType', 'sleepType', 'formulaKcalOz', 'formulaName', 'bottleLabel', 'sourceCaregiverName'] as const) {
     if (target[field] == null && source[field] != null) {
       (merged as Record<string, unknown>)[field] = source[field];
       fieldSources[field] = 'corrected';
     }
+  }
+  // Both bottle quantities share one unit. Never reinterpret a copied number in
+  // the target's unit or borrow a unit for a target quantity whose unit is unknown.
+  let quantityUnit = target.unit;
+  const targetHasQuantity = target.amount != null || target.offeredAmount != null;
+  let unresolvedQuantity = false;
+  if (!quantityUnit && !targetHasQuantity && source.unit) {
+    quantityUnit = source.unit;
+    merged.unit = source.unit;
+    fieldSources.unit = 'corrected';
+  }
+  for (const field of ['amount', 'offeredAmount'] as const) {
+    const sourceAmount = source[field];
+    if (target[field] == null && sourceAmount != null) {
+      if (source.unit && quantityUnit) {
+        const sourceMl = sourceAmount * (source.unit === 'OZ' ? 29.5735295625 : 1);
+        merged[field] = Math.round(sourceMl / (quantityUnit === 'OZ' ? 29.5735295625 : 1) * 1_000_000) / 1_000_000;
+        fieldSources[field] = 'corrected';
+      } else {
+        fieldSources[field] = 'ambiguous';
+        unresolvedQuantity = true;
+      }
+    }
+  }
+  if (!quantityUnit && targetHasQuantity) {
+    fieldSources.unit = 'ambiguous';
+    unresolvedQuantity = true;
   }
   const mergedNotes = [target.notes, source.notes].filter(Boolean).join(' · ').slice(0, 2000);
   if (mergedNotes !== target.notes) {
@@ -57,7 +84,9 @@ export function mergeOcrRows(target: OcrCandidate, source: OcrCandidate): OcrCan
     approved: false,
     rejected: false,
     fieldSources,
-    warnings: [...new Set([...target.warnings, ...source.warnings, mergeWarning])],
+    warnings: [...new Set([...target.warnings, ...source.warnings, mergeWarning,
+      ...(unresolvedQuantity ? ['Multiple quantities appear in this event; choose the recorded amount or split the event.'] : []),
+    ])],
   };
 }
 

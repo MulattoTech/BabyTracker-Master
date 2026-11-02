@@ -12,6 +12,12 @@ const diaperPattern = /\b(?:diaper|nappy|wet|dirty|dry|stool|poop(?:ed)?|urine|p
 const sleepPattern = /\b(?:sleep|slept|asleep|nap(?:ped)?|bedtime|awake|woke)\b/i;
 const volumePattern = /(?<![\w.,/+-])([+-]?(?:\d+\s+\d+\s*\/\s*\d+|\d+\s*[¼½¾]|\d+\s*\/\s*\d+|\d+(?:[.,]\d+)?|[¼½¾]))\s*(m[lL](?:s)?|millilit(?:er|re)s?|cc(?:s)?|c\.c\.?|(?:fl\.?\s*)?oz|ounces?)\b/gi;
 const volumeRangePattern = /(?<![\w.,/+-])((?:\d+(?:[.,]\d+)?|[¼½¾]|\d+\s*\/\s*\d+))\s*(?:-|–|—|\bto\b)\s*((?:\d+(?:[.,]\d+)?|[¼½¾]|\d+\s*\/\s*\d+))\s*(m[lL](?:s)?|millilit(?:er|re)s?|cc(?:s)?|c\.c\.?|(?:fl\.?\s*)?oz|ounces?)\b/gi;
+// Only canonical ISO dates are resolved, but every full numeric date-like span must
+// reset an inherited date and be excluded from clock parsing. A two-part dotted
+// token remains a possible clock (14.15), not a guessed day/month heading.
+const dateLikePattern = /\b(?:\d{4}[/.-]\d{1,2}[/.-]\d{1,2}|\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}|\d{1,2}[/-]\d{1,2})\b/g;
+const volumeRoleLabels = 'offered|prepared|consumed|taken|drank|drunk|remaining|leftover|left|unconsumed|unused|discarded|wasted|spilled|refused|residual';
+const volumeRoleLabelPattern = new RegExp('\\b(?:' + volumeRoleLabels + ')\\b', 'i');
 
 function maskNamedMetadata(text: string): string {
   return text.replace(/(?:^|[;|\t])\s*(?:formula(?:\s+name)?|brand|bottle\s+(?:id|label)|caregiver|fed\s+by|concentration)\s*:\s*[^;|\t\n]*/gi,
@@ -22,13 +28,12 @@ function datesIn(text: string): DateMatch[] {
   text = maskNamedMetadata(text);
   const dates: DateMatch[] = [];
   const volumeSpans = [...text.matchAll(volumePattern)].map(match => [match.index ?? 0, (match.index ?? 0) + match[0].length]);
-  const pattern = /\b(?:\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[/.-]\d{1,2}(?:[/.-]\d{2,4})?)\b/g;
-  for (const match of text.matchAll(pattern)) {
+  for (const match of text.matchAll(dateLikePattern)) {
     if (volumeSpans.some(([start, end]) => (match.index ?? 0) >= start && (match.index ?? 0) < end)) continue;
     const raw = match[0];
     if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) dates.push({ value: isOcrDate(raw) ? raw : null, raw });
-    // Numeric slashes can mean either day/month or month/day. Never guess or supply the year.
-    else if (raw.includes('/') || raw.includes('-')) dates.push({ value: null, raw });
+    // Unsupported separators/orderings remain visible and require an explicit date.
+    else dates.push({ value: null, raw });
   }
   return dates;
 }
@@ -38,7 +43,7 @@ function clocksIn(text: string, mode: OcrParseOptions['timeFormat']): Clock[] {
   const clocks: Clock[] = [];
   // A year inside a date or digits in a volume are not military clock times.
   const excluded = [
-    ...text.matchAll(/\b(?:\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?)\b/g),
+    ...text.matchAll(dateLikePattern),
     ...text.matchAll(volumePattern),
   ].map(match => [match.index ?? 0, (match.index ?? 0) + match[0].length]);
   const isExcluded = (index: number) => excluded.some(([start, end]) => index >= start && index < end);
@@ -109,12 +114,17 @@ function volumesIn(text: string): { amount: number | null; unit: 'ML' | 'OZ'; ra
 }
 
 
-function volumeRole(text: string, volume: { index: number; raw: string }): 'offered' | 'consumed' | null {
+function volumeRole(text: string, volume: { index: number; raw: string }): 'offered' | 'consumed' | 'residual' | 'ambiguous' | null {
   const before = text.slice(0, volume.index);
   const after = text.slice(volume.index + volume.raw.length);
-  const label = before.match(/\b(offered|prepared|consumed|taken|drank|drunk)\s*[:=]?\s*$/i)?.[1]
-    || after.match(/^\s*(offered|prepared|consumed|taken|drank|drunk)(?=\s*(?:[,;|]|$))/i)?.[1];
-  return !label ? null : /offered|prepared/i.test(label) ? 'offered' : 'consumed';
+  const prefix = before.match(new RegExp('\\b(?:((?:not|no|without)\\s+))?(' + volumeRoleLabels + ')\\s*[:=]?\\s*$', 'i'));
+  const suffix = after.match(new RegExp('^\\s*(' + volumeRoleLabels + ')(?=\\s*(?:[,;|]|$))', 'i'));
+  const role = (label: string) => /^(?:offered|prepared)$/i.test(label) ? 'offered'
+    : /^(?:consumed|taken|drank|drunk)$/i.test(label) ? 'consumed' : 'residual';
+  const prefixRole = prefix ? role(prefix[2]) : null;
+  const suffixRole = suffix ? role(suffix[1]) : null;
+  if (prefix?.[1] || (prefixRole && suffixRole && prefixRole !== suffixRole)) return 'ambiguous';
+  return prefixRole ?? suffixRole;
 }
 
 /** Only isolated, explicitly labelled cells are names; surrounding prose is never guessed. */
@@ -234,11 +244,16 @@ function makeCandidate(
     const milk = /\b(?:breast\s*milk|ebm|expressed\s+milk)\b/i.test(segment);
     bottleType = formula !== milk ? formula ? 'Formula' : 'Breast Milk' : null;
     if (formula && milk) warnings.push('Mixed formula and breast milk need a reviewer-selected designation and notes.');
-    const volumes = volumesIn(segment);
-    const offered = volumes.filter(volume => volumeRole(segment, volume) === 'offered');
-    const consumed = volumes.filter(volume => volumeRole(segment, volume) === 'consumed');
-    const hasVolumeLabels = /\b(?:offered|prepared|consumed|taken|drank|drunk)\b/i.test(segment);
-    if (hasVolumeLabels) {
+    const quantityText = maskNamedMetadata(segment);
+    const volumes = volumesIn(quantityText);
+    const roles = volumes.map(volume => volumeRole(quantityText, volume));
+    const offered = volumes.filter((_, index) => roles[index] === 'offered');
+    const consumed = volumes.filter((_, index) => roles[index] === 'consumed');
+    const hasVolumeLabels = volumeRoleLabelPattern.test(quantityText);
+    if (roles.includes('ambiguous')) {
+      fieldSources.amount = 'ambiguous'; fieldSources.offeredAmount = 'ambiguous'; fieldSources.unit = 'ambiguous';
+      warnings.push('Multiple quantities appear in this event; choose the recorded amount or split the event.');
+    } else if (hasVolumeLabels) {
       if (consumed.length === 1) ({ amount, unit } = consumed[0]);
       else {
         fieldSources.amount = consumed.length ? 'ambiguous' : 'missing';
@@ -255,7 +270,7 @@ function makeCandidate(
         warnings.push('Multiple offered volumes need correction.');
       }
       if (consumed.length === 1 && amount === null) fieldSources.amount = 'ambiguous';
-      if (volumes.some(volume => volumeRole(segment, volume) === null)) {
+      if (roles.includes(null)) {
         warnings.push('An unlabelled quantity was not assigned to offered or consumed volume.');
       }
     } else if (volumes.length === 1) ({ amount, unit } = volumes[0]);

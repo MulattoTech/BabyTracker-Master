@@ -24,6 +24,20 @@ describe('explicit PDF date headings', () => {
     expect(rows.find(row => row.eventType === 'feed')?.localDate).toBeNull();
   });
 
+  it.each(['21.10.2026', '10.21.2026', '2026/10/21', '2026.10.21', '21/10/2026'])('clears the supplied default for unsupported full numeric heading %s', date => {
+    const rows = parseOcrPages([{ page: 1, text: date + '\n08:15 bottle 90 mL' }], {
+      defaultDate: '2026-10-20', timeFormat: '24h',
+    });
+    expect(rows.find(row => row.eventType === 'feed')).toMatchObject({ localDate: null, localTime: '08:15' });
+    expect(rows.find(row => row.eventType === 'unknown')?.localTime).toBeNull();
+  });
+
+  it('does not treat an explicit dotted clock as a numeric date heading', () => {
+    const rows = parseOcrPages([{ page: 1, text: '2026-10-20\n14.15 bottle 90 mL' }], { timeFormat: '24h' });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ localDate: '2026-10-20', localTime: '14:15' });
+  });
+
   it('does not reinterpret recorded quantities or labelled identifiers as clocks or dates', () => {
     const rows = parseOcrPages([{ page: 1, text: '2026-10-20\n08:15 bottle 1200 mL; bottle id: 01-02; caregiver: 14:00' }], { timeFormat: '24h' });
     expect(rows).toHaveLength(1);

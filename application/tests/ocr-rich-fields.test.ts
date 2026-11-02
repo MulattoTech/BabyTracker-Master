@@ -33,6 +33,33 @@ describe('explicit bottle details in OCR review', () => {
     }
   });
 
+  it.each(['remaining 30 mL', '30 mL left', 'leftover 30 mL', 'unused 30 mL', 'discarded 30 mL', 'spilled 30 mL'])('does not count residual quantity %s as consumption', quantity => {
+    const row = parse('08:15 bottle formula ' + quantity)[0];
+    expect(row.amount).toBeNull();
+    expect(row.offeredAmount).toBeNull();
+    expect(validateOcrCandidate(row).valid).toBe(false);
+  });
+
+  it.each(['consumed 90 mL offered', '90 mL consumed 120 mL offered', 'remaining 30 mL consumed', 'not consumed 90 mL'])('abstains when quantity labels conflict or are negated: %s', quantity => {
+    const row = parse('08:15 bottle formula ' + quantity)[0];
+    expect(row.amount).toBeNull();
+    expect(row.offeredAmount).toBeNull();
+    expect(row.fieldSources.amount).toBe('ambiguous');
+    expect(validateOcrCandidate(row).valid).toBe(false);
+  });
+
+  it('accepts unambiguous suffix labels separated by punctuation', () => {
+    expect(parse('08:15 bottle formula 90 mL consumed, 120 mL offered')[0]).toMatchObject({
+      amount: 90, offeredAmount: 120, unit: 'ML',
+    });
+  });
+
+  it('ignores quantity-role words inside explicitly labelled names', () => {
+    expect(parse('08:15 bottle formula 90 mL; caregiver: Left; bottle id: Consumed')[0]).toMatchObject({
+      amount: 90, unit: 'ML', sourceCaregiverName: 'Left', bottleLabel: 'Consumed',
+    });
+  });
+
   it('normalizes explicitly recorded mixed units into the consumed unit', () => {
     expect(parse('08:15 bottle offered 4 oz consumed 90 mL')[0]).toMatchObject({
       amount: 90, offeredAmount: 118.294118, unit: 'ML',
@@ -94,6 +121,39 @@ describe('explicit bottle details in OCR review', () => {
     expect(corrected.fieldSources.offeredAmount).toBe('corrected');
     const empty = { ...source, offeredAmount: undefined, formulaName: undefined };
     expect(mergeOcrRows(empty, corrected)).toMatchObject({ offeredAmount: 125, formulaName: 'Corrected Brand', approved: false });
+  });
+
+  it('converts copied offered volume into the target consumed unit when merging', () => {
+    const target = parse('08:15 bottle consumed 3 oz')[0];
+    const source = parse('08:15 bottle offered 120 mL')[0];
+    const merged = mergeOcrRows({ ...target, approved: true }, source);
+    expect(merged).toMatchObject({ amount: 3, offeredAmount: 4.057683, unit: 'OZ', approved: false });
+    expect(merged.fieldSources.offeredAmount).toBe('corrected');
+    expect(validateOcrCandidate(merged).valid).toBe(true);
+  });
+
+  it('converts copied consumed volume into the target offered unit when merging', () => {
+    const merged = mergeOcrRows(parse('08:15 bottle offered 4 oz')[0], parse('08:15 bottle consumed 90 mL')[0]);
+    expect(merged).toMatchObject({ amount: 3.043262, offeredAmount: 4, unit: 'OZ', approved: false });
+    expect(validateOcrCandidate(merged).valid).toBe(true);
+    const milliliters = mergeOcrRows(parse('08:15 bottle offered 120 mL')[0], parse('08:15 bottle consumed 3 oz')[0]);
+    expect(milliliters).toMatchObject({ amount: 88.720589, offeredAmount: 120, unit: 'ML' });
+  });
+
+  it('does not assign a source unit to an existing quantity whose unit is unknown', () => {
+    const target = { ...parse('08:15 bottle consumed 3 oz')[0], unit: null };
+    const merged = mergeOcrRows(target, parse('08:15 bottle offered 120 mL')[0]);
+    expect(merged).toMatchObject({ amount: 3, offeredAmount: null, unit: null });
+    expect(merged.fieldSources.unit).toBe('ambiguous');
+    expect(validateOcrCandidate(merged).valid).toBe(false);
+  });
+
+  it('leaves copied quantities unresolved when the source quantity has no unit', () => {
+    const source = { ...parse('08:15 bottle consumed 90 mL')[0], unit: null };
+    const merged = mergeOcrRows(parse('08:15 bottle offered 120 mL')[0], source);
+    expect(merged).toMatchObject({ amount: null, offeredAmount: 120, unit: 'ML' });
+    expect(merged.fieldSources.amount).toBe('ambiguous');
+    expect(validateOcrCandidate(merged).valid).toBe(false);
   });
 
   it('preserves corrected metadata through server validation and canonical import mapping', () => {
