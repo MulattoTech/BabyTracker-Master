@@ -263,10 +263,41 @@ web login UI must never render**: a family page that loads locked hands control
 back to the shell instead (`src/utils/native-relock.ts`). See
 [Native App Integration](./NativeAppIntegration.md).
 
+## Care Record Write Payloads
+
+The canonical note, sleep, bath, diaper, measurement, milestone, medicine,
+vaccine, baby and breast-milk-adjustment APIs validate JSON with
+`app/api/utils/care-write.ts` before constructing persistence data. These
+endpoints accept their declared scalar fields and explicitly supported ID
+arrays. Unknown fields, nested relation instructions, scalar operation objects,
+invalid primitive types and client audit fields return 400 before a write.
+TypeScript request interfaces alone are not a runtime authorization boundary.
+
+Family and caregiver attribution come from authentication. The baby API's
+explicit family selector still goes through `resolveFamilyScope`, including
+the existing system-administrator and validated setup flows. The medicine
+editor's redundant body `id` is accepted and discarded; it never changes a
+record's primary key.
+
+Note, sleep, bath, measurement, milestone and milk-adjustment corrections may
+select another non-deleted child in the same family. Diaper, medicine-log and
+vaccine updates retain their existing immutable child/medicine identifiers:
+normal scalar echoes are validated and ignored. Nullable fields, zero values,
+false booleans and sleep end/undo partial updates remain supported.
+
+Medicine and vaccine `contactIds` must all refer to live contacts in the
+authenticated family. Duplicates are deduplicated. Omitting the field preserves
+links, while `[]` clears them. Parent changes and link replacement share a
+transaction so a later failure cannot leave a partial record or erase existing
+associations. Contact expansion on medicine, vaccine and dose responses is
+limited to the authenticated family, including for legacy associations.
+Historical records are not automatically reassigned or repaired.
+
 ## Key Files
 
 - `app/api/utils/auth.ts` — All auth middleware wrappers and `getAuthenticatedUser()`
 - `app/api/utils/writeProtection.ts` — Write protection for expired accounts
+- `app/api/utils/care-write.ts` — Canonical care payload fields and relationship validation
 - `app/api/utils/ip-lockout.ts` — IP-based login lockout
 - `app/api/utils/password-utils.ts` — PBKDF2 password hashing (100K iterations, SHA256)
 - `app/api/auth/route.ts` — Login endpoint

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '../db';
-import { ApiResponse, MedicineCreate, MedicineResponse, MedicineUpdate } from '../types';
+import { ApiResponse, MedicineCreate, MedicineResponse } from '../types';
 import { withAuthContext, AuthResult } from '../utils/auth';
 import { formatForResponse } from '../utils/timezone';
 import { checkWritePermission } from '../utils/writeProtection';
+import { careFields, careIdentifier, CareWriteError, readCareWrite, requireCareContacts } from '../utils/care-write';
 
 /**
  * Handle POST request to create a new medicine
@@ -16,56 +17,34 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
   }
 
   try {
-    const { familyId: userFamilyId, caretakerId } = authContext;
+    const { familyId: userFamilyId } = authContext;
     if (!userFamilyId) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'User is not associated with a family.' }, { status: 403 });
     }
 
-    const body: MedicineCreate = await req.json();
-    const { 
-      contactIds, 
-      ...medicineData
-    } = body;
-    
-    // Create the medicine
-    const medicine = await prisma.medicine.create({
-      data: {
-        ...medicineData,
-        familyId: userFamilyId,
-      },
-    });
+    const body = await readCareWrite<MedicineCreate>(req, careFields.medicine, ['name']);
+    const { contactIds, ...medicineData } = body;
 
-    // Associate with contacts if provided
-    if (contactIds && contactIds.length > 0) {
-      // Filter out duplicate contact IDs
-      const uniqueContactIds = Array.from(new Set(contactIds));
-      
-      const contactMedicineData = uniqueContactIds.map(contactId => ({
-        contactId,
-        medicineId: medicine.id,
-      }));
-
-      await prisma.contactMedicine.createMany({
-        data: contactMedicineData,
+    // Validate every contact before writing, then commit the parent and links
+    // together. A later link failure must not leave a partial medicine behind.
+    const medicineWithContacts = await prisma.$transaction(async tx => {
+      await requireCareContacts(tx, contactIds, userFamilyId);
+      const medicine = await tx.medicine.create({
+        data: { ...medicineData, familyId: userFamilyId },
       });
-    }
-
-    // Get the medicine with contacts and unit
-    const medicineWithContacts = await prisma.medicine.findUnique({
-      where: { id: medicine.id },
-      include: {
-        contacts: {
-          include: {
-            contact: true,
-          },
+      if (contactIds?.length) {
+        await tx.contactMedicine.createMany({
+          data: contactIds.map(contactId => ({ contactId, medicineId: medicine.id })),
+        });
+      }
+      return tx.medicine.findUniqueOrThrow({
+        where: { id: medicine.id },
+        include: {
+          contacts: { where: { contact: { familyId: userFamilyId } }, include: { contact: true } },
+          unit: true,
         },
-        unit: true,
-      },
+      });
     });
-
-    if (!medicineWithContacts) {
-      throw new Error('Failed to retrieve created medicine');
-    }
 
     // Format dates for response and ensure unitAbbr is included
     const response: MedicineResponse = {
@@ -81,6 +60,7 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
     console.error('Error creating medicine:', error);
     return NextResponse.json<ApiResponse<MedicineResponse>>(
       {
@@ -110,7 +90,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    const body: Partial<MedicineCreate> = await req.json();
+    const body = await readCareWrite<Partial<MedicineCreate>>(req, careFields.medicine, [], { id: careIdentifier });
     const { contactIds, ...updateData } = body;
 
     if (!id) {
@@ -123,61 +103,27 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       );
     }
 
-    // Check if medicine exists and belongs to the family
-    const existingMedicine = await prisma.medicine.findFirst({
-      where: { id, familyId: userFamilyId },
-    });
+    const medicineWithContacts = await prisma.$transaction(async tx => {
+      const existingMedicine = await tx.medicine.findFirst({ where: { id, familyId: userFamilyId } });
+      if (!existingMedicine) throw new CareWriteError('Medicine not found or access denied', 404);
+      await requireCareContacts(tx, contactIds, userFamilyId);
 
-    if (!existingMedicine) {
-      return NextResponse.json<ApiResponse<MedicineResponse>>(
-        {
-          success: false,
-          error: 'Medicine not found or access denied',
-        },
-        { status: 404 }
-      );
-    }
-
-    // Prevent changing the family or creator
-    delete (updateData as any).familyId;
-    delete (updateData as any).createdById;
-
-    const medicine = await prisma.medicine.update({
-      where: { id },
-      data: updateData,
-    });
-
-    // Update contact associations
-    if (contactIds) {
-      await prisma.contactMedicine.deleteMany({ where: { medicineId: id } });
-      if (contactIds.length > 0) {
-        const uniqueContactIds = Array.from(new Set(contactIds));
-        const contactMedicineData = uniqueContactIds.map(contactId => ({
-          contactId,
-          medicineId: id,
-        }));
-        await prisma.contactMedicine.createMany({
-          data: contactMedicineData,
-        });
+      await tx.medicine.update({ where: { id, familyId: userFamilyId }, data: updateData });
+      // Omitted contacts preserve links; an explicit empty array clears them.
+      if (contactIds !== undefined) {
+        await tx.contactMedicine.deleteMany({ where: { medicineId: id } });
+        if (contactIds.length) {
+          await tx.contactMedicine.createMany({ data: contactIds.map(contactId => ({ contactId, medicineId: id })) });
+        }
       }
-    }
-
-    // Get the updated medicine with contacts and unit
-    const medicineWithContacts = await prisma.medicine.findUnique({
-      where: { id },
-      include: {
-        contacts: {
-          include: {
-            contact: true,
-          },
+      return tx.medicine.findUniqueOrThrow({
+        where: { id },
+        include: {
+          contacts: { where: { contact: { familyId: userFamilyId } }, include: { contact: true } },
+          unit: true,
         },
-        unit: true,
-      },
+      });
     });
-
-    if (!medicineWithContacts) {
-      throw new Error('Failed to retrieve updated medicine');
-    }
 
     // Format dates for response and ensure unitAbbr is included
     const response: MedicineResponse = {
@@ -193,6 +139,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
     console.error('Error updating medicine:', error);
     return NextResponse.json<ApiResponse<MedicineResponse>>(
       {
@@ -245,6 +192,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
         where,
         include: {
           contacts: {
+            where: { contact: { familyId: userFamilyId } },
             include: {
               contact: true,
             },
@@ -283,10 +231,11 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
       const medicinesForContact = await prisma.contactMedicine.findMany({
         where: {
           contactId,
+          contact: { familyId: userFamilyId },
           medicine: {
             deletedAt: null,
             ...(active !== null ? { active: active === 'true' } : {}),
-            ...(userFamilyId && { familyId: userFamilyId }),
+            familyId: userFamilyId,
           },
         },
         include: {
@@ -320,6 +269,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
       where,
       include: {
         contacts: {
+          where: { contact: { familyId: userFamilyId } },
           include: {
             contact: true,
           },

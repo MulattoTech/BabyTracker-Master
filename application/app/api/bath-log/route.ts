@@ -4,6 +4,7 @@ import { ApiResponse, BathLogCreate, BathLogResponse } from '../types';
 import { withAuthContext, AuthResult } from '../utils/auth';
 import { toUTC, formatForResponse } from '../utils/timezone';
 import { checkWritePermission } from '../utils/writeProtection';
+import { careFields, readCareWrite, CareWriteError, requireCareBaby } from '../utils/care-write';
 import { notifyActivityCreated } from '@/src/lib/notifications/activityHook';
 
 async function handlePost(req: NextRequest, authContext: AuthResult) {
@@ -19,10 +20,10 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'User is not associated with a family.' }, { status: 403 });
     }
 
-    const body: BathLogCreate = await req.json();
+    const body = await readCareWrite<BathLogCreate>(req, careFields.bath, ['babyId', 'time']);
 
     const baby = await prisma.baby.findFirst({
-      where: { id: body.babyId, familyId: userFamilyId },
+      where: { id: body.babyId, familyId: userFamilyId, deletedAt: null },
     });
 
     if (!baby) {
@@ -59,6 +60,7 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
     console.error('Error creating bath log:', error);
     return NextResponse.json<ApiResponse<BathLogResponse>>(
       {
@@ -85,7 +87,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    const body: Partial<BathLogCreate> = await req.json();
+    const body = await readCareWrite<Partial<BathLogCreate>>(req, careFields.bath);
 
     if (!id) {
       return NextResponse.json<ApiResponse<BathLogResponse>>(
@@ -111,6 +113,10 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       );
     }
 
+    if (body.babyId !== undefined && body.babyId !== existingBathLog.babyId) {
+      await requireCareBaby(prisma, body.babyId, userFamilyId);
+    }
+
     // Process date fields - convert to UTC
     const data = {
       ...(body.time ? { time: toUTC(body.time) } : {}),
@@ -120,7 +126,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
     };
 
     const bathLog = await prisma.bathLog.update({
-      where: { id },
+      where: { id, familyId: userFamilyId },
       data,
     });
 
@@ -138,6 +144,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
     console.error('Error updating bath log:', error);
     return NextResponse.json<ApiResponse<BathLogResponse>>(
       {

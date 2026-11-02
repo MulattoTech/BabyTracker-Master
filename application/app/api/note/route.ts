@@ -4,6 +4,7 @@ import { ApiResponse, NoteCreate, NoteResponse } from '../types';
 import { withAuthContext, AuthResult } from '../utils/auth';
 import { toUTC, formatForResponse } from '../utils/timezone';
 import { checkWritePermission } from '../utils/writeProtection';
+import { careFields, readCareWrite, CareWriteError, requireCareBaby } from '../utils/care-write';
 import { notifyActivityCreated } from '@/src/lib/notifications/activityHook';
 
 async function handlePost(req: NextRequest, authContext: AuthResult) {
@@ -19,10 +20,10 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'User is not associated with a family.' }, { status: 403 });
     }
 
-    const body: NoteCreate = await req.json();
+    const body = await readCareWrite<NoteCreate>(req, careFields.note, ['babyId', 'time', 'content']);
 
     const baby = await prisma.baby.findFirst({
-      where: { id: body.babyId, familyId: userFamilyId },
+      where: { id: body.babyId, familyId: userFamilyId, deletedAt: null },
     });
 
     if (!baby) {
@@ -58,6 +59,7 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
     console.error('Error creating note:', error);
     return NextResponse.json<ApiResponse<NoteResponse>>(
       {
@@ -84,7 +86,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    const body: Partial<NoteCreate> = await req.json();
+    const body = await readCareWrite<Partial<NoteCreate>>(req, careFields.note);
 
     if (!id) {
       return NextResponse.json<ApiResponse<NoteResponse>>(
@@ -113,15 +115,17 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       );
     }
 
+    if (body.babyId !== undefined && body.babyId !== existingNote.babyId) {
+      await requireCareBaby(prisma, body.babyId, userFamilyId);
+    }
+
     // Convert time to UTC if provided
     const data = body.time
       ? { ...body, time: toUTC(body.time) }
       : body;
 
     const note = await prisma.note.update({
-      where: {
-        id,
-      },
+      where: { id, familyId: userFamilyId },
       data,
     });
 
@@ -139,6 +143,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
     console.error('Error updating note:', error);
     return NextResponse.json<ApiResponse<NoteResponse>>(
       {
