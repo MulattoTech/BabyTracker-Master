@@ -26,10 +26,10 @@ afterEach(() => {
 describe('email senders', () => {
   it('default to the four verified Sender Identities', () => {
     for (const v of VARS) delete process.env[v];
-    expect(accountsFrom()).toBe('Sprout Track <accounts@sprout-track.com>');
-    expect(paymentsFrom()).toBe('Sprout Track <payments@sprout-track.com>');
-    expect(noReplyFrom()).toBe('Sprout Track <no-reply@sprout-track.com>');
-    expect(adminFrom()).toBe('Sprout Track <admin@sprout-track.com>');
+    expect(accountsFrom()).toBe('Sat Tracker <accounts@sprout-track.com>');
+    expect(paymentsFrom()).toBe('Sat Tracker <payments@sprout-track.com>');
+    expect(noReplyFrom()).toBe('Sat Tracker <no-reply@sprout-track.com>');
+    expect(adminFrom()).toBe('Sat Tracker <admin@sprout-track.com>');
   });
 
   it('never falls back to an address that is not a verified sender', () => {
@@ -48,7 +48,7 @@ describe('email senders', () => {
 
   it('wraps a bare override with the From Name and leaves a full mailbox alone', () => {
     process.env.ACCOUNTS_EMAIL = 'billing@example.com';
-    expect(accountsFrom()).toBe('Sprout Track <billing@example.com>');
+    expect(accountsFrom()).toBe('Sat Tracker <billing@example.com>');
     process.env.ADMIN_EMAIL = 'Support <help@example.com>';
     expect(adminFrom()).toBe('Support <help@example.com>');
   });

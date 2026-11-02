@@ -6,6 +6,7 @@ import { withAuthContext, AuthResult } from '../utils/auth';
 import { toUTC, formatForResponse } from '../utils/timezone';
 import { checkWritePermission } from '../utils/writeProtection';
 import { notifyActivityCreated, resetTimerNotificationState } from '@/src/lib/notifications/activityHook';
+import { JournalError, validateBottleMetadata } from '@/src/lib/bottle-journal/validation';
 
 async function handlePost(req: NextRequest, authContext: AuthResult) {
   // Check write permissions for expired accounts
@@ -17,6 +18,7 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
   try {
     const body: FeedLogCreate = await req.json();
     const { familyId, caretakerId } = authContext;
+    validateBottleMetadata(body as unknown as Record<string, unknown>);
 
     // Validate that the baby belongs to the family
     const baby = await prisma.baby.findFirst({
@@ -48,6 +50,10 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       ...(body.endTime && { endTime: toUTC(body.endTime) }),
       ...(body.feedDuration !== undefined && { feedDuration: body.feedDuration }),
       ...(body.amount !== undefined && { amount: body.amount }),
+      ...(body.offeredAmount !== undefined && { offeredAmount: body.offeredAmount }),
+      ...(body.formulaKcalOz !== undefined && { formulaKcalOz: body.formulaKcalOz }),
+      ...(body.formulaName !== undefined && { formulaName: body.formulaName }),
+      ...(body.bottleLabel !== undefined && { bottleLabel: body.bottleLabel }),
       ...(body.breastMilkAmount !== undefined && { breastMilkAmount: body.breastMilkAmount }),
       ...(body.unitAbbr && { unitAbbr: body.unitAbbr }),
       ...(body.side && { side: body.side }),
@@ -84,14 +90,13 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
-    console.error('Error creating feed log:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to create feed log';
+    const errorMessage = error instanceof JournalError ? error.message : 'Failed to create feed log';
     return NextResponse.json<ApiResponse<FeedLogResponse>>(
       {
         success: false,
         error: errorMessage,
       },
-      { status: 500 }
+      { status: error instanceof JournalError ? error.status : 500 }
     );
   }
 }
@@ -139,12 +144,19 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       return NextResponse.json<ApiResponse<FeedLogResponse>>(
         {
           success: false,
-          error: 'Forbidden',
+          error: 'Feed log not found',
         },
-        { status: 403 }
+        { status: 404 }
       );
     }
 
+    if (body.babyId && body.babyId !== existingFeedLog.babyId) {
+      const targetBaby = await prisma.baby.findFirst({ where: { id: body.babyId, familyId, deletedAt: null } });
+      if (!targetBaby) return NextResponse.json({ success: false, error: 'Baby not found in this family.' }, { status: 404 });
+    }
+    // Accept only editable care fields; ownership, IDs and provenance stay server controlled.
+    validateBottleMetadata(body as Record<string, unknown>, existingFeedLog as unknown as Record<string, unknown>);
+    const editableKeys = new Set(['babyId', 'type', 'amount', 'unitAbbr', 'side', 'food', 'sessionId', 'offeredAmount', 'formulaKcalOz', 'formulaName', 'bottleLabel']);
     // Process all date fields - convert to UTC
     const data = {
       ...(body.time ? { time: toUTC(body.time) } : {}),
@@ -163,7 +175,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
         ? { reactionCause: body.reactionCause && body.reactionCause.trim() ? body.reactionCause : null }
         : {}),
       ...Object.entries(body)
-        .filter(([key]) => !['time', 'startTime', 'endTime', 'feedDuration', 'notes', 'bottleType', 'breastMilkAmount', 'hadReaction', 'reactionDescription', 'reactionCause', 'familyId', 'sourcePumpId'].includes(key))
+        .filter(([key]) => editableKeys.has(key))
         .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {}),
     };
 
@@ -186,13 +198,12 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
-    console.error('Error updating feed log:', error);
     return NextResponse.json<ApiResponse<FeedLogResponse>>(
       {
         success: false,
-        error: 'Failed to update feed log',
+        error: error instanceof JournalError ? error.message : 'Failed to update feed log',
       },
-      { status: 500 }
+      { status: error instanceof JournalError ? error.status : 500 }
     );
   }
 }

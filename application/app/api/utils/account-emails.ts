@@ -45,24 +45,24 @@ export async function sendVerificationEmail(email: string, token: string, firstN
   const result = await sendEmail({
     to: email,
     from: accountsFrom(),
-    subject: 'Welcome to Sprout Track - Verify Your Account',
+    subject: 'Welcome to Sat Tracker - Verify Your Account',
     text: `Hi ${firstName},
 
-Welcome to Sprout Track! Please verify your email address by visiting this link:
+Welcome to Sat Tracker! Please verify your email address by visiting this link:
 
 ${verificationUrl}
 
 This link will expire in 24 hours.
 
 Best regards,
-The Sprout Track Team
+The Sat Tracker Team
 
 ${UNMONITORED_NOTICE_TEXT}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #0d9488;">Welcome to Sprout Track!</h2>
+        <h2 style="color: #0d9488;">Welcome to Sat Tracker!</h2>
         <p>Hi ${firstName},</p>
-        <p>Welcome to Sprout Track! Please verify your email address by clicking the button below:</p>
+        <p>Welcome to Sat Tracker! Please verify your email address by clicking the button below:</p>
         <div style="text-align: center; margin: 30px 0;">
           <a href="${verificationUrl}" 
              style="background-color: #0d9488; color: white; padding: 12px 24px; 
@@ -71,10 +71,10 @@ ${UNMONITORED_NOTICE_TEXT}`,
           </a>
         </div>
         <p style="color: #666; font-size: 14px;">
-          This link will expire in 24 hours. If you didn't create an account with Sprout Track, 
+          This link will expire in 24 hours. If you didn't create an account with Sat Tracker,
           please ignore this email.
         </p>
-        <p>Best regards,<br>The Sprout Track Team</p>${unmonitoredNoticeHtml()}
+        <p>Best regards,<br>The Sat Tracker Team</p>${unmonitoredNoticeHtml()}
       </div>
     `
   });
@@ -89,10 +89,10 @@ export async function sendPasswordResetEmail(email: string, token: string, first
   const result = await sendEmail({
     to: email,
     from: accountsFrom(),
-    subject: 'Sprout Track - Password Reset Request',
+    subject: 'Sat Tracker - Password Reset Request',
     text: `Hi ${firstName},
 
-You requested a password reset for your Sprout Track account. Please visit this link to reset your password:
+You requested a password reset for your Sat Tracker account. Please visit this link to reset your password:
 
 ${resetUrl}
 
@@ -101,14 +101,14 @@ This link will expire in 15 minutes.
 If you didn't request a password reset, please ignore this email.
 
 Best regards,
-The Sprout Track Team
+The Sat Tracker Team
 
 ${UNMONITORED_NOTICE_TEXT}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #0d9488;">Password Reset Request</h2>
         <p>Hi ${firstName},</p>
-        <p>You requested a password reset for your Sprout Track account. Click the button below to reset your password:</p>
+        <p>You requested a password reset for your Sat Tracker account. Click the button below to reset your password:</p>
         <div style="text-align: center; margin: 30px 0;">
           <a href="${resetUrl}" 
              style="background-color: #0d9488; color: white; padding: 12px 24px; 
@@ -120,7 +120,7 @@ ${UNMONITORED_NOTICE_TEXT}`,
           This link will expire in 15 minutes. If you didn't request a password reset, 
           please ignore this email.
         </p>
-        <p>Best regards,<br>The Sprout Track Team</p>${unmonitoredNoticeHtml()}
+        <p>Best regards,<br>The Sat Tracker Team</p>${unmonitoredNoticeHtml()}
       </div>
     `
   });
@@ -135,10 +135,10 @@ export async function sendWelcomeEmail(email: string, firstName: string, familyS
   const result = await sendEmail({
     to: email,
     from: accountsFrom(),
-    subject: 'Welcome to Sprout Track - Your Family is Ready!',
+    subject: 'Welcome to Sat Tracker - Your Family is Ready!',
     text: `Hi ${firstName},
 
-Welcome to Sprout Track! Your account has been verified and your family is ready to use.
+Welcome to Sat Tracker! Your account has been verified and your family is ready to use.
 
 Your Family Details:
 - Family URL: ${familyUrl}
@@ -154,14 +154,14 @@ As the account owner, you can also log in directly using your email and password
 Get started by adding your first baby and logging your first activities!
 
 Best regards,
-The Sprout Track Team
+The Sat Tracker Team
 
 ${UNMONITORED_NOTICE_TEXT}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #0d9488;">Welcome to Sprout Track!</h2>
+        <h2 style="color: #0d9488;">Welcome to Sat Tracker!</h2>
         <p>Hi ${firstName},</p>
-        <p>Welcome to Sprout Track! Your account has been verified and your family is ready to use.</p>
+        <p>Welcome to Sat Tracker! Your account has been verified and your family is ready to use.</p>
         
         <div style="background-color: #f0fdfa; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <h3 style="color: #0d9488; margin-top: 0;">Your Family Details:</h3>
@@ -183,7 +183,7 @@ ${UNMONITORED_NOTICE_TEXT}`,
         </div>
         
         <p>Get started by adding your first baby and logging your first activities!</p>
-        <p>Best regards,<br>The Sprout Track Team</p>${unmonitoredNoticeHtml()}
+        <p>Best regards,<br>The Sat Tracker Team</p>${unmonitoredNoticeHtml()}
       </div>
     `
   });
@@ -197,28 +197,28 @@ export async function sendFeedbackConfirmationEmail(email: string, firstName: st
   const result = await sendEmail({
     to: email,
     from: adminFrom(),
-    subject: 'Sprout Track - Feedback Received',
+    subject: 'Sat Tracker - Feedback Received',
     text: `Hi ${firstName},
 
-Thank you for your feedback! We've received your message about "${subject}" and appreciate you taking the time to help us improve Sprout Track.
+Thank you for your feedback! We've received your message about "${subject}" and appreciate you taking the time to help us improve Sat Tracker.
 
 Our team will review your feedback and may reach out if we need any additional information.
 
-Your input helps us make Sprout Track better for all families.
+Your input helps us make Sat Tracker better for all families.
 
 Best regards,
-The Sprout Track Team
+The Sat Tracker Team
 
 ${UNMONITORED_NOTICE_TEXT}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #059669;">Thank You for Your Feedback!</h2>
         <p>Hi ${firstName},</p>
-        <p>Thank you for your feedback! We've received your message about <strong>"${subject}"</strong> and appreciate you taking the time to help us improve Sprout Track.</p>
+        <p>Thank you for your feedback! We've received your message about <strong>"${subject}"</strong> and appreciate you taking the time to help us improve Sat Tracker.</p>
         
         <div style="background-color: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #059669;">
           <p style="margin: 0; color: #059669; font-weight: 600;">
-            Your feedback is important to us and helps make Sprout Track better for all families.
+            Your feedback is important to us and helps make Sat Tracker better for all families.
           </p>
         </div>
         
@@ -228,11 +228,11 @@ ${UNMONITORED_NOTICE_TEXT}`,
           <a href="${domainUrl}" 
              style="background-color: #059669; color: white; padding: 12px 24px; 
                     text-decoration: none; border-radius: 6px; display: inline-block;">
-            Continue Using Sprout Track
+            Continue Using Sat Tracker
           </a>
         </div>
         
-        <p>Best regards,<br>The Sprout Track Team</p>${unmonitoredNoticeHtml()}
+        <p>Best regards,<br>The Sat Tracker Team</p>${unmonitoredNoticeHtml()}
       </div>
     `
   });
@@ -246,26 +246,26 @@ export async function sendAccountClosureEmail(email: string, firstName: string) 
   const result = await sendEmail({
     to: email,
     from: accountsFrom(),
-    subject: 'Sprout Track - Account Closed',
+    subject: 'Sat Tracker - Account Closed',
     text: `Hi ${firstName},
 
-Your Sprout Track account has been successfully closed as requested.
+Your Sat Tracker account has been successfully closed as requested.
 
 Your account and associated family data have been deactivated and are no longer accessible. This action cannot be undone.
 
 If you closed your account by mistake or would like to reactivate it, please contact our support team as soon as possible.
 
-Thank you for using Sprout Track. We're sorry to see you go!
+Thank you for using Sat Tracker. We're sorry to see you go!
 
 Best regards,
-The Sprout Track Team
+The Sat Tracker Team
 
 ${UNMONITORED_NOTICE_TEXT}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #dc2626;">Account Closed</h2>
         <p>Hi ${firstName},</p>
-        <p>Your Sprout Track account has been successfully closed as requested.</p>
+        <p>Your Sat Tracker account has been successfully closed as requested.</p>
 
         <div style="background-color: #fef2f2; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc2626;">
           <p style="margin: 0; color: #dc2626; font-weight: 600;">
@@ -275,9 +275,9 @@ ${UNMONITORED_NOTICE_TEXT}`,
 
         <p>If you closed your account by mistake or would like to reactivate it, please contact our support team as soon as possible.</p>
 
-        <p>Thank you for using Sprout Track. We're sorry to see you go!</p>
+        <p>Thank you for using Sat Tracker. We're sorry to see you go!</p>
 
-        <p>Best regards,<br>The Sprout Track Team</p>${unmonitoredNoticeHtml()}
+        <p>Best regards,<br>The Sat Tracker Team</p>${unmonitoredNoticeHtml()}
       </div>
     `
   });
@@ -296,7 +296,7 @@ export function giftRedemptionUrl(domainUrl: string): string {
  *
  * The provider verifies senders per-address and rejects anything else outright,
  * so these must stay in lockstep with the verified Sender Identities. There are
- * exactly four, all with From Name "Sprout Track":
+ * exactly four, all with From Name "Sat Tracker":
  *
  *   accounts@sprout-track.com   account lifecycle (verify, reset, welcome, closure)
  *   payments@sprout-track.com   payment mail (gift codes, receipts)
@@ -306,12 +306,12 @@ export function giftRedemptionUrl(domainUrl: string): string {
  * A rejected send is easy to mistake for a delivered one — it only surfaces in a
  * server log — so any override must also be a verified sender.
  */
-const FROM_NAME = 'Sprout Track';
+const FROM_NAME = 'Sat Tracker';
 
 function mailbox(address: string): string {
   // Already a full "Name <addr>" mailbox — respect it verbatim.
   if (address.includes('<')) return address;
-  // Matching the verified sender's From Name means inboxes show "Sprout Track"
+  // Matching the verified sender's From Name means inboxes show "Sat Tracker"
   // rather than the bare address. All three transports (SendGrid, SMTP2GO,
   // nodemailer) accept this form.
   return `${FROM_NAME} <${address}>`;
@@ -341,14 +341,14 @@ export function adminFrom(): string {
  */
 export const UNMONITORED_NOTICE_TEXT =
   'This mailbox is not monitored — replies to this message will not reach us. ' +
-  'To get in touch, use the Feedback option inside Sprout Track.';
+  'To get in touch, use the Feedback option inside Sat Tracker.';
 
 export function unmonitoredNoticeHtml(): string {
   return `
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;">
         <p style="color: #6b7280; font-size: 12px; margin: 0;">
           This mailbox is not monitored &mdash; replies to this message will not reach us.
-          To get in touch, use the Feedback option inside Sprout Track.
+          To get in touch, use the Feedback option inside Sat Tracker.
         </p>`;
 }
 
@@ -359,8 +359,8 @@ export async function sendGiftCodeEmail(email: string, code: string) {
   const result = await sendEmail({
     to: email,
     from: paymentsFrom(),
-    subject: 'Your Sprout Track gift code',
-    text: `Thank you for giving Sprout Track!
+    subject: 'Your Sat Tracker gift code',
+    text: `Thank you for giving Sat Tracker!
 
 Here is your lifetime access gift code:
 
@@ -371,15 +371,15 @@ To redeem it:
 2. Open Account Settings and find the Subscription section.
 3. Choose "Redeem a gift code" and enter the code above.
 
-The code grants lifetime access to Sprout Track and can be used once.
+The code grants lifetime access to Sat Tracker and can be used once.
 
 Best regards,
-The Sprout Track Team
+The Sat Tracker Team
 
 ${UNMONITORED_NOTICE_TEXT}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #0d9488;">Thank you for giving Sprout Track!</h2>
+        <h2 style="color: #0d9488;">Thank you for giving Sat Tracker!</h2>
         <p>Here is your lifetime access gift code:</p>
 
         <div style="background-color: #f0fdfa; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
@@ -393,8 +393,8 @@ ${UNMONITORED_NOTICE_TEXT}`,
           <li>Choose "Redeem a gift code" and enter the code above.</li>
         </ol>
 
-        <p>The code grants lifetime access to Sprout Track and can be used once.</p>
-        <p>Best regards,<br>The Sprout Track Team</p>${unmonitoredNoticeHtml()}
+        <p>The code grants lifetime access to Sat Tracker and can be used once.</p>
+        <p>Best regards,<br>The Sat Tracker Team</p>${unmonitoredNoticeHtml()}
       </div>
     `,
   });

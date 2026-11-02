@@ -108,6 +108,11 @@ export interface ExternalImportFeedRecord {
   readonly feedDuration?: number;
   readonly side?: 'LEFT' | 'RIGHT';
   readonly amount?: number;
+  readonly offeredAmount?: number;
+  readonly formulaKcalOz?: number;
+  readonly formulaName?: string;
+  readonly bottleLabel?: string;
+  readonly sourceCaregiverName?: string;
   readonly unitAbbr?: 'ML' | 'OZ';
   readonly food?: string;
   readonly notes?: string;

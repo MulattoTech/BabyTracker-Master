@@ -352,6 +352,7 @@ const FamilyPeopleTab: React.FC<FamilyPeopleTabProps> = ({
           familyId: familyData.id,
           feedTimerFrom: (selectedBaby as any).feedTimerFrom || 'start',
           feedTimerTypes: selectedBaby.feedTimerTypes ?? null,
+          dailyIntakeTargetMl: selectedBaby.dailyIntakeTargetMl ?? null,
         } : null}
         onBabyChange={handleBabyFormClose}
         appearance="storybook"

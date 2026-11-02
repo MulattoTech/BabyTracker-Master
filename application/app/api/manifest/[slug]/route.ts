@@ -17,8 +17,8 @@ export async function GET(
   // scope "/" so login (/slug) and all sub-routes are in scope; start_url opens the family login.
   const manifest = {
     id: `/${slug}/`,
-    name: 'Sprout Track',
-    short_name: 'Sprout Track',
+    name: 'Sat Tracker',
+    short_name: 'Sat Tracker',
     description: "Track your baby's sleep, feeding, diapers, milestones, and more.",
     start_url: `/${slug}/`,
     scope: '/',

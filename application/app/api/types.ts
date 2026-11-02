@@ -136,6 +136,10 @@ export interface FeedLogCreate {
   time: string;
   type: FeedType;
   amount?: number;
+  offeredAmount?: number | null;
+  formulaKcalOz?: number | null;
+  formulaName?: string | null;
+  bottleLabel?: string | null;
   unitAbbr?: string;
   side?: BreastSide;
   food?: string;
