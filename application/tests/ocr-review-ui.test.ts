@@ -91,7 +91,10 @@ describe('OCR review state safety', () => {
     const issuesBefore = rowReviewIssues(incompleteRow, 'UTC');
     expect(issuesBefore.errors.length).toBeGreaterThan(0);
 
-    const rejectedRow = { ...incompleteRow, rejected: true, approved: true };
+    const rejectedRow = { ...incompleteRow, rejected: true, approved: false };
+    const contradictory = validateOcrCandidate({ ...rejectedRow, approved: true }, { allowIncomplete: true });
+    expect(contradictory.valid).toBe(false);
+    expect(contradictory.errors).toContain('A rejected event cannot also be approved.');
     const issuesAfter = rowReviewIssues(rejectedRow, 'UTC');
     expect(issuesAfter.errors).toEqual([]);
     expect(issuesAfter.warnings.some(w => w.includes('rejected'))).toBe(true);
