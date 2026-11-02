@@ -24,6 +24,7 @@ A standalone form component for recording medicine administration in the baby tr
 | `onSuccess` | () => void | No | Optional callback function called after successful submission |
 | `refreshData` | () => void | No | Optional function to refresh parent component data |
 | `activity` | any | No | Existing medicine log data (for edit mode) |
+| `onPendingChange` | (pending: boolean) => void | No | Reports a saved, unconfirmed dose for the current caregiver and child |
 
 ## Usage
 
@@ -85,6 +86,34 @@ The form integrates with the following API endpoints:
 - `POST /api/medicine-log` - Create new medicine log entry
 - `PUT /api/medicine-log?id={id}` - Update existing medicine log entry
 
+### Recovering an unconfirmed new dose
+
+Before creating a dose, the form saves its request UUID, authenticated caregiver,
+family, child, medicine, first administration time, quantity, unit, and notes in
+browser storage. A short Web Lock protects the exact saved request from competing
+tabs. If storage or locking is unavailable, the form retains the editable inputs
+and blocks dispatch until the caregiver restores storage access.
+
+A failed, rejected, or timed-out request stays visible as a read-only summary.
+Closing the dialog, refreshing, or restarting the browser retains this summary
+for the original caregiver and child. The Medicine Tracker exposes **Review saved
+dose** even when the entry dialog is closed. **Retry saved dose** sends the same
+UUID and values; it never creates a replacement intent from an absent or newer
+saved request. Fetch, shared authentication refresh, and response parsing have one
+20-second deadline. No retry is automatic.
+
+The create endpoint atomically stores the dose and an `ExternalImportRecord`
+receipt. It acknowledges an existing request only when the stored dose still
+matches all original clinical, ownership, and revision fields. A corrected,
+moved, or removed record requires review instead of recreation. The caregiver can
+open the care log and explicitly dismiss only the exact saved browser request;
+this does not delete or alter any care record. An intentional new administration
+gets a new UUID even if all its values match an earlier administration.
+
+Older API callers may omit this optional metadata. Editing an existing dose
+continues to use the existing PUT behavior, and active-dose calculations are
+unchanged.
+
 ## Accessibility
 
 - Proper form labels for all input fields
@@ -98,5 +127,6 @@ The form integrates with the following API endpoints:
 This component follows the project's cross-platform compatibility guidelines:
 - Uses touch-friendly button sizes and spacing
 - Responsive design that works on mobile screens
-- Avoids web-specific APIs that won't exist in React Native
-- Designed with offline capabilities in mind for future mobile support
+- Recovery requires persistent browser storage and Web Locks; unavailable storage
+  blocks a new dispatch without discarding the current inputs
+- Retains uncertain requests while offline for an explicit retry after reconnecting

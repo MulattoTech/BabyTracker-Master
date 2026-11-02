@@ -26,6 +26,9 @@ import { useToast } from '@/src/components/ui/toast';
 import { handleExpirationError } from '@/src/lib/expiration-error-handler';
 import { useLocalization } from '@/src/context/localization';
 import { useUnit } from '@/src/hooks/useUnit';
+import { useFamily } from '@/src/context/family';
+import { useMedicineDoseRecovery } from './useMedicineDoseRecovery';
+import { MedicineDoseRecovery } from './MedicineDoseRecovery';
 
 interface GiveMedicineFormProps {
   isOpen: boolean;
@@ -36,6 +39,7 @@ interface GiveMedicineFormProps {
   refreshData?: () => void;
   activity?: any;
   isSupplement?: boolean;
+  onPendingChange?: (pending: boolean) => void;
 }
 
 /**
@@ -53,6 +57,7 @@ const GiveMedicineForm: React.FC<GiveMedicineFormProps> = ({
   refreshData,
   activity,
   isSupplement = false,
+  onPendingChange,
 }) => {
 
   const { t } = useLocalization();
@@ -60,6 +65,7 @@ const GiveMedicineForm: React.FC<GiveMedicineFormProps> = ({
   const { unitName, unitSymbol } = useUnit();
   const { toUTCString } = useTimezone();
   const { showToast } = useToast();
+  const { family } = useFamily();
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -92,6 +98,16 @@ const GiveMedicineForm: React.FC<GiveMedicineFormProps> = ({
   const [isInitialized, setIsInitialized] = useState(false);
   const [initializedTime, setInitializedTime] = useState<string | null>(null);
   const [lastActivityId, setLastActivityId] = useState<string | null>(null);
+  const recovery = useMedicineDoseRecovery({ babyId, isOpen, enabled: !activity, onConfirmed: () => {
+    setError(null); refreshData?.(); onSuccess?.();
+  } });
+  useEffect(() => { onPendingChange?.(!!recovery.pending); }, [onPendingChange, recovery.pending]);
+  const submitting = activity ? isLoading : recovery.busy;
+  const visibleError = activity ? error : recovery.error || error;
+  const dismissSavedDose = async () => {
+    if (!window.confirm(t("This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?"))) return;
+    if (await recovery.dismiss()) onClose();
+  };
   
   // Update form data when form opens or activity changes (for editing)
   useEffect(() => {
@@ -265,6 +281,13 @@ const GiveMedicineForm: React.FC<GiveMedicineFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!activity) {
+      if (recovery.pending) { await recovery.retry(); return; }
+      if (!validateForm()) return;
+      // Keyboard submission can precede the dose field's blur normalization.
+      await recovery.submit({ ...formData, doseAmount: Number(formData.doseAmount) }, selectedMedicine?.name || '', isSupplement);
+      return;
+    }
     if (!validateForm()) return;
 
     setIsLoading(true);
@@ -361,19 +384,27 @@ const GiveMedicineForm: React.FC<GiveMedicineFormProps> = ({
     >
       <form id="give-medicine-form" onSubmit={handleSubmit} className="h-full flex flex-col">
         <FormPageContent>
-          {isFetching ? (
+          {!activity && recovery.pending ? (
+            <div className="space-y-4">
+              {recovery.error && <p role="alert" className="text-red-500">{t(recovery.error)}</p>}
+              {recovery.blocked && <Button type="button" variant="outline" onClick={() => recovery.restore()}>{t('Check saved dose again')}</Button>}
+              <MedicineDoseRecovery snapshot={recovery.pending} busy={recovery.busy} blocked={recovery.blocked}
+                familySlug={family?.slug} onRetry={() => void recovery.retry()} onDismiss={() => void dismissSavedDose()} />
+            </div>
+          ) : isFetching ? (
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-teal-600" aria-hidden="true" />
               <p className="mt-2 text-gray-600">{t('Loading form data...')}</p>
             </div>
           ) : (
-            <div className="space-y-6">
-              {error && (
-                <div className="flex items-center text-red-500 p-3 bg-red-50 rounded-md border border-red-200">
+            <fieldset disabled={!activity && recovery.busy} className="space-y-6">
+              {visibleError && (
+                <div role="alert" className="flex items-center text-red-500 p-3 bg-red-50 rounded-md border border-red-200">
                   <AlertCircle className="mr-2 h-4 w-4" aria-hidden="true" />
-                  <span>{error}</span>
+                  <span>{activity ? visibleError : t(visibleError)}</span>
                 </div>
               )}
+              {!activity && recovery.blocked && <Button type="button" variant="outline" onClick={() => recovery.restore()}>{t('Check saved dose again')}</Button>}
               
               <div>
                 <Label htmlFor="medicine">{isSupplement ? t('Supplement') : t('Medicine')}</Label>
@@ -448,7 +479,7 @@ const GiveMedicineForm: React.FC<GiveMedicineFormProps> = ({
                   placeholder={t("Enter any additional notes about this medicine administration")}
                 />
               </div>
-            </div>
+            </fieldset>
           )}
         </FormPageContent>
         
@@ -458,15 +489,15 @@ const GiveMedicineForm: React.FC<GiveMedicineFormProps> = ({
               type="button"
               variant="outline"
               onClick={onClose}
-              disabled={isLoading}
+              disabled={!!activity && isLoading}
             >
-              {t('Cancel')}
+              {!activity && recovery.pending ? t('Close') : t('Cancel')}
             </Button>
-            <Button
+            {(activity || !recovery.pending) && <Button
               type="submit"
-              disabled={isLoading || isFetching}
+              disabled={submitting || isFetching || (!activity && recovery.blocked)}
             >
-              {isLoading ? (
+              {submitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
                   {t('Saving...')}
@@ -474,7 +505,7 @@ const GiveMedicineForm: React.FC<GiveMedicineFormProps> = ({
               ) : (
                 activity ? t('Update') : t('Save')
               )}
-            </Button>
+            </Button>}
           </div>
         </FormPageFooter>
       </form>

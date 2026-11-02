@@ -3219,5 +3219,22 @@
   "This tab could not clear the stop review. Keep this page open and check browser storage.": "Dieser Tab konnte die Prüfung des Beendens nicht löschen. Lassen Sie diese Seite geöffnet und prüfen Sie den Browserspeicher.",
   "This tab could not read its saved stop review. Keep this page open and check the care log and browser storage.": "Dieser Tab konnte die gespeicherte Prüfung des Beendens nicht lesen. Lassen Sie diese Seite geöffnet und prüfen Sie das Betreuungsprotokoll und den Browserspeicher.",
   "This tab could not save the stop time. Keep this page open and check browser storage before retrying. No request was sent on this attempt.": "Dieser Tab konnte den Zeitpunkt des Beendens nicht speichern. Lassen Sie diese Seite geöffnet und prüfen Sie den Browserspeicher vor einem neuen Versuch. Bei diesem Versuch wurde keine Anfrage gesendet.",
-  "Your first stop time is kept. Reload to inspect the current session. Using the current timer discards this stop time.": "Der Zeitpunkt Ihres ersten Beenden-Versuchs bleibt erhalten. Laden Sie die aktuelle Sitzung zur Prüfung neu. Wenn Sie den aktuellen Timer verwenden, wird dieser Zeitpunkt verworfen."
+  "Your first stop time is kept. Reload to inspect the current session. Using the current timer discards this stop time.": "Der Zeitpunkt Ihres ersten Beenden-Versuchs bleibt erhalten. Laden Sie die aktuelle Sitzung zur Prüfung neu. Wenn Sie den aktuellen Timer verwenden, wird dieser Zeitpunkt verworfen.",
+  "Saving this dose could not be confirmed. Its original details are kept. Retry the saved request.": "Das Speichern dieser Dosis konnte nicht bestätigt werden. Die ursprünglichen Angaben bleiben erhalten. Versuchen Sie die gespeicherte Anfrage erneut.",
+  "This browser could not keep the dose request. Keep this page open and restore storage before saving.": "Dieser Browser konnte die Dosisanfrage nicht speichern. Lassen Sie diese Seite geöffnet und stellen Sie den Speicherzugriff vor dem Speichern wieder her.",
+  "This browser could not coordinate the saved dose. Keep this page open and retry when storage access is available.": "Dieser Browser konnte die gespeicherte Dosis nicht abstimmen. Lassen Sie diese Seite geöffnet und versuchen Sie es erneut, sobald der Speicherzugriff verfügbar ist.",
+  "The caregiver or child changed. Return to the original caregiver and child before retrying this dose.": "Die Betreuungsperson oder das Kind hat sich geändert. Kehren Sie vor einem erneuten Versuch zur ursprünglichen Betreuungsperson und zum ursprünglichen Kind zurück.",
+  "Another saved dose has changed on this browser. Review it before continuing.": "Eine andere gespeicherte Dosis wurde in diesem Browser geändert. Prüfen Sie sie, bevor Sie fortfahren.",
+  "Sign in again as the original caregiver to confirm this dose. The saved request has been kept.": "Melden Sie sich erneut als ursprüngliche Betreuungsperson an, um diese Dosis zu bestätigen. Die gespeicherte Anfrage bleibt erhalten.",
+  "The saved dose needs review because the record changed or was removed.": "Die gespeicherte Dosis muss geprüft werden, da der Eintrag geändert oder entfernt wurde.",
+  "The server rejected this dose. Its details are kept for review.": "Der Server hat diese Dosis abgelehnt. Die Angaben bleiben zur Prüfung erhalten.",
+  "Saving the dose request timed out. Its original details are kept.": "Die Zeit zum Speichern der Dosisanfrage ist abgelaufen. Die ursprünglichen Angaben bleiben erhalten.",
+  "Review the dose details before saving.": "Prüfen Sie die Angaben zur Dosis vor dem Speichern.",
+  "Dose awaiting confirmation": "Dosis wartet auf Bestätigung",
+  "Retry saved dose": "Gespeicherte Dosis erneut versuchen",
+  "Dismiss saved dose": "Gespeicherte Dosis verwerfen",
+  "Check saved dose again": "Gespeicherte Dosis erneut prüfen",
+  "A dose is waiting for confirmation on this browser.": "In diesem Browser wartet eine Dosis auf Bestätigung.",
+  "Review saved dose": "Gespeicherte Dosis prüfen",
+  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "Diese Dosis ist möglicherweise bereits im Pflegeprotokoll eingetragen. Prüfen Sie es, bevor Sie die gespeicherte Anfrage dieses Browsers verwerfen. Es werden keine Pflegeeinträge gelöscht. Fortfahren?"
 }

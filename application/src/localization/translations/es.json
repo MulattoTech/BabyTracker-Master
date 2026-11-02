@@ -3219,5 +3219,22 @@
   "This tab could not clear the stop review. Keep this page open and check browser storage.": "Esta pestaña no pudo borrar la revisión de finalización. Mantén esta página abierta y revisa el almacenamiento del navegador.",
   "This tab could not read its saved stop review. Keep this page open and check the care log and browser storage.": "Esta pestaña no pudo leer la revisión de finalización guardada. Mantén esta página abierta y revisa el registro de cuidados y el almacenamiento del navegador.",
   "This tab could not save the stop time. Keep this page open and check browser storage before retrying. No request was sent on this attempt.": "Esta pestaña no pudo guardar la hora de finalización. Mantén esta página abierta y revisa el almacenamiento del navegador antes de reintentar. No se envió ninguna solicitud en este intento.",
-  "Your first stop time is kept. Reload to inspect the current session. Using the current timer discards this stop time.": "Se conserva la hora del primer intento de finalizar. Recarga para revisar la sesión actual. Usar el temporizador actual descarta esa hora."
+  "Your first stop time is kept. Reload to inspect the current session. Using the current timer discards this stop time.": "Se conserva la hora del primer intento de finalizar. Recarga para revisar la sesión actual. Usar el temporizador actual descarta esa hora.",
+  "Saving this dose could not be confirmed. Its original details are kept. Retry the saved request.": "No se pudo confirmar que se guardara esta dosis. Se conservan sus datos originales. Reintenta la solicitud guardada.",
+  "This browser could not keep the dose request. Keep this page open and restore storage before saving.": "Este navegador no pudo conservar la solicitud de dosis. Mantén esta página abierta y restablece el almacenamiento antes de guardar.",
+  "This browser could not coordinate the saved dose. Keep this page open and retry when storage access is available.": "Este navegador no pudo coordinar la dosis guardada. Mantén esta página abierta y reintenta cuando el almacenamiento esté disponible.",
+  "The caregiver or child changed. Return to the original caregiver and child before retrying this dose.": "El cuidador o el niño ha cambiado. Vuelve al cuidador y al niño originales antes de reintentar esta dosis.",
+  "Another saved dose has changed on this browser. Review it before continuing.": "Otra dosis guardada ha cambiado en este navegador. Revísala antes de continuar.",
+  "Sign in again as the original caregiver to confirm this dose. The saved request has been kept.": "Inicia sesión de nuevo como el cuidador original para confirmar esta dosis. Se conserva la solicitud guardada.",
+  "The saved dose needs review because the record changed or was removed.": "La dosis guardada necesita revisión porque el registro cambió o se eliminó.",
+  "The server rejected this dose. Its details are kept for review.": "El servidor rechazó esta dosis. Se conservan sus datos para revisarlos.",
+  "Saving the dose request timed out. Its original details are kept.": "Se agotó el tiempo para guardar la solicitud de dosis. Se conservan sus datos originales.",
+  "Review the dose details before saving.": "Revisa los datos de la dosis antes de guardar.",
+  "Dose awaiting confirmation": "Dosis pendiente de confirmación",
+  "Retry saved dose": "Reintentar dosis guardada",
+  "Dismiss saved dose": "Descartar dosis guardada",
+  "Check saved dose again": "Comprobar de nuevo la dosis",
+  "A dose is waiting for confirmation on this browser.": "Hay una dosis pendiente de confirmación en este navegador.",
+  "Review saved dose": "Revisar dosis guardada",
+  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "Esta dosis podría estar ya en el registro de cuidados. Revísalo antes de descartar la solicitud guardada en este navegador. No se eliminará ningún registro de cuidados. ¿Continuar?"
 }

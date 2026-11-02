@@ -51,7 +51,7 @@ interface TodaySupplement {
   time: string;
 }
 
-const ActiveDosesTab: React.FC<ActiveDosesTabProps> = ({ babyId, refreshData, onGiveMedicine, onGiveSupplement, refreshTrigger }) => {
+const ActiveDosesTab: React.FC<ActiveDosesTabProps> = ({ babyId, refreshData, onGiveMedicine, onGiveSupplement, refreshTrigger, hasPendingDose }) => {
   const { t } = useLocalization();
   const { unitSymbol } = useUnit();
   const { formatDate, calculateDurationMinutes, dateFormat, timeFormat } = useTimezone();
@@ -378,6 +378,10 @@ const ActiveDosesTab: React.FC<ActiveDosesTabProps> = ({ babyId, refreshData, on
   
   return (
     <div className={cn(styles.tabContent, "medicine-form-tab-content")}>
+      {hasPendingDose && <div role="status" className="mb-4 space-y-2">
+        <p>{t('A dose is waiting for confirmation on this browser.')}</p>
+        <Button type="button" variant="outline" onClick={onGiveMedicine}>{t('Review saved dose')}</Button>
+      </div>}
       {/* Give Medicine / Give Supplement Buttons */}
       <div className="mb-4 flex gap-2">
         <Button
