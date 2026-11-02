@@ -79,6 +79,8 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           'Content-Disposition': 'inline',
           'Content-Length': decryptedBuffer.length.toString(),
           'Cache-Control': 'private, max-age=3600',
+          'X-Content-Type-Options': 'nosniff',
+          'Content-Security-Policy': "sandbox; default-src 'none'",
         },
       }
     );

@@ -14,14 +14,14 @@ export const viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NODE_ENV === 'production' ? 'https://www.sprout-track.com' : 'http://localhost:3000'),
-  title: 'Sprout Track',
+  metadataBase: new URL(process.env.NODE_ENV === 'production' ? 'https://tracker.m-techlabs.com' : 'http://localhost:3000'),
+  title: 'Sat Tracker',
   icons: {
-    icon: '/sprout-128.png',
-    shortcut: '/sprout-128.png',
+    icon: '/sat-tracker.svg',
+    shortcut: '/sat-tracker.svg',
     apple: APPLE_TOUCH_ICON,
   },
-  description: 'Track your baby\'s sleep, feeding, diapers, milestones, and more with our intuitive, family-friendly platform. Simple to use, privacy-focused, accessible anywhere. Start your 14 day trial today!',
+  description: 'Track your baby\'s sleep, feeding, diapers, milestones, and more with our intuitive, family-friendly platform. Simple to use, privacy-focused, accessible anywhere.',
   keywords: [
     'baby tracker',
     'baby tracking app', 
@@ -37,15 +37,15 @@ export const metadata: Metadata = {
     'baby activities',
     'parenting tools'
   ],
-  authors: [{ name: 'Oak and Sprout' }],
-  creator: 'Oak and Sprout',
-  publisher: 'Oak and Sprout',
+  authors: [{ name: 'M-TechLabs' }, { name: 'Oak and Sprout (Sprout Track)' }],
+  creator: 'M-TechLabs',
+  publisher: 'M-TechLabs',
   robots: {
-    index: true,
-    follow: true,
+    index: false,
+    follow: false,
     googleBot: {
-      index: true,
-      follow: true,
+      index: false,
+      follow: false,
       'max-video-preview': -1,
       'max-image-preview': 'large',
       'max-snippet': -1,
@@ -54,16 +54,16 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://www.sprout-track.com',
-    title: 'Sprout Track - The Shareable Baby Tracking Solution',
+    url: 'https://tracker.m-techlabs.com',
+    title: 'Sat Tracker - The Shareable Baby Tracking Solution',
     description: 'Track your baby\'s sleep, feeding, diapers, milestones, and more with our intuitive, family-friendly platform. Simple to use, privacy-focused, accessible anywhere.',
-    siteName: 'Sprout Track',
+    siteName: 'Sat Tracker',
     images: [
       {
-        url: '/sprout-256.png',
+        url: '/sat-tracker-512.png',
         width: 256,
         height: 256,
-        alt: 'Sprout Track Logo - Baby Tracking App',
+        alt: 'Sat Tracker Logo - Baby Tracking App',
       },
     ],
   },
@@ -71,7 +71,7 @@ export const metadata: Metadata = {
     google: '', // Add Google Search Console verification code when available
   },
   alternates: {
-    canonical: 'https://www.sprout-track.com',
+    canonical: 'https://tracker.m-techlabs.com',
   },
   manifest: '/manifest.json',
   other: {
