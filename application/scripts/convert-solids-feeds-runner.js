@@ -9,9 +9,9 @@
  * tests/convertSolidsFeeds.test.ts).
  *
  * Behavior:
- * - Idempotent: converted feeds are deleted, and any feed whose id already
- *   appears in FoodLog.feedLogId is skipped (guards against a crash between
- *   the FoodLog insert and the FeedLog delete).
+ * - Idempotent: converted feeds are deleted, and a feed already linked from
+ *   a FoodLog for the same family and child is skipped. Removed food tries
+ *   still count so conversion cannot resurrect them.
  * - Per family, distinct food names become catalog Food entries (matched
  *   case-insensitively; blank names fall back to the reaction cause, then to
  *   a generic 'Solids' entry).
@@ -94,12 +94,13 @@ async function convertSolidsFeeds(prisma) {
     return { total: 0, converted: 0, skipped: 0, errors: 0, tileEntriesUpdated };
   }
 
-  // Guard against double-conversion: skip feeds already linked from a food log
+  // Legacy soft links may name another family's or child's feed. Those links
+  // are not conversion evidence; leave them untouched and convert the source.
   const convertedLinks = await prisma.foodLog.findMany({
     where: { feedLogId: { not: null } },
-    select: { feedLogId: true },
+    select: { feedLogId: true, familyId: true, babyId: true },
   });
-  const pending = filterUnconverted(feeds, convertedLinks.map((link) => link.feedLogId));
+  const pending = filterUnconverted(feeds, convertedLinks);
 
   let converted = 0;
   let errors = 0;
