@@ -3173,5 +3173,11 @@
   "Replacing your draft discards its unsaved values. You can then enter your correction using the latest record.": "ड्राफ़्ट बदलने से उसके बिना सहेजे मान हट जाएंगे। फिर आप नवीनतम रिकॉर्ड के आधार पर अपना सुधार दर्ज कर सकते हैं।",
   "Replace draft with latest values": "ड्राफ़्ट को नवीनतम मानों से बदलें",
   "Could not load the latest record. Your unsaved input is unchanged. Check your connection and sign-in, then try again.": "नवीनतम रिकॉर्ड लोड नहीं हो सका। आपकी बिना सहेजी प्रविष्टि नहीं बदली है। अपना कनेक्शन और साइन-इन जांचें, फिर दोबारा कोशिश करें।",
-  "This pumping record is no longer available for this child. Close this form and reopen it from the correct history.": "यह पंपिंग रिकॉर्ड अब इस बच्चे के लिए उपलब्ध नहीं है। इस फ़ॉर्म को बंद करें और सही इतिहास से फिर खोलें।"
+  "This pumping record is no longer available for this child. Close this form and reopen it from the correct history.": "यह पंपिंग रिकॉर्ड अब इस बच्चे के लिए उपलब्ध नहीं है। इस फ़ॉर्म को बंद करें और सही इतिहास से फिर खोलें।",
+  "Loading the latest pump does not resolve feeding ownership. Review the feeding history before reopening this correction.": "नवीनतम पंपिंग प्रविष्टि लोड करने से फ़ीडिंग का संबंध तय नहीं होता। यह सुधार फिर से खोलने से पहले फ़ीडिंग का इतिहास देखें।",
+  "The feeding record for this pumping session cannot be identified safely. Review the pumping and feeding history before changing it.": "इस पंपिंग सत्र से जुड़ी फ़ीडिंग प्रविष्टि की सुरक्षित पहचान नहीं हो पा रही है। इसे बदलने से पहले पंपिंग और फ़ीडिंग का इतिहास देखें।",
+  "The feeding record linked to this pumping session was removed. Review the pumping and feeding history before changing it.": "इस पंपिंग सत्र से जुड़ी फ़ीडिंग प्रविष्टि हटा दी गई थी। इसे बदलने से पहले पंपिंग और फ़ीडिंग का इतिहास देखें।",
+  "This pumping record was removed. Review the care history before changing it.": "यह पंपिंग प्रविष्टि हटा दी गई थी। इसे बदलने से पहले देखभाल का इतिहास देखें।",
+  "This pumping session has an unsupported quantity or unit. Review the care history before changing it.": "इस पंपिंग सत्र में ऐसी मात्रा या इकाई है जो समर्थित नहीं है। इसे बदलने से पहले देखभाल का इतिहास देखें।",
+  "This pumping session needs a review of its pumping and feeding history before it can be changed.": "इस पंपिंग सत्र को बदलने से पहले इसके पंपिंग और फ़ीडिंग इतिहास की समीक्षा ज़रूरी है।"
 }

@@ -40,17 +40,17 @@ export async function verifyPumpingConflicts({ base, db, family, baby, caretaker
     page.on('pageerror', error => pageErrors.push(error.message));
     await page.clock.setFixedTime(new Date('2026-10-21T18:00:00.000Z'));
   }
-  const openEditor = async page => {
+  const openEditor = async (page, amount = 137) => {
     await page.goto(`${base}/${family.slug}/full-log`, { waitUntil: 'networkidle' });
-    await page.getByRole('button', { name: /Breast Pumping.*Total Amount: 137/ }).click();
+    await page.getByRole('button', { name: new RegExp(`Breast Pumping.*Total Amount: ${amount}`) }).click();
     await page.getByRole('dialog', { name: 'Breast Pumping Record', exact: true }).getByRole('button', { name: 'Edit', exact: true }).click();
     const editor = page.getByRole('dialog', { name: 'Edit Pump', exact: true });
     await editor.getByLabel('Total Amount', { exact: true }).waitFor();
     return editor;
   };
-  const submit = async (page, editor, expectedStatus) => {
+  const submit = async (page, editor, expectedStatus, targetPath = path) => {
     const [response] = await Promise.all([
-      page.waitForResponse(value => value.url() === `${base}${path}` && value.request().method() === 'PUT'),
+      page.waitForResponse(value => value.url() === `${base}${targetPath}` && value.request().method() === 'PUT'),
       editor.getByRole('button', { name: 'Update', exact: true }).click(),
     ]);
     assert.equal(response.status(), expectedStatus);
@@ -122,6 +122,45 @@ export async function verifyPumpingConflicts({ base, db, family, baby, caretaker
     assert.equal(final.feeds[0].amount, 300); assert.equal(final.stock, winner.stock);
     assert.deepEqual(pageErrors, []);
     checks.push('Explicit conflict reload preserves drafts on fetch failure, requires deliberate replacement, rejects a newly stale revision and saves one reviewed correction without duplicate feeds');
+
+    for (const [amount, kind] of [[138, 'ambiguous'], [139, 'removed']]) {
+      const response = await request('/api/pump-log', 'POST', { babyId: baby.id,
+        startTime: '2026-10-21T15:00:00.000Z', endTime: '2026-10-21T15:20:00.000Z',
+        totalAmount: amount, unitAbbr: 'ML', pumpAction: 'FED', notes: `Synthetic ${kind} feeding ownership`,
+      });
+      assert.equal(response.status, 200);
+      const ownershipPump = (await response.json()).data;
+      const ownershipPath = `/api/pump-log?id=${ownershipPump.id}`;
+      const feed = await db.feedLog.findUniqueOrThrow({ where: { sourcePumpId: ownershipPump.id } });
+      if (kind === 'ambiguous') {
+        await db.feedLog.update({ where: { id: feed.id }, data: { sourcePumpId: null } });
+        const { id, createdAt, updatedAt, ...legacy } = feed;
+        await db.feedLog.create({ data: { ...legacy, sourcePumpId: null } });
+      } else {
+        await db.feedLog.update({ where: { id: feed.id }, data: { deletedAt: new Date() } });
+      }
+      const rows = async () => ({ pump: await db.pumpLog.findUniqueOrThrow({ where: { id: ownershipPump.id } }),
+        feeds: await db.feedLog.findMany({ where: { familyId: family.id, babyId: baby.id }, orderBy: { id: 'asc' } }),
+        stock: (await (await request(`/api/breast-milk-balance?babyId=${baby.id}&unit=ML`, 'GET')).json()).data.balance });
+      const before = await rows();
+      const ownershipEditor = await openEditor(firstPage, amount);
+      await ownershipEditor.getByLabel('Notes', { exact: true }).fill('Synthetic draft retained for care-history review');
+      await submit(firstPage, ownershipEditor, 409, ownershipPath);
+      const ownershipPanel = ownershipEditor.getByRole('region', { name: 'Pumping correction conflict', exact: true });
+      const reason = kind === 'ambiguous'
+        ? 'The feeding record for this pumping session cannot be identified safely. Review the pumping and feeding history before changing it.'
+        : 'The feeding record linked to this pumping session was removed. Review the pumping and feeding history before changing it.';
+      await ownershipPanel.getByText(reason, { exact: true }).waitFor();
+      await ownershipPanel.getByRole('button', { name: 'Load latest record', exact: true }).click();
+      await ownershipPanel.getByRole('heading', { name: 'Latest saved values', exact: true }).waitFor();
+      assert.equal(await ownershipEditor.getByLabel('Notes', { exact: true }).inputValue(), 'Synthetic draft retained for care-history review');
+      assert.equal(await ownershipEditor.getByRole('button', { name: 'Update', exact: true }).isDisabled(), true);
+      assert.equal(await ownershipPanel.getByRole('button', { name: 'Replace draft with latest values', exact: true }).count(), 0);
+      await ownershipPanel.getByText('Loading the latest pump does not resolve feeding ownership. Review the feeding history before reopening this correction.', { exact: true }).waitFor();
+      assert.deepEqual(await rows(), before);
+      checks.push(`A ${kind} owned-feed conflict explains the care-history review, preserves the draft and rows, and keeps saving blocked after loading unchanged pump values`);
+    }
+    assert.deepEqual(pageErrors, []);
     return checks;
   } finally {
     for (const close of [() => firstPage.unrouteAll({ behavior: 'ignoreErrors' }), () => firstPage.close(), () => other.close()]) {

@@ -4,10 +4,19 @@ import { representablePumpAmount } from '@/src/utils/pump-validation';
 import { normalizeVolumeUnit } from '@/src/utils/unit-conversion';
 
 export class PumpReconciliationConflict extends Error {
-  constructor(message = 'This pumping record changed while you were saving. Review the latest pumping and feeding records before trying again.') {
+  constructor(message = 'This pumping record changed while you were saving. Review the latest pumping and feeding records before trying again.',
+    readonly code: 'PUMP_CONFLICT' | 'PUMP_RECONCILIATION_REQUIRED' = 'PUMP_CONFLICT') {
     super(message);
   }
 }
+
+const ownershipConflict = () => new PumpReconciliationConflict(
+  'The feeding record for this pumping session cannot be identified safely. Review the pumping and feeding history before changing it.',
+  'PUMP_RECONCILIATION_REQUIRED',
+);
+const removedPumpConflict = () => new PumpReconciliationConflict(
+  'This pumping record was removed. Review the care history before changing it.', 'PUMP_RECONCILIATION_REQUIRED',
+);
 
 // Claim every scalar, not only updatedAt: two writers may share a timestamp.
 // The caller validated its patch against this exact authenticated snapshot.
@@ -16,10 +25,13 @@ function snapshotWhere(pump: PumpLog): Prisma.PumpLogWhereInput {
 }
 
 async function ownedFeed(tx: Prisma.TransactionClient, pump: PumpLog, previous?: PumpLog): Promise<FeedLog | null> {
+  const owner = previous ?? pump;
+  if (pump.familyId !== owner.familyId) throw ownershipConflict();
   const linked = await tx.feedLog.findUnique({ where: { sourcePumpId: pump.id } });
   if (linked) {
+    // Match the original child before a validated same-family reassignment.
     // An inconsistent source link must never authorize a cross-child/family edit.
-    if (linked.familyId !== pump.familyId || linked.babyId !== pump.babyId) throw new PumpReconciliationConflict();
+    if (linked.familyId !== owner.familyId || linked.babyId !== owner.babyId) throw ownershipConflict();
     return linked;
   }
   if (!previous || previous.pumpAction !== 'FED' || !previous.totalAmount || previous.totalAmount <= 0) return null;
@@ -33,7 +45,7 @@ async function ownedFeed(tx: Prisma.TransactionClient, pump: PumpLog, previous?:
     unitAbbr: previous.unitAbbr || 'OZ', notes: autoPumpFeedNotes(previous.notes), deletedAt: null,
   }, take: 2 });
   if (!candidates.length) return null;
-  if (candidates.length > 1) throw new PumpReconciliationConflict();
+  if (candidates.length > 1) throw ownershipConflict();
   const otherPossibleOwner = await tx.pumpLog.findFirst({ where: {
     id: { not: pump.id }, familyId: previous.familyId, babyId: previous.babyId,
     caretakerId: previous.caretakerId, startTime: previous.startTime,
@@ -43,12 +55,13 @@ async function ownedFeed(tx: Prisma.TransactionClient, pump: PumpLog, previous?:
       ? { OR: [{ unitAbbr: null }, { unitAbbr: 'OZ' }] }
       : { unitAbbr: previous.unitAbbr }),
   }, select: { id: true } });
-  if (otherPossibleOwner) throw new PumpReconciliationConflict();
+  if (otherPossibleOwner) throw ownershipConflict();
   return candidates[0];
 }
 
 async function reconcileFeed(tx: Prisma.TransactionClient, pump: PumpLog, previous?: PumpLog, deleting = false) {
-  if (!pump.familyId || pump.deletedAt) throw new PumpReconciliationConflict();
+  if (!pump.familyId) throw ownershipConflict();
+  if (pump.deletedAt) throw removedPumpConflict();
   const feed = await ownedFeed(tx, pump, previous);
   const settings = deleting ? null : await tx.settings.findFirst({
     where: { familyId: pump.familyId }, select: { enableBreastMilkTracking: true },
@@ -58,14 +71,17 @@ async function reconcileFeed(tx: Prisma.TransactionClient, pump: PumpLog, previo
     pumpAction: pump.pumpAction, totalAmount: pump.totalAmount,
   });
   if (!shouldHaveFeed) {
-    if (feed) await tx.feedLog.delete({ where: { id: feed.id, familyId: pump.familyId, babyId: pump.babyId } });
+    if (feed) await tx.feedLog.delete({ where: { id: feed.id, familyId: feed.familyId, babyId: feed.babyId } });
     return;
   }
   // A separate soft deletion is a conflicting caregiver action, not permission
   // to resurrect a feed during an unrelated pump correction.
   const unit = normalizeVolumeUnit(pump.unitAbbr || 'OZ');
-  if (feed?.deletedAt || !unit || !representablePumpAmount(pump.totalAmount, unit)) {
-    throw new PumpReconciliationConflict();
+  if (feed?.deletedAt) {
+    throw new PumpReconciliationConflict('The feeding record linked to this pumping session was removed. Review the pumping and feeding history before changing it.', 'PUMP_RECONCILIATION_REQUIRED');
+  }
+  if (!unit || !representablePumpAmount(pump.totalAmount, unit)) {
+    throw new PumpReconciliationConflict('This pumping session has an unsupported quantity or unit. Review the care history before changing it.', 'PUMP_RECONCILIATION_REQUIRED');
   }
   const data = {
     time: pump.startTime, type: 'BOTTLE' as const, amount: pump.totalAmount,
@@ -73,7 +89,7 @@ async function reconcileFeed(tx: Prisma.TransactionClient, pump: PumpLog, previo
     notes: autoPumpFeedNotes(pump.notes), sourcePumpId: pump.id,
     familyId: pump.familyId, babyId: pump.babyId, caretakerId: pump.caretakerId,
   };
-  if (feed) await tx.feedLog.update({ where: { id: feed.id, familyId: pump.familyId, babyId: pump.babyId }, data });
+  if (feed) await tx.feedLog.update({ where: { id: feed.id, familyId: feed.familyId, babyId: feed.babyId }, data });
   else await tx.feedLog.create({ data });
 }
 
@@ -85,9 +101,9 @@ export async function createPumpWithFeed(db: PrismaClient, data: Prisma.PumpLogU
   });
 }
 
-export async function updatePumpWithFeed(db: PrismaClient, previous: PumpLog, data: Prisma.PumpLogUpdateManyMutationInput) {
+export async function updatePumpWithFeed(db: PrismaClient, previous: PumpLog, data: Prisma.PumpLogUncheckedUpdateManyInput) {
   return db.$transaction(async tx => {
-    if (previous.deletedAt) throw new PumpReconciliationConflict();
+    if (previous.deletedAt) throw removedPumpConflict();
     const claimed = await tx.pumpLog.updateMany({ where: snapshotWhere(previous), data: {
       ...data, updatedAt: new Date(Math.max(Date.now(), previous.updatedAt.getTime() + 1)),
     } });
@@ -100,7 +116,7 @@ export async function updatePumpWithFeed(db: PrismaClient, previous: PumpLog, da
 
 export async function deletePumpWithFeed(db: PrismaClient, previous: PumpLog) {
   return db.$transaction(async tx => {
-    if (previous.deletedAt) throw new PumpReconciliationConflict();
+    if (previous.deletedAt) throw removedPumpConflict();
     const deleted = await tx.pumpLog.deleteMany({ where: snapshotWhere(previous) });
     if (deleted.count !== 1) throw new PumpReconciliationConflict();
     await reconcileFeed(tx, previous, previous, true);

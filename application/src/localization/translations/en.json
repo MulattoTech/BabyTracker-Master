@@ -3173,5 +3173,11 @@
   "Replacing your draft discards its unsaved values. You can then enter your correction using the latest record.": "Replacing your draft discards its unsaved values. You can then enter your correction using the latest record.",
   "Replace draft with latest values": "Replace draft with latest values",
   "Could not load the latest record. Your unsaved input is unchanged. Check your connection and sign-in, then try again.": "Could not load the latest record. Your unsaved input is unchanged. Check your connection and sign-in, then try again.",
-  "This pumping record is no longer available for this child. Close this form and reopen it from the correct history.": "This pumping record is no longer available for this child. Close this form and reopen it from the correct history."
+  "This pumping record is no longer available for this child. Close this form and reopen it from the correct history.": "This pumping record is no longer available for this child. Close this form and reopen it from the correct history.",
+  "Loading the latest pump does not resolve feeding ownership. Review the feeding history before reopening this correction.": "Loading the latest pump does not resolve feeding ownership. Review the feeding history before reopening this correction.",
+  "The feeding record for this pumping session cannot be identified safely. Review the pumping and feeding history before changing it.": "The feeding record for this pumping session cannot be identified safely. Review the pumping and feeding history before changing it.",
+  "The feeding record linked to this pumping session was removed. Review the pumping and feeding history before changing it.": "The feeding record linked to this pumping session was removed. Review the pumping and feeding history before changing it.",
+  "This pumping record was removed. Review the care history before changing it.": "This pumping record was removed. Review the care history before changing it.",
+  "This pumping session has an unsupported quantity or unit. Review the care history before changing it.": "This pumping session has an unsupported quantity or unit. Review the care history before changing it.",
+  "This pumping session needs a review of its pumping and feeding history before it can be changed.": "This pumping session needs a review of its pumping and feeding history before it can be changed."
 }

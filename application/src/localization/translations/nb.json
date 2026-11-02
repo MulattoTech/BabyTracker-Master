@@ -3173,5 +3173,11 @@
   "Replacing your draft discards its unsaved values. You can then enter your correction using the latest record.": "Når du erstatter utkastet, forkastes verdiene som ikke er lagret. Deretter kan du korrigere den nyeste oppføringen.",
   "Replace draft with latest values": "Erstatt utkastet med de nyeste verdiene",
   "Could not load the latest record. Your unsaved input is unchanged. Check your connection and sign-in, then try again.": "Kunne ikke laste inn den nyeste oppføringen. Det du ikke har lagret, er uendret. Kontroller tilkoblingen og innloggingen, og prøv igjen.",
-  "This pumping record is no longer available for this child. Close this form and reopen it from the correct history.": "Denne pumpeoppføringen er ikke lenger tilgjengelig for dette barnet. Lukk skjemaet og åpne det igjen fra riktig historikk."
+  "This pumping record is no longer available for this child. Close this form and reopen it from the correct history.": "Denne pumpeoppføringen er ikke lenger tilgjengelig for dette barnet. Lukk skjemaet og åpne det igjen fra riktig historikk.",
+  "Loading the latest pump does not resolve feeding ownership. Review the feeding history before reopening this correction.": "Å laste inn den nyeste pumperegistreringen avklarer ikke koblingen til matingen. Se gjennom matingshistorikken før du åpner denne rettelsen på nytt.",
+  "The feeding record for this pumping session cannot be identified safely. Review the pumping and feeding history before changing it.": "Matingsregistreringen for denne pumpeøkten kan ikke identifiseres sikkert. Se gjennom pumpe- og matingshistorikken før du endrer den.",
+  "The feeding record linked to this pumping session was removed. Review the pumping and feeding history before changing it.": "Matingsregistreringen knyttet til denne pumpeøkten ble fjernet. Se gjennom pumpe- og matingshistorikken før du endrer den.",
+  "This pumping record was removed. Review the care history before changing it.": "Denne pumperegistreringen ble fjernet. Se gjennom omsorgshistorikken før du endrer den.",
+  "This pumping session has an unsupported quantity or unit. Review the care history before changing it.": "Denne pumpeøkten har en mengde eller enhet som ikke støttes. Se gjennom omsorgshistorikken før du endrer den.",
+  "This pumping session needs a review of its pumping and feeding history before it can be changed.": "Pumpe- og matingshistorikken for denne økten må gjennomgås før den kan endres."
 }

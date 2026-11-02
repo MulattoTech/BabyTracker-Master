@@ -3177,5 +3177,11 @@
   "Replacing your draft discards its unsaved values. You can then enter your correction using the latest record.": "Zastąpienie wersji roboczej usuwa jej niezapisane wartości. Następnie możesz wprowadzić poprawkę na podstawie najnowszego wpisu.",
   "Replace draft with latest values": "Zastąp wersję roboczą najnowszymi wartościami",
   "Could not load the latest record. Your unsaved input is unchanged. Check your connection and sign-in, then try again.": "Nie udało się wczytać najnowszego wpisu. Twoje niezapisane dane pozostały bez zmian. Sprawdź połączenie i logowanie, a następnie spróbuj ponownie.",
-  "This pumping record is no longer available for this child. Close this form and reopen it from the correct history.": "Ten wpis dotyczący odciągania nie jest już dostępny dla tego dziecka. Zamknij formularz i otwórz go ponownie we właściwej historii."
+  "This pumping record is no longer available for this child. Close this form and reopen it from the correct history.": "Ten wpis dotyczący odciągania nie jest już dostępny dla tego dziecka. Zamknij formularz i otwórz go ponownie we właściwej historii.",
+  "Loading the latest pump does not resolve feeding ownership. Review the feeding history before reopening this correction.": "Wczytanie najnowszego wpisu odciągania nie rozwiązuje powiązania z karmieniem. Przejrzyj historię karmienia przed ponownym otwarciem tej korekty.",
+  "The feeding record for this pumping session cannot be identified safely. Review the pumping and feeding history before changing it.": "Nie można bezpiecznie zidentyfikować karmienia dla tej sesji odciągania. Przejrzyj historię odciągania i karmienia przed zmianą wpisu.",
+  "The feeding record linked to this pumping session was removed. Review the pumping and feeding history before changing it.": "Wpis karmienia powiązany z tą sesją odciągania został usunięty. Przejrzyj historię odciągania i karmienia przed jego zmianą.",
+  "This pumping record was removed. Review the care history before changing it.": "Ten wpis odciągania został usunięty. Przejrzyj historię opieki przed jego zmianą.",
+  "This pumping session has an unsupported quantity or unit. Review the care history before changing it.": "Ta sesja odciągania zawiera nieobsługiwaną ilość lub jednostkę. Przejrzyj historię opieki przed jej zmianą.",
+  "This pumping session needs a review of its pumping and feeding history before it can be changed.": "Przed zmianą tej sesji należy przejrzeć jej historię odciągania i karmienia."
 }

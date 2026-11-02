@@ -217,7 +217,8 @@ describe('Baby Buddy pumping disposition on migrated SQLite and canonical API', 
     const id = (await run()).records[0].targetRecordId;
     const pump = await state.db.pumpLog.update({ where: { id }, data: { pumpAction: 'FED' } });
     const legacy = await state.db.feedLog.create({ data: { familyId: 'pump-family', babyId: 'pump-child',
-      time: pump.startTime, type: 'BOTTLE', bottleType: 'Breast Milk', amount: 100, unitAbbr: 'ML', notes: autoPumpFeedNotes(pump.notes) } });
+      caretakerId: pump.caretakerId, time: pump.startTime, type: 'BOTTLE', bottleType: 'Breast Milk',
+      amount: 100, unitAbbr: 'ML', notes: autoPumpFeedNotes(pump.notes) } });
     expect((await update(id, { notes: 'Updated owned session' })).status).toBe(200);
     expect(await state.db.feedLog.findMany()).toMatchObject([{ id: legacy.id, sourcePumpId: id, notes: autoPumpFeedNotes('Updated owned session') }]);
     expect((await update(id, { pumpAction: 'UNKNOWN' })).status).toBe(200);
