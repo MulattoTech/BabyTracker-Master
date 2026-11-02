@@ -16,6 +16,7 @@ export interface OcrDocumentView {
   committedAt: string | null;
   result: (ExternalImportExecutionResult & { skipped?: number }) | null;
   sourceExpiresAt: string;
+  purgedAt?: string | null;
   hasSource: boolean;
   createdAt: string;
   utcOffsets?: OcrReviewRequest['utcOffsets'];
@@ -25,7 +26,7 @@ export interface OcrDocumentView {
 /** History listings deliberately omit extracted/review text and import-result payloads. */
 export type OcrDocumentSummary = Pick<OcrDocumentView,
   'id' | 'babyId' | 'originalName' | 'mimeType' | 'pageCount' | 'parserVersion'
-  | 'sourceTimezone' | 'revision' | 'committedAt' | 'sourceExpiresAt' | 'hasSource' | 'createdAt'>;
+  | 'sourceTimezone' | 'revision' | 'committedAt' | 'sourceExpiresAt' | 'purgedAt' | 'hasSource' | 'createdAt'>;
 
 export interface OcrReviewRequest {
   revision: number;
@@ -34,6 +35,7 @@ export interface OcrReviewRequest {
   acknowledgeWarnings?: boolean;
   duplicateDecisions?: Record<string, 'skip' | 'keep'>;
   utcOffsets?: Record<string, { start?: number; end?: number }>;
+  purgeSourceAfterCommit?: boolean;
 }
 
 export interface OcrDuplicate {

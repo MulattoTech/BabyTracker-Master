@@ -9,11 +9,11 @@ const staticManifest = JSON.parse(
 );
 
 describe('PWA icons', () => {
-  it('advertises the square artwork, not the round favicon set', () => {
+  it('advertises the Sat Tracker artwork', () => {
     for (const icon of PWA_ICONS) {
-      expect(icon.src).toMatch(/^\/sprout-track-square-\d+\.png$/);
+      expect(icon.src).toMatch(/^\/sat-tracker-\d+\.png$/);
     }
-    expect(APPLE_TOUCH_ICON).toMatch(/^\/sprout-track-square-\d+\.png$/);
+    expect(APPLE_TOUCH_ICON).toMatch(/^\/sat-tracker-\d+\.png$/);
   });
 
   it('references files that exist in public/', () => {

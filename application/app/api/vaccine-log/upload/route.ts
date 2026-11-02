@@ -4,6 +4,7 @@ import { ApiResponse, VaccineDocumentResponse } from '../../types';
 import { withAuthContext, AuthResult } from '../../utils/auth';
 import { encryptAndStore, generateStoredName } from '@/src/lib/file-encryption';
 import { formatForResponse } from '../../utils/timezone';
+import { validateAttachmentUpload, sanitizeFilename } from '@/src/utils/documentValidation';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -54,18 +55,28 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       );
     }
 
-    // Encrypt and store the file
     const buffer = Buffer.from(await file.arrayBuffer());
+
+    // Validate genuine file signature and format
+    const validation = validateAttachmentUpload(buffer, file.type, MAX_FILE_SIZE);
+    if (!validation.valid || !validation.detectedMimeType) {
+      return NextResponse.json<ApiResponse<null>>(
+        { success: false, error: validation.error || 'Invalid file format.' },
+        { status: 400 }
+      );
+    }
+
+    // Encrypt and store the file
     const storedName = generateStoredName();
     encryptAndStore(buffer, storedName);
 
     // Create document record
     const document = await prisma.vaccineDocument.create({
       data: {
-        originalName: file.name,
+        originalName: sanitizeFilename(file.name, 'vaccine-document'),
         storedName,
-        mimeType: file.type || 'application/octet-stream',
-        fileSize: file.size,
+        mimeType: validation.detectedMimeType,
+        fileSize: buffer.length,
         vaccineLogId,
       },
     });

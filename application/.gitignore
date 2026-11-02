@@ -59,6 +59,8 @@ sitemap.xml
 bugfix-docs/
 temp-development-docs/
 
-docs/
+docs/*
+!docs/ADR-*.md
+!docs/superpowers/
 
 test-results/
