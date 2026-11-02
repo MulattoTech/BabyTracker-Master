@@ -121,10 +121,77 @@ the container can render either a `ActivityCard` (cards layout) or `BigTile`
   PUTs onto the just-created entry. Off by default (`acts.food`); pure helpers
   live in `src/utils/nursery/foodActivity.ts`.
 
-Bottle, diaper, and food logs are undoable (`onUndoable` → `UndoInfo`); sleep/pump
-sessions are not (they're multi-step, so a mis-tap is cheap to correct by
-tapping again). `activities/types.ts` also holds `formatMMSS`/`formatHMMSS`
+Bottle, diaper, food, and confirmed sleep Start/Wake actions are undoable
+(`onUndoable` → `UndoInfo`). Sleep Undo checks the exact confirmed record
+revision before deleting a start or reopening a completed sleep.
+`activities/types.ts` also holds `formatMMSS`/`formatHMMSS`
 duration formatters shared by the timer-driven activities.
+
+### Sleep failure and retry recovery
+
+`useSleepSession` keeps loading, unknown, active, and pending-review states
+separate. A failed initial lookup never becomes an awake child with a Start
+button. The active lookup excludes removed and completed records and keeps all
+live active rows; multiple timers require care-log review rather than choosing
+or deleting one. Reload is explicit and does not rewrite an existing action.
+
+Before dispatch, Start captures a request UUID and its first start time; Wake
+captures its first endpoint and the displayed record's opaque revision. The
+intent is saved in `localStorage` under family, authenticated actor, and child.
+It survives refresh, tab closure, and browser restart on the same browser
+profile and origin while that storage is retained. It is not synchronized
+across devices, browsers, profiles, or private sessions, and clearing browser
+storage removes this recovery copy. Authentication tokens are never included
+in the intent.
+
+All intent creation, verification, and removal use a short origin-wide Web
+Lock and an exact comparison. A retry cannot recreate an action another tab
+has cleared, overwrite a different saved action, or clear a newer action after
+a delayed response. The lock covers only synchronous storage access, never the
+network request, and lock acquisition is bounded to two seconds. If storage or
+Web Locks is unavailable, dispatch is blocked with an explanation; a first
+action that could not be saved remains visible in memory. An unreadable saved
+action also blocks ordinary timer changes even when the server lookup succeeds.
+
+Requests have a 20-second deadline covering authentication refresh and response
+body reading. A rejected, lost, or timed-out response retains the original
+action for an explicit retry or review. Waiting never moves its Start or Wake
+time. Child, family, or authenticated actor changes invalidate request epochs;
+late replies cannot populate another child's timer or local activity summary.
+The server separately checks the expected family/actor/child scope against
+current authentication, including after token refresh.
+
+Reload reads the current timer and the saved action's target without rebasing
+the saved revision. A changed or missing target blocks retry. A missing row or
+an already completed Wake is not treated as proof that this request succeeded.
+After inspecting the current state and care log, the caregiver can explicitly
+discard the action and use the current timer, or dismiss the review. Cards and
+Big Tiles keep the frozen time, error, and recovery controls visible. A failed
+Undo is retained in this review even after the short Undo toast expires.
+
+The canonical sleep API accepts separate optional nursery metadata:
+`nurseryAction`, `expectedScope`, and either `requestId` for Start or
+`expectedRevision` for Wake/Undo. Strict parsing separates those keys from care
+fields before Prisma. Every canonical sleep response includes a SHA-256
+revision of all persisted scalar values, so hook updates and bulk location
+renames invalidate stale actions even if `updatedAt` is unchanged.
+
+An explicit nursery Start creates its row and an `ExternalImportRecord` receipt
+in one Serializable transaction. Exact retries return only the unchanged live
+row; removal, completion, correction, changed ownership, or ambiguous active
+timers produce a conflict and never resurrect data. Start and Undo-Wake enforce
+the single-active predicate inside their transaction. Wake requires exactly one
+active timer. Updates and deletes claim the complete original row snapshot;
+failed claims and serialization contention return controlled conflicts. No
+request is automatically retried. Engines may abort both competing requests;
+the saved intent permits a later explicit retry without allowing two active
+timers.
+
+Existing manual/historical callers can continue using their current payloads;
+new POST calls without nursery identity remain distinct creates. Their in-flight
+updates and deletes also use full snapshot claims, but they do not gain a stale
+form baseline unless they send the new metadata. This change does not alter
+historical sleep rows, repair ambiguous timers, or add a schema migration.
 
 ### Breastfeeding stop recovery
 

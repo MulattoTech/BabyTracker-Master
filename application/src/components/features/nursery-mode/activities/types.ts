@@ -75,22 +75,6 @@ export interface UndoInfo {
   undo: () => Promise<boolean>;
 }
 
-/** Shared undo helper: hard-delete a just-created log entry via its route's DELETE ?id=. */
-export async function undoDeleteLog(endpoint: string, id: string): Promise<boolean> {
-  try {
-    const authToken = localStorage.getItem('authToken');
-    const res = await fetch(`${endpoint}?id=${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: authToken ? `Bearer ${authToken}` : '' },
-    });
-    const data = await res.json();
-    return !!data.success;
-  } catch (err) {
-    console.error('Undo failed:', err);
-    return false;
-  }
-}
-
 export interface ActivityHookArgs {
   babyId: string;
   toUTCString: (d: Date | null | undefined) => string | null;
