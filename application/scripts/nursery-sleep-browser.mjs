@@ -364,13 +364,26 @@ export async function verifyNurserySleepRecovery({ base, db, secret, context, sc
     });
     await scenario('Big Tiles retains recovery controls and renders the first Start in the application timezone without changing its UTC instant', async () => {
       const f = await fixture('Timezone');
-      // The context currently detects its app zone through Intl. Supply a zone
-      // different from the browser's Date zone to exercise that contract.
-      await f.page.addInitScript(() => {
-        const original = Intl.DateTimeFormat.prototype.resolvedOptions;
-        Intl.DateTimeFormat.prototype.resolvedOptions = function() { return { ...original.call(this), timeZone: 'America/Los_Angeles' }; };
+      // The test clock wraps Intl with a constructor whose returned formatters
+      // have a different prototype. Establish the app zone after clock setup,
+      // then observe the real context refresh before expecting Pacific time.
+      await f.load();
+      const zoneChanged = f.page.waitForEvent('console', message => message.text().startsWith('Detected timezone: America/Los_Angeles'));
+      const detected = await f.page.evaluate(() => {
+        const original = Intl.DateTimeFormat;
+        const configured = formatter => {
+          const resolved = formatter.resolvedOptions.bind(formatter);
+          Object.defineProperty(formatter, 'resolvedOptions', { value: () => ({ ...resolved(), timeZone: 'America/Los_Angeles' }) });
+          return formatter;
+        };
+        Intl.DateTimeFormat = new Proxy(original, {
+          apply: (target, receiver, args) => configured(Reflect.apply(target, receiver, args)),
+          construct: (target, args) => configured(Reflect.construct(target, args)),
+        });
+        window.dispatchEvent(new Event('focus'));
+        return Intl.DateTimeFormat().resolvedOptions().timeZone;
       });
-      await f.load(); await layout(f.page, 'Big Tiles');
+      assert.equal(detected, 'America/Los_Angeles'); await zoneChanged; await layout(f.page, 'Big Tiles');
       const tile = f.page.locator('.nursery-tile').filter({ has: f.page.locator('.tlabel').filter({ hasText: /^Sleep$/ }) }); await tile.locator('.tmain').click();
       const modal = f.page.getByRole('dialog', { name: 'Sleep', exact: true }), bodies = []; await f.page.route('**/api/sleep-log*', rejectWrite(bodies));
       await modal.getByRole('button', { name: 'Crib', exact: true }).click();
