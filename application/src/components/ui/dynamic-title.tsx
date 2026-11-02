@@ -13,7 +13,7 @@ interface DynamicTitleProps {
  * Component that dynamically updates the document title based on family context
  * Only updates the title when inside the family app routes (app/(app)/[slug]/)
  */
-export function DynamicTitle({ baseTitle = 'Sprout Track' }: DynamicTitleProps) {
+export function DynamicTitle({ baseTitle = 'Sat Tracker' }: DynamicTitleProps) {
   const { family } = useFamily();
   const pathname = usePathname();
   const { t } = useLocalization();
@@ -29,6 +29,8 @@ export function DynamicTitle({ baseTitle = 'Sprout Track' }: DynamicTitleProps) 
       ? t('Calendar')
       : pathname?.includes('/reports')
       ? t('Reports')
+      : pathname?.includes('/bottle-journal')
+      ? t('Bottle Journal')
       : pathname?.includes('/ocr-import')
       ? t('Document import')
       : pathname?.includes('/full-log')

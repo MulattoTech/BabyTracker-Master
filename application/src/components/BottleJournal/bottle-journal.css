@@ -1,4 +1,4 @@
-.bottle-journal { --journal-ink:#183b3c; --journal-muted:#607674; --journal-surface:#fffefb; --journal-line:#dce8e2; max-width:1360px; margin:0 auto; padding:24px; color:var(--journal-ink); }
+.bottle-journal { --journal-ink:#183b3c; --journal-muted:#607674; --journal-surface:#fffefb; --journal-line:#dce8e2; min-height:100%; max-width:1360px; margin:0 auto; padding:24px; background:var(--journal-surface); color:var(--journal-ink); }
 .journal-hero { display:flex; justify-content:space-between; align-items:center; gap:24px; padding:28px 0; }
 .journal-eyebrow { display:flex; align-items:center; gap:8px; color:#537b6b; font-size:12px; font-weight:750; letter-spacing:.1em; text-transform:uppercase; }
 .journal-hero h1 { font-size:clamp(30px,4vw,44px); line-height:1.15; letter-spacing:-.035em; margin:12px 0; font-weight:750; }
