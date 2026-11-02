@@ -4,7 +4,8 @@ import { ApiResponse, ActiveBreastFeedResponse } from '../types';
 import { withAuthContext, AuthResult } from '../utils/auth';
 import { formatForResponse } from '../utils/timezone';
 import { checkWritePermission } from '../utils/writeProtection';
-import { startBreastfeedSession, updateBreastfeedSession, endBreastfeedSession, SESSION_UPDATE_ACTIONS, SessionUpdateAction, resolveRequestedStartTime } from '../utils/activeBreastFeed';
+import { startBreastfeedSession, updateBreastfeedSession, endBreastfeedSession, SESSION_UPDATE_ACTIONS, SessionUpdateAction, resolveRequestedStartTime, BreastfeedSessionConflict, BreastfeedSessionInputError } from '../utils/activeBreastFeed';
+import { journalScope } from '@/src/lib/bottle-journal/outbox-identity';
 
 function formatActiveBreastFeed(record: any): ActiveBreastFeedResponse {
   return {
@@ -14,6 +15,28 @@ function formatActiveBreastFeed(record: any): ActiveBreastFeedResponse {
     createdAt: formatForResponse(record.createdAt) || '',
     updatedAt: formatForResponse(record.updatedAt) || '',
   };
+}
+
+async function optionalSessionBody(req: NextRequest): Promise<Record<string, any>> {
+  const text = await req.text();
+  if (!text.trim()) return {};
+  let body: unknown;
+  try { body = JSON.parse(text); } catch {
+    throw new BreastfeedSessionInputError('Breastfeeding changes must be a valid JSON object.');
+  }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw new BreastfeedSessionInputError('Breastfeeding changes must be a valid JSON object.');
+  }
+  return body as Record<string, unknown>;
+}
+
+function checkSessionScope(expected: unknown, babyId: string, auth: AuthResult) {
+  if (expected === undefined) return;
+  const actor = auth.isAccountAuth && auth.accountId ? `account:${auth.accountId}`
+    : auth.caretakerId ? `caretaker:${auth.caretakerId}` : null;
+  if (!actor || !auth.familyId || expected !== journalScope(auth.familyId, actor, babyId)) {
+    throw new BreastfeedSessionConflict('The signed-in caregiver or child changed. Sign in as the original caregiver before retrying this action.');
+  }
 }
 
 async function handleGet(req: NextRequest, authContext: AuthResult) {
@@ -67,6 +90,7 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
     if (!babyId || !side) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'babyId and side are required' }, { status: 400 });
     }
+    checkSessionScope(body.expectedScope, babyId, authContext);
 
     const startTimeResolution = resolveRequestedStartTime(requestedStartTime);
     if (!startTimeResolution.ok) {
@@ -76,7 +100,7 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
 
     // Verify baby belongs to family
     const baby = await prisma.baby.findFirst({
-      where: { id: babyId, familyId: userFamilyId },
+      where: { id: babyId, familyId: userFamilyId, deletedAt: null },
     });
     if (!baby) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Baby not found in this family.' }, { status: 404 });
@@ -95,6 +119,7 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       data: formatActiveBreastFeed(session),
     });
   } catch (error) {
+    if (error instanceof BreastfeedSessionConflict) return NextResponse.json({ success: false, code: 'BREASTFEED_CONFLICT', error: error.message }, { status: 409 });
     console.error('Error creating active breastfeed:', error);
     return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Failed to create active breastfeed session' }, { status: 500 });
   }
@@ -130,9 +155,10 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
     }
 
     // resume optionally accepts a side to resume on
-    const body = action === 'resume' ? await req.json().catch(() => ({})) : {};
+    const body = await optionalSessionBody(req);
+    checkSessionScope(body.expectedScope, session.babyId, authContext);
 
-    const updated = await updateBreastfeedSession(session, action as SessionUpdateAction, body.side);
+    const updated = await updateBreastfeedSession(session, action as SessionUpdateAction, action === 'resume' ? body?.side : undefined, body?.expectedUpdatedAt);
     if (!updated) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Invalid action. Use switch, pause, resume, or swap.' }, { status: 400 });
     }
@@ -142,6 +168,8 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       data: formatActiveBreastFeed(updated),
     });
   } catch (error) {
+    if (error instanceof BreastfeedSessionConflict) return NextResponse.json({ success: false, code: 'BREASTFEED_CONFLICT', error: error.message }, { status: 409 });
+    if (error instanceof BreastfeedSessionInputError) return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     console.error('Error updating active breastfeed:', error);
     return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Failed to update active breastfeed session' }, { status: 500 });
   }
@@ -172,12 +200,8 @@ async function handleDelete(req: NextRequest, authContext: AuthResult) {
     }
 
     // Check if caller wants to override durations (from form adjustments)
-    let body: any = {};
-    try {
-      body = await req.json();
-    } catch {
-      // No body is fine
-    }
+    const body = await optionalSessionBody(req);
+    checkSessionScope(body.expectedScope, session.babyId, authContext);
 
     const { feedLogs } = await endBreastfeedSession(session, {
       familyId: userFamilyId,
@@ -185,6 +209,8 @@ async function handleDelete(req: NextRequest, authContext: AuthResult) {
       accountId: authContext.accountId,
       leftDuration: body.leftDuration,
       rightDuration: body.rightDuration,
+      pauseDuration: body.pauseDuration,
+      expectedUpdatedAt: body.expectedUpdatedAt,
     });
 
     return NextResponse.json<ApiResponse<{ feedLogsCreated: number; feedLogIds: string[] }>>({
@@ -192,6 +218,8 @@ async function handleDelete(req: NextRequest, authContext: AuthResult) {
       data: { feedLogsCreated: feedLogs.length, feedLogIds: feedLogs.map(log => log.id) },
     });
   } catch (error) {
+    if (error instanceof BreastfeedSessionConflict) return NextResponse.json({ success: false, code: 'BREASTFEED_CONFLICT', error: error.message }, { status: 409 });
+    if (error instanceof BreastfeedSessionInputError) return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     console.error('Error ending active breastfeed:', error);
     return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Failed to end active breastfeed session' }, { status: 500 });
   }

@@ -105,14 +105,13 @@ hooks to render live-recolored picker thumbnails.
 
 ## Activities (`activities/`)
 
-Each activity is a self-contained hook transplanted 1:1 from the old
-`*Tile.tsx` components' state machines, returning a shared `ActivityView`
+Each activity returns a shared `ActivityView`
 (`id`, `icon`, `label`, `statusText`, `active`, `buttons: ActionButton[]`) so
 the container can render either a `ActivityCard` (cards layout) or `BigTile`
 (tiles layout) without knowing the activity's internals:
 
-- `useFeedActions` — bottle/breast quick-log, remembers the last bottle unit
-  and average amount.
+- `useFeedActions` — explicit bottle review and shared breastfeeding timer
+  controls, including retained failed-stop review.
 - `usePumpActions` — left/right/both timers with resume support.
 - `useDiaperActions` — wet/dirty/both instant log.
 - `useSleepActions` — location picker → sleeping timer → wake.
@@ -126,6 +125,55 @@ Bottle, diaper, and food logs are undoable (`onUndoable` → `UndoInfo`); sleep/
 sessions are not (they're multi-step, so a mis-tap is cheap to correct by
 tapping again). `activities/types.ts` also holds `formatMMSS`/`formatHMMSS`
 duration formatters shared by the timer-driven activities.
+
+### Breastfeeding stop recovery
+
+`useBreastfeedSession` owns the shared server timer and a per-tab stop review.
+Before sending Stop it captures the displayed session revision, exact side
+seconds, the pause gap (including a trailing pause), and the first stop time.
+The intent is saved in `sessionStorage` under family, authenticated actor, and
+child. It survives a refresh in that tab; it is not a promise of recovery after
+the tab or browser is closed. A failed storage write keeps the stop visible in
+memory and prevents dispatch.
+An unreadable or invalid saved stop also blocks ordinary timer changes, even if
+the server session GET succeeds. Explicit Reload rereads scoped storage before
+restoring the saved intent and enabling recovery choices.
+
+A failed or uncertain request retains those exact values. Manual Retry sends
+the original revision and durations, so waiting does not accrue extra feeding
+time or move the second side's span. The server validates the optional expected
+scope against current authentication, including after token refresh. A child or
+actor switch cannot send another scope's saved stop or apply a late response to
+the new view. Cards and Big Tiles keep explicit recovery controls visible.
+Requests have a 20-second deadline covering authentication refresh and response
+body reading. Timeout aborts the request and releases the controls while keeping
+the original stop; it never automatically resubmits.
+
+Reload reads the current server session without rebasing the saved stop. A
+changed revision or missing session blocks retry and offers care-log inspection.
+After reloading, the caregiver can explicitly discard the stop and use the
+current timer, or dismiss a missing-session review after inspecting care logs.
+A 404 after a lost response is not confirmation of saving. There is no new
+server replay receipt for breastfeeding; another caregiver may have ended or
+changed the same timer. A confirmed successful response clears only its exact
+local intent.
+
+The JWT and API-key routes share atomic finalization: claim every scalar of the
+authenticated session snapshot inside the transaction, then create all side
+rows. A failed row insert restores the active session and all original rows;
+a competing timer change or end returns a conflict. Timer actions also claim
+their complete snapshot and advance `updatedAt` monotonically. Existing
+first-side ordering, pause layout, zero-duration behavior, and attribution to
+the authorized ending caregiver are retained. New nursery requests carry an
+optional expected revision; older callers remain compatible. Duration overrides
+must be finite, nonnegative whole seconds that fit the database and Date range.
+New sessions also require a live child in the authenticated family; removing a
+child does not change the recovery contract for an already active session.
+
+Validation includes real JWT/API-key routes on migrated disposable SQLite,
+second-side/delete failure injection, overlapping actions, and compiled-browser
+rejected-stop, delayed retry, refresh, lost-response, revision, scope, storage,
+and Big Tiles recovery scenarios.
 
 ## Drawer (`SettingsDrawer.tsx`, `drawer/`)
 

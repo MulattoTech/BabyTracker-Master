@@ -17,6 +17,7 @@ import { verifyPumpingImport } from './pumping-import-browser.mjs';
 import { verifyPumpingConflicts } from './pumping-conflict-browser.mjs';
 import { verifyNurseryPumpRecovery } from './nursery-pump-browser.mjs';
 import { verifyNurseryBottle } from './nursery-bottle-browser.mjs';
+import { verifyBreastfeedingRecovery } from './breastfeeding-recovery-browser.mjs';
 const require = createRequire(import.meta.url);
 const { PrismaClient } = require('@prisma/client');
 const { createPrismaAdapter } = require('../prisma/prisma-adapter.js');
@@ -320,6 +321,11 @@ try {
   await page.getByTestId('journal-daily-total').filter({ hasText: /^283\.7 mL$/ }).waitFor();
   report.checks.push('Quick entry uses current time; response-loss retry preserves one exact bottle');
   report.journalChecksPassed = true;
+  // Playwright clocks belong to the context, including its background pages.
+  // A later clock jump must not make this completed page's idle checker log
+  // out and invalidate the shared synthetic token during another scenario.
+  await bounded(page.close(), 5000, 'Completed journal page closure');
+  assert.equal(context.pages().length, 0, 'Completed journal checks must leave no active pages in the shared context');
   report.checks.push(...await verifyJournalOutbox({ base, db, family, baby, caretaker, token, secret, scratch }));
   report.journalOutboxChecksPassed = true;
   report.checks.push(...await verifyMedicationImport({ base, db, family, baby, caretaker, token, secret, context }));
@@ -334,6 +340,8 @@ try {
   report.nurseryPumpRecoveryChecksPassed = true;
   report.checks.push(...await verifyNurseryBottle({ base, db, family, baby, caretaker, token, secret, context }));
   report.nurseryBottleChecksPassed = true;
+  report.checks.push(...await verifyBreastfeedingRecovery({ base, db, family, baby, caretaker, token, secret, context }));
+  report.breastfeedingRecoveryChecksPassed = true;
   const userToken = jwt.sign({ id: caretaker.id, name: caretaker.name, role: 'USER', familyId: family.id, familySlug: family.slug }, secret, { expiresIn: '5m' });
   const denied = await fetch(`${base}/api/ocr/documents?babyId=${baby.id}`, { headers: { Authorization: `Bearer ${userToken}` }, signal: AbortSignal.timeout(5000) });
   assert.equal(denied.status, 403); await denied.body?.cancel();

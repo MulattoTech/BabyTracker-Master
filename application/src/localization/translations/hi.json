@@ -3202,5 +3202,22 @@
   "This pumping session is being saved. Keep the session and retry after the other request finishes.": "दूध निकालने का यह सत्र सहेजा जा रहा है। इसे सुरक्षित रखें और दूसरे अनुरोध के पूरा होने के बाद फिर प्रयास करें।",
   "This session may already be in the care log. Check it before dismissing. Dismiss only this browser’s saved pumping session? This does not delete any care records.": "यह सत्र देखभाल के रिकॉर्ड में पहले से हो सकता है। हटाने से पहले जाँच लें। क्या केवल इस ब्राउज़र में सहेजा गया दूध निकालने का सत्र हटाना है? इससे देखभाल का कोई रिकॉर्ड नहीं मिटेगा।",
   "Waiting for confirmation": "पुष्टि की प्रतीक्षा है",
-  "Enter the amount you observed, choose the milk type, and check the unit before saving.": "जो मात्रा आपने देखी है उसे दर्ज करें, दूध का प्रकार चुनें और सहेजने से पहले इकाई जाँचें।"
+  "Enter the amount you observed, choose the milk type, and check the unit before saving.": "जो मात्रा आपने देखी है उसे दर्ज करें, दूध का प्रकार चुनें और सहेजने से पहले इकाई जाँचें।",
+  "Could not reload the breastfeeding session. Your current timer and stop review have been kept.": "स्तनपान सत्र फिर लोड नहीं हो सका। मौजूदा टाइमर और रोकने के प्रयास की समीक्षा सुरक्षित रखी गई है।",
+  "Discard stop and use current timer": "रोकने का प्रयास छोड़ें और मौजूदा टाइमर इस्तेमाल करें",
+  "Dismiss stop review": "रोकने के प्रयास की समीक्षा बंद करें",
+  "No active session was found. Your stop may already be saved. Check the care log before dismissing this review.": "कोई सक्रिय सत्र नहीं मिला। रोकने का प्रयास पहले ही सहेजा गया हो सकता है। यह समीक्षा बंद करने से पहले देखभाल का रिकॉर्ड देखें।",
+  "Reload current session": "मौजूदा सत्र फिर लोड करें",
+  "Retry stopped feed": "दूध पिलाना समाप्त करने का पुनः प्रयास",
+  "Review the breastfeeding timer before stopping it.": "स्तनपान का टाइमर रोकने से पहले उसकी समीक्षा करें।",
+  "Sign in as a caregiver for this child before changing the breastfeeding timer.": "स्तनपान का टाइमर बदलने से पहले इस बच्चे के देखभालकर्ता के रूप में साइन इन करें।",
+  "Stop review": "रोकने के प्रयास की समीक्षा",
+  "Stop was not confirmed. Your first stop time is kept. Retry or reload the current session and review the care log.": "रोकने की पुष्टि नहीं हुई। पहले प्रयास का समय सुरक्षित है। पुनः प्रयास करें या मौजूदा सत्र फिर लोड करके देखभाल का रिकॉर्ड देखें।",
+  "The feed was saved, but this tab could not clear its stop review. Check the care log before dismissing it.": "दूध पिलाने का रिकॉर्ड सहेज दिया गया, लेकिन यह टैब रोकने के प्रयास की समीक्षा हटा नहीं सका। इसे बंद करने से पहले देखभाल का रिकॉर्ड देखें।",
+  "The session changed. Your first stop time is kept. Reload and review the current timer before choosing what to do.": "सत्र बदल गया है। रोकने के पहले प्रयास का समय सुरक्षित है। निर्णय लेने से पहले मौजूदा टाइमर फिर लोड करके देखें।",
+  "The timer change was not confirmed. Reload the current breastfeeding session before trying again.": "टाइमर के बदलाव की पुष्टि नहीं हुई। पुनः प्रयास से पहले मौजूदा स्तनपान सत्र फिर लोड करें।",
+  "This tab could not clear the stop review. Keep this page open and check browser storage.": "यह टैब रोकने के प्रयास की समीक्षा हटा नहीं सका। यह पेज खुला रखें और ब्राउज़र स्टोरेज जाँचें।",
+  "This tab could not read its saved stop review. Keep this page open and check the care log and browser storage.": "यह टैब रोकने के प्रयास की सहेजी गई समीक्षा पढ़ नहीं सका। यह पेज खुला रखें और देखभाल का रिकॉर्ड तथा ब्राउज़र स्टोरेज जाँचें।",
+  "This tab could not save the stop time. Keep this page open and check browser storage before retrying. No request was sent on this attempt.": "यह टैब रोकने का समय सहेज नहीं सका। यह पेज खुला रखें और पुनः प्रयास से पहले ब्राउज़र स्टोरेज जाँचें। इस प्रयास में कोई अनुरोध नहीं भेजा गया।",
+  "Your first stop time is kept. Reload to inspect the current session. Using the current timer discards this stop time.": "रोकने के पहले प्रयास का समय सुरक्षित है। मौजूदा सत्र देखने के लिए फिर लोड करें। मौजूदा टाइमर इस्तेमाल करने पर यह रोकने का समय हटा दिया जाएगा।"
 }
