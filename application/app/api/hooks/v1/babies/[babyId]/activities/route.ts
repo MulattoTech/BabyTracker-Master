@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import prisma from '../../../../../db';
+import { createPumpWithFeed, PumpReconciliationConflict, updatePumpWithFeed } from '@/app/api/utils/pumpReconciliation';
 import { withApiKeyAuth, ApiKeyContext, validateBabyAccess } from '../../../auth';
 import { checkRateLimit } from '../../../rate-limiter';
 import { hookSuccess, hookError } from '../../../response';
@@ -643,13 +644,12 @@ async function handlePost(req: NextRequest, ctx: ApiKeyContext, routeContext: an
           if ('error' in prepared) return hookError(prepared.code, prepared.error, 400, rl.headers);
           const dur = Math.round((time.getTime() - activePump.startTime.getTime()) / 60000);
           if (!validPumpDuration(dur)) return hookError('INVALID_DURATION', 'The pumping interval exceeds the supported duration range.', 400, rl.headers);
-          result = await prisma.pumpLog.update({
-            where: { id: activePump.id },
-            data: { ...prepared.data, endTime: time, duration: dur,
+          result = await updatePumpWithFeed(prisma, activePump,
+            { ...prepared.data, endTime: time, duration: dur,
               ...(body.unitAbbr === undefined ? {} : { unitAbbr }),
               ...(pumpActionResult.value === null ? {} : { pumpAction: pumpActionResult.value }),
             },
-          });
+          );
           notifyActivityCreated(babyId, 'pump', { caretakerId }, { totalAmount: result.totalAmount, unitAbbr: result.unitAbbr }).catch(console.error);
           return hookSuccess({ activityType: 'pump', id: result.id, time: result.startTime.toISOString(), details: { action: 'end', duration: dur, isActive: false } }, { familyId, babyId }, rl.headers);
         }
@@ -659,11 +659,11 @@ async function handlePost(req: NextRequest, ctx: ApiKeyContext, routeContext: an
         if ('error' in prepared) return hookError(prepared.code, prepared.error, 400, rl.headers);
         const pump = prepared.data;
         const endTime = new Date(time.getTime() + (pump.duration ?? 0) * 60000);
-        result = await prisma.pumpLog.create({
-          data: { startTime: time, endTime, duration: pump.duration ?? null,
+        result = await createPumpWithFeed(prisma,
+          { startTime: time, endTime, duration: pump.duration ?? null,
             leftAmount: pump.leftAmount ?? null, rightAmount: pump.rightAmount ?? null, totalAmount: pump.totalAmount ?? null,
             unitAbbr, pumpAction: pumpActionResult.value ?? 'STORED', babyId, caretakerId, familyId },
-        });
+        );
         notifyActivityCreated(babyId, 'pump', { caretakerId }, { totalAmount: pump.totalAmount ?? null, unitAbbr }).catch(console.error);
         return hookSuccess({ activityType: 'pump', id: result.id, time: result.startTime.toISOString(), details: { action: 'log', duration: pump.duration } }, { familyId, babyId }, rl.headers);
       }
@@ -808,6 +808,7 @@ async function handlePost(req: NextRequest, ctx: ApiKeyContext, routeContext: an
         return hookError('INVALID_ACTIVITY_TYPE', `Unhandled activity type: ${type}`, 400, rl.headers);
     }
   } catch (error: any) {
+    if (error instanceof PumpReconciliationConflict) return hookError('PUMP_CONFLICT', error.message, 409, rl.headers);
     console.error('Error creating activity via webhook:', error);
     return hookError('INTERNAL_ERROR', 'Failed to create activity', 500, rl.headers);
   }

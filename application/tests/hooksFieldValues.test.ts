@@ -30,7 +30,7 @@ describe('canonical field-value sets', () => {
   });
 
   it('matches the pump action values verbatim', () => {
-    expect(PUMP_ACTIONS).toEqual(['STORED', 'FED', 'DISCARDED']);
+    expect(PUMP_ACTIONS).toEqual(['STORED', 'FED', 'DISCARDED', 'UNKNOWN']);
   });
 });
 

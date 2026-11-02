@@ -49,6 +49,18 @@ vi.mock('../app/api/db', () => ({
   default: mocks.prisma,
 }));
 
+// These tests cover route validation and delegation. The actual transactional
+// pump/feed behavior is exercised in hooksPumpReconciliation.integration.test.
+vi.mock('../app/api/utils/pumpReconciliation', async importOriginal => {
+  const original = await importOriginal<typeof import('../app/api/utils/pumpReconciliation')>();
+  const replacement: typeof original = {
+    ...original,
+    createPumpWithFeed: (db, data) => db.pumpLog.create({ data }),
+    updatePumpWithFeed: (db, previous, data) => db.pumpLog.update({ where: { id: previous.id }, data }),
+  };
+  return replacement;
+});
+
 vi.mock('@/src/lib/notifications/activityHook', () => ({
   notifyActivityCreated: vi.fn(() => Promise.resolve()),
   resetTimerNotificationState: vi.fn(() => Promise.resolve()),
