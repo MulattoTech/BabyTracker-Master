@@ -10,6 +10,8 @@ import { createPrismaAdapter } from '@/prisma/prisma-adapter';
 import { commitOcrReview, purgeOcrSource, readOcrSource, redactOcrDocument, saveOcrReview } from '@/src/lib/ocr/documents';
 import { sealOcrState, openOcrState } from '@/src/lib/ocr/crypto';
 import { parseOcrPages } from '@/src/lib/ocr/parser';
+import { redactOcrText } from '@/src/lib/ocr/redaction';
+import { validateOcrCandidate } from '@/src/lib/ocr/validation';
 import { recognizeOcrDocument } from '@/src/lib/ocr/intake';
 import { sweepOcrRetention } from '@/src/lib/ocr/retention';
 import * as encryption from '@/src/lib/file-encryption';
@@ -40,12 +42,12 @@ afterAll(async () => {
   if (directory) rmSync(directory, { recursive: true, force: true });
 });
 
-async function fixture() {
+async function fixture(text = `12:00 wet diaper ${sensitive}`) {
   const id = randomUUID();
   const sourceFile = encryption.generateStoredName();
   const source = Buffer.from(`%PDF-1.4\n${sensitive}\n%%EOF`);
   encryption.encryptAndStore(source, sourceFile, 'ocr');
-  const rows = parseOcrPages([{ page: 1, text: `12:00 wet diaper ${sensitive}`, engine: 'synthetic-fixture', confidence: 90 }], {
+  const rows = parseOcrPages([{ page: 1, text, engine: 'synthetic-fixture', confidence: 90 }], {
     defaultDate: '2026-10-20', timeFormat: '24h',
   }).map(row => ({ ...row, approved: true }));
   const review: OcrReviewRequest = { revision: 0, rows, timeZone: 'UTC', acknowledgeWarnings: true };
@@ -73,6 +75,24 @@ function abortAfterStatements(): PrismaClient {
 }
 
 describe('OCR privacy integrity', () => {
+  it.each(['source', 'context', 'missing', 'ambiguous', 'corrected'])('preserves origin %s only within fieldSources and scrubs unexpected provenance text', origin => {
+    const input = {
+      formulaName: origin, bottleLabel: origin, sourceCaregiverName: origin,
+      fieldSources: {
+        formulaName: origin, bottleLabel: origin, sourceCaregiverName: origin, notes: origin,
+        amount: sensitive, unit: { nestedPrivateText: sensitive },
+      },
+    };
+    expect(redactOcrText(input)).toEqual({
+      formulaName: '[REDACTED]', bottleLabel: '[REDACTED]', sourceCaregiverName: '[REDACTED]',
+      fieldSources: {
+        formulaName: origin, bottleLabel: origin, sourceCaregiverName: origin, notes: origin,
+        amount: '[REDACTED]', unit: '[REDACTED]',
+      },
+    });
+    expect(input.fieldSources.amount).toBe(sensitive);
+  });
+
   it('redacts original rows, page text, review and historical snapshots; rejects stale text restoration', async () => {
     const { document, review, file } = await fixture();
     const careCount = await db.diaperLog.count();
@@ -80,6 +100,11 @@ describe('OCR privacy integrity', () => {
     expect(JSON.stringify(view)).not.toContain(sensitive);
     expect(view.originalRows[0].source.rawText).toBe('[REDACTED]');
     expect(view.rows[0].notes).toBe('[REDACTED]');
+    expect(view.rows[0].formulaName).toBeNull();
+    expect(view.rows[0].fieldSources.formulaName).toBe('missing');
+    expect(view.rows[0].fieldSources.bottleLabel).toBe('missing');
+    expect(view.rows[0].fieldSources.sourceCaregiverName).toBe('missing');
+    expect(validateOcrCandidate(view.rows[0]).valid).toBe(true);
     expect(view.rows[0].approved).toBe(false);
     expect(view.revision).toBe(1);
     expect(view.hasSource).toBe(false);
@@ -95,6 +120,39 @@ describe('OCR privacy integrity', () => {
     for (const item of audits) expect(JSON.stringify(openOcrState(item.snapshot, `${actor.familyId}:${document.id}:audit`))).not.toContain(sensitive);
     await expect(saveOcrReview(db, actor, document.id, review)).rejects.toThrow('newer review');
     expect(await db.diaperLog.count()).toBe(careCount);
+  });
+
+  it('redacts rich bottle text in every snapshot while preserving quantities, valid provenance and the stale-review guard', async () => {
+    const text = `12:00 bottle formula; offered: 120 mL; consumed: 90 mL; concentration: 22 kcal/oz; formula name: ${sensitive} brand; bottle id: ${sensitive} label; caregiver: ${sensitive} caregiver`;
+    const { document, review } = await fixture(text);
+    const feedCount = await db.feedLog.count();
+    const view = await redactOcrDocument(db, actor, document.id);
+    expect(JSON.stringify(view)).not.toContain(sensitive);
+    for (const row of [view.rows[0], view.originalRows[0]]) {
+      expect(row).toMatchObject({
+        amount: 90, offeredAmount: 120, unit: 'ML', formulaKcalOz: 22,
+        formulaName: '[REDACTED]', bottleLabel: '[REDACTED]', sourceCaregiverName: '[REDACTED]',
+        notes: '[REDACTED]', source: { rawText: '[REDACTED]' },
+        fieldSources: { formulaName: 'source', bottleLabel: 'source', sourceCaregiverName: 'source', notes: 'source' },
+      });
+      expect(validateOcrCandidate(row).valid).toBe(true);
+    }
+    expect(view.rows[0].approved).toBe(false);
+    const persisted = await db.ocrDocument.findUniqueOrThrow({ where: { id: document.id } });
+    for (const kind of ['original', 'review'] as const) {
+      const state = openOcrState<{ rows: OcrReviewRequest['rows'] }>(kind === 'original' ? persisted.originalState : persisted.reviewState, `${actor.familyId}:${document.id}:${kind}`);
+      expect(JSON.stringify(state)).not.toContain(sensitive);
+      expect(validateOcrCandidate(state.rows[0]).valid).toBe(true);
+    }
+    const audits = await db.ocrAudit.findMany({ where: { documentId: document.id } });
+    for (const item of audits) {
+      const state = openOcrState<{ review?: OcrReviewRequest }>(item.snapshot, `${actor.familyId}:${document.id}:audit`);
+      expect(JSON.stringify(state)).not.toContain(sensitive);
+      if (state.review) expect(validateOcrCandidate(state.review.rows[0]).valid).toBe(true);
+    }
+    await expect(saveOcrReview(db, actor, document.id, review)).rejects.toThrow('newer review');
+    expect((await db.ocrDocument.findUniqueOrThrow({ where: { id: document.id } })).revision).toBe(1);
+    expect(await db.feedLog.count()).toBe(feedCount);
   });
 
   it.each(['purge', 'redact', 'commit'] as const)('keeps source and database intact if %s transaction fails after its statements', async operation => {
