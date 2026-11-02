@@ -99,6 +99,7 @@ export interface PumpNoteLabels {
   stored: string;
   fed: string;
   discarded: string;
+  unknown: string;
 }
 
 const PUMP_SIDE_LABEL_KEYS: Record<string, keyof PumpNoteLabels> = {
@@ -111,6 +112,7 @@ const PUMP_ACTION_LABEL_KEYS: Record<string, keyof PumpNoteLabels> = {
   STORED: 'stored',
   FED: 'fed',
   DISCARDED: 'discarded',
+  UNKNOWN: 'unknown',
 };
 
 export interface PumpNoteData {

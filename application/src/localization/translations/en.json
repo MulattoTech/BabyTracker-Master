@@ -3160,5 +3160,9 @@
   "This feeding time is ambiguous because the clock repeats. Include the source UTC offset, such as -05:00 or -06:00, before importing.": "This feeding time is ambiguous because the clock repeats. Include the source UTC offset, such as -05:00 or -06:00, before importing.",
   "Both feeding start and end timestamps are required to import a timed session.": "Both feeding start and end timestamps are required to import a timed session.",
   "Feeding duration must be a non-negative whole number of seconds. Check the source start and end timestamps.": "Feeding duration must be a non-negative whole number of seconds. Check the source start and end timestamps.",
-  "Feeding duration conflicts with the source start and end timestamps.": "Feeding duration conflicts with the source start and end timestamps."
+  "Feeding duration conflicts with the source start and end timestamps.": "Feeding duration conflicts with the source start and end timestamps.",
+  "Needs review": "Needs review",
+  "Baby Buddy does not record what happened to pumped milk. Imported sessions need review and do not add to stored milk. Open a pumping session to choose Stored, Fed or Discarded when known.": "Baby Buddy does not record what happened to pumped milk. Imported sessions need review and do not add to stored milk. Open a pumping session to choose Stored, Fed or Discarded when known.",
+  "This pumping session needs review. It adds no milk to your stock and creates no feeding entry. Choose Stored, Fed or Discarded only when you know what happened.": "This pumping session needs review. It adds no milk to your stock and creates no feeding entry. Choose Stored, Fed or Discarded only when you know what happened.",
+  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN."
 }

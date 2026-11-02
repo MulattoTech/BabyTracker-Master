@@ -3160,5 +3160,9 @@
   "This feeding time is ambiguous because the clock repeats. Include the source UTC offset, such as -05:00 or -06:00, before importing.": "Dette matingstidspunktet er tvetydig fordi klokken gjentar timen. Ta med kildens UTC-forskyvning, som -05:00 eller -06:00, før import.",
   "Both feeding start and end timestamps are required to import a timed session.": "Både start- og sluttidspunkt kreves for å importere en tidsmålt mating.",
   "Feeding duration must be a non-negative whole number of seconds. Check the source start and end timestamps.": "Matingens varighet må være et ikke-negativt helt antall sekunder. Kontroller kildens start- og sluttidspunkt.",
-  "Feeding duration conflicts with the source start and end timestamps.": "Matingens varighet samsvarer ikke med kildens start- og sluttidspunkt."
+  "Feeding duration conflicts with the source start and end timestamps.": "Matingens varighet samsvarer ikke med kildens start- og sluttidspunkt.",
+  "Needs review": "Må gjennomgås",
+  "Baby Buddy does not record what happened to pumped milk. Imported sessions need review and do not add to stored milk. Open a pumping session to choose Stored, Fed or Discarded when known.": "Baby Buddy registrerer ikke hva som skjedde med utpumpet melk. Importerte økter må gjennomgås og øker ikke melkelageret. Åpne en pumpeøkt og velg Lagret, Matet eller Kastet når dette er kjent.",
+  "This pumping session needs review. It adds no milk to your stock and creates no feeding entry. Choose Stored, Fed or Discarded only when you know what happened.": "Denne pumpeøkten må gjennomgås. Den legger ikke melk til lageret og oppretter ingen mating. Velg Lagret, Matet eller Kastet bare når du vet hva som skjedde.",
+  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "Ugyldig pumpehandling. Må være STORED, FED, DISCARDED eller UNKNOWN."
 }

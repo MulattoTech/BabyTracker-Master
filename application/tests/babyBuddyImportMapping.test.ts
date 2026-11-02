@@ -595,13 +595,13 @@ describe('remaining Baby Buddy mappings', () => {
     }));
   });
 
-  it('maps pumping as total stored milk', () => {
+  it('preserves pumped total without inventing where the milk went', () => {
     expect(mapBabyBuddyPumping({
       id: '3', child_id: '7', start: '2026-01-01 10:00:00',
       end: '2026-01-01 10:20:00', amount: '100', notes: '',
     }, 'ML')).toEqual(expect.objectContaining({
       targetType: 'pump', duration: 20, totalAmount: 100,
-      unitAbbr: 'ML', pumpAction: 'STORED',
+      unitAbbr: 'ML', pumpAction: 'UNKNOWN',
     }));
   });
 

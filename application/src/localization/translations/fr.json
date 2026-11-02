@@ -3160,5 +3160,9 @@
   "This feeding time is ambiguous because the clock repeats. Include the source UTC offset, such as -05:00 or -06:00, before importing.": "Cette heure de repas est ambiguë car l’horloge répète cette heure. Ajoutez le décalage UTC source, par exemple -05:00 ou -06:00, avant l’importation.",
   "Both feeding start and end timestamps are required to import a timed session.": "Les dates de début et de fin du repas sont requises pour importer une séance chronométrée.",
   "Feeding duration must be a non-negative whole number of seconds. Check the source start and end timestamps.": "La durée du repas doit être un nombre entier de secondes positif ou nul. Vérifiez les dates de début et de fin de la source.",
-  "Feeding duration conflicts with the source start and end timestamps.": "La durée du repas ne correspond pas aux dates de début et de fin de la source."
+  "Feeding duration conflicts with the source start and end timestamps.": "La durée du repas ne correspond pas aux dates de début et de fin de la source.",
+  "Needs review": "À vérifier",
+  "Baby Buddy does not record what happened to pumped milk. Imported sessions need review and do not add to stored milk. Open a pumping session to choose Stored, Fed or Discarded when known.": "Baby Buddy ne précise pas ce qu’est devenu le lait tiré. Les séances importées doivent être vérifiées et n’ajoutent pas de lait au stock. Ouvrez une séance pour choisir Stocké, Nourri ou Jeté lorsque vous le savez.",
+  "This pumping session needs review. It adds no milk to your stock and creates no feeding entry. Choose Stored, Fed or Discarded only when you know what happened.": "Cette séance de tirage doit être vérifiée. Elle n’ajoute pas de lait à votre stock et ne crée pas de repas. Choisissez Stocké, Nourri ou Jeté uniquement si vous savez ce qui s’est passé.",
+  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "Action de tirage non valide. Les valeurs autorisées sont STORED, FED, DISCARDED ou UNKNOWN."
 }

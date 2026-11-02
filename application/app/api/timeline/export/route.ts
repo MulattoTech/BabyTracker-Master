@@ -5,6 +5,7 @@ import { withAuthContext, AuthResult } from '../../utils/auth';
 import { toUTC, formatForResponse } from '../../utils/timezone';
 import { objectArrayToCsv } from '../../utils/csv-export';
 import { legacyOzToLb } from '@/src/utils/weightUnits';
+import { pumpActionLabel } from '@/src/utils/pumpAction';
 import * as ExcelJS from 'exceljs';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -90,7 +91,7 @@ function getSubType(activity: any, type: string, translations: Record<string, st
       if (activity.type === 'DRY') return t('Dry', translations);
       return activity.type || '';
     case 'pump':
-      return activity.pumpAction ? t(activity.pumpAction, translations) : '';
+      return activity.pumpAction ? t(pumpActionLabel(activity.pumpAction), translations) : '';
     case 'milestone':
       return activity.category ? t(activity.category, translations) : '';
     case 'measurement':

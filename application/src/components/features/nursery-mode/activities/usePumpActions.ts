@@ -205,6 +205,7 @@ export function usePumpActions({ babyId, toUTCString, onLog, onUndoable, enableB
         const pumpNoteLabels: PumpNoteLabels = {
           left: t('Left'), right: t('Right'), both: t('Both'),
           stored: t('Stored'), fed: t('Fed'), discarded: t('Discarded'),
+          unknown: t('Needs review'),
         };
         const note = formatPumpNote({
           side: activeSide,

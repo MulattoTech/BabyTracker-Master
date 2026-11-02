@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { PumpLogResponse } from '@/app/api/types';
+import { PumpLogCreate, PumpLogResponse } from '@/app/api/types';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { Textarea } from '@/src/components/ui/textarea';
@@ -21,6 +21,8 @@ import { useLocalization } from '@/src/context/localization';
 import { BreastMilkAdjustmentResponse } from '@/app/api/types';
 import { useUnit } from '@/src/hooks/useUnit';
 import { cacheDefaultBottleUnit, readCachedDefaultBottleUnit } from '@/src/utils/defaultBottleUnit';
+import { isPumpAction, PUMP_ACTIONS, PumpAction, pumpActionLabel } from '@/src/utils/pumpAction';
+import { changedPumpFields } from '@/src/utils/pumpFormUpdate';
 
 import './pump-form.css';
 
@@ -58,7 +60,8 @@ export default function PumpForm({
   const [adjustNotes, setAdjustNotes] = useState('');
 
   // Pump action state
-  const [pumpAction, setPumpAction] = useState<'STORED' | 'FED' | 'DISCARDED'>('STORED');
+  const [pumpAction, setPumpAction] = useState<PumpAction>('STORED');
+  const [editedTimes, setEditedTimes] = useState({ start: false, end: false });
   const [selectedStartDateTime, setSelectedStartDateTime] = useState<Date>(() => {
     try {
       // Initialize with current time - 15 minutes as default (start time is in the past)
@@ -110,6 +113,7 @@ export default function PumpForm({
 
   // Handle start date/time change
   const handleStartDateTimeChange = (date: Date) => {
+    setEditedTimes(previous => ({ ...previous, start: true }));
     setSelectedStartDateTime(date);
     
     // Also update the time in formData for compatibility with existing code
@@ -126,6 +130,7 @@ export default function PumpForm({
   
   // Handle end date/time change
   const handleEndDateTimeChange = (date: Date) => {
+    setEditedTimes(previous => ({ ...previous, end: true }));
     setSelectedEndDateTime(date);
     
     // Format the date as ISO string for storage in formData
@@ -157,7 +162,7 @@ export default function PumpForm({
     if (isOpen && !isInitialized) {
       if (activity) {
         // Set pump action from activity
-        setPumpAction((activity as any).pumpAction || 'STORED');
+        setPumpAction(isPumpAction(activity.pumpAction) ? activity.pumpAction : 'UNKNOWN');
         // Editing mode - populate with activity data
         try {
           // Set the start date time
@@ -295,6 +300,7 @@ export default function PumpForm({
         notes: '',
       });
       setPumpAction('STORED');
+      setEditedTimes({ start: false, end: false });
       setAdjustAmount('');
       setAdjustUnit(readCachedDefaultBottleUnit());
       setAdjustIsAdding(true);
@@ -451,13 +457,14 @@ export default function PumpForm({
       
       // Convert end time to UTC
       const utcEndTime = toUTCString(selectedEndDateTime);
+      if (!utcStartTime || !utcEndTime) throw new Error('Invalid pumping time');
       
       console.log('Original start time (local):', selectedStartDateTime.toLocaleString());
       console.log('Converted start time (UTC):', utcStartTime);
       console.log('Original end time (local):', selectedEndDateTime.toLocaleString());
       console.log('Converted end time (UTC):', utcEndTime);
       
-      const payload = {
+      const payload: PumpLogCreate = {
         babyId,
         startTime: utcStartTime,
         endTime: utcEndTime,
@@ -483,7 +490,7 @@ export default function PumpForm({
           'Content-Type': 'application/json',
           'Authorization': authToken ? `Bearer ${authToken}` : '',
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(activity ? changedPumpFields(activity, payload, editedTimes) : payload),
       });
       
       if (!response.ok) {
@@ -732,21 +739,22 @@ export default function PumpForm({
                   </div>
                 </div>
 
-                {/* Pump Action Radio Buttons - only show when breast milk tracking is enabled */}
-                {breastMilkTrackingEnabled && (
+                {/* Unresolved imported sessions remain reviewable even with stock tracking off. */}
+                {(breastMilkTrackingEnabled || activity?.pumpAction === 'UNKNOWN') && (
                 <div className="space-y-2">
                   <Label>{t('Action')}</Label>
-                  <div className="flex space-x-2">
-                    <Button type="button" variant={pumpAction === 'STORED' ? 'default' : 'outline'} className="flex-1" onClick={() => setPumpAction('STORED')} disabled={loading}>
-                      {t('Stored')}
-                    </Button>
-                    <Button type="button" variant={pumpAction === 'FED' ? 'default' : 'outline'} className="flex-1" onClick={() => setPumpAction('FED')} disabled={loading}>
-                      {t('Fed')}
-                    </Button>
-                    <Button type="button" variant={pumpAction === 'DISCARDED' ? 'default' : 'outline'} className="flex-1" onClick={() => setPumpAction('DISCARDED')} disabled={loading}>
-                      {t('Discarded')}
-                    </Button>
+                  <div className="flex flex-wrap gap-2" role="group" aria-label={t('Action')}>
+                    {PUMP_ACTIONS.map(action => (
+                      <Button key={action} type="button" variant={pumpAction === action ? 'default' : 'outline'} className="flex-1 min-w-[100px]" onClick={() => setPumpAction(action)} disabled={loading} aria-pressed={pumpAction === action}>
+                        {t(pumpActionLabel(action))}
+                      </Button>
+                    ))}
                   </div>
+                  {pumpAction === 'UNKNOWN' && (
+                    <p role="status" className="text-sm text-gray-600 pump-review-hint">
+                      {t('This pumping session needs review. It adds no milk to your stock and creates no feeding entry. Choose Stored, Fed or Discarded only when you know what happened.')}
+                    </p>
+                  )}
                 </div>
                 )}
 

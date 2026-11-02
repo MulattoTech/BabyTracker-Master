@@ -44,6 +44,7 @@ export function formatTileEntryNote(entry: TileEntry, t: Translate): string {
       return formatPumpNote(entry.pump, {
         left: t('Left'), right: t('Right'), both: t('Both'),
         stored: t('Stored'), fed: t('Fed'), discarded: t('Discarded'),
+        unknown: t('Needs review'),
       });
     case 'diaper': {
       const key = DIAPER_TYPE_KEYS[entry.diaperType];

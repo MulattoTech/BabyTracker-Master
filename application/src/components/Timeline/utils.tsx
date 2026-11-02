@@ -1,4 +1,5 @@
 import { Settings } from '@prisma/client';
+import { pumpActionLabel } from '@/src/utils/pumpAction';
 import {
   formatTimeDisplay,
   formatDateShort,
@@ -587,12 +588,7 @@ export const getActivityDetails = (activity: ActivityType, settings: Settings | 
 
       // Show pump action
       if (activity.pumpAction) {
-        const actionLabels: Record<string, string> = {
-          'STORED': t('Stored'),
-          'FED': t('Fed'),
-          'DISCARDED': t('Discarded'),
-        };
-        pumpDetails.push({ label: t('Action'), value: actionLabels[activity.pumpAction] || activity.pumpAction });
+        pumpDetails.push({ label: t('Action'), value: t(pumpActionLabel(activity.pumpAction)) });
       }
 
       // Add notes if available
@@ -1047,8 +1043,7 @@ export const getActivityDescription = (activity: ActivityType, settings: Setting
       // Add pump action label
       let pumpAction = '';
       if (activity.pumpAction && activity.pumpAction !== 'STORED') {
-        const actionLabels: Record<string, string> = { 'FED': t('Fed'), 'DISCARDED': t('Discarded') };
-        pumpAction = actionLabels[activity.pumpAction] || activity.pumpAction;
+        pumpAction = t(pumpActionLabel(activity.pumpAction));
       }
 
       return {

@@ -12,6 +12,7 @@ import {
   shouldHaveAutoPumpFeed,
 } from '@/src/utils/breastMilkInventory';
 import { normalizeVolumeUnit } from '@/src/utils/unit-conversion';
+import { isPumpAction } from '@/src/utils/pumpAction';
 
 async function handlePost(req: NextRequest, authContext: AuthResult) {
   // Check write permissions for expired accounts
@@ -54,8 +55,8 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
     
     // Validate pumpAction
     const pumpAction = body.pumpAction || 'STORED';
-    if (!['STORED', 'FED', 'DISCARDED'].includes(pumpAction)) {
-      return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Invalid pump action. Must be STORED, FED, or DISCARDED.' }, { status: 400 });
+    if (!isPumpAction(pumpAction)) {
+      return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.' }, { status: 400 });
     }
 
     // Validate/normalize the volume unit — an unknown unit silently corrupts
@@ -219,7 +220,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
     // Calculate duration if not provided but start and end times are available
     if (body.duration !== undefined) {
       data.duration = body.duration;
-    } else if ((body.startTime || existingPumpLog.startTime) && 
+    } else if ((body.startTime || body.endTime) && (body.startTime || existingPumpLog.startTime) &&
               (body.endTime || existingPumpLog.endTime)) {
       const start = body.startTime ? toUTC(body.startTime) : existingPumpLog.startTime;
       const end = body.endTime ? toUTC(body.endTime) : existingPumpLog.endTime;
@@ -244,8 +245,8 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
     if (body.notes !== undefined) data.notes = body.notes;
     if (body.babyId !== undefined) data.babyId = body.babyId;
     if (body.pumpAction !== undefined) {
-      if (!['STORED', 'FED', 'DISCARDED'].includes(body.pumpAction)) {
-        return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Invalid pump action. Must be STORED, FED, or DISCARDED.' }, { status: 400 });
+      if (!isPumpAction(body.pumpAction)) {
+        return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.' }, { status: 400 });
       }
       data.pumpAction = body.pumpAction;
     }
@@ -276,7 +277,8 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
           babyId: existingPumpLog.babyId,
         },
       });
-      const legacyAutoFeed = linkedAutoFeed ? null : await tx.feedLog.findFirst({
+      // Only a previously FED pump can own an unlinked legacy automatic feed.
+      const legacyAutoFeed = linkedAutoFeed || existingPumpLog.pumpAction !== 'FED' ? null : await tx.feedLog.findFirst({
         where: {
           sourcePumpId: null,
           babyId: existingPumpLog.babyId,
@@ -504,7 +506,8 @@ async function handleDelete(req: NextRequest, authContext: AuthResult) {
           babyId: existingPumpLog.babyId,
         },
       });
-      const legacyAutoFeed = linkedAutoFeed ? null : await tx.feedLog.findFirst({
+      // UNKNOWN imports must never delete a matching feed from another session.
+      const legacyAutoFeed = linkedAutoFeed || existingPumpLog.pumpAction !== 'FED' ? null : await tx.feedLog.findFirst({
         where: {
           sourcePumpId: null,
           babyId: existingPumpLog.babyId,

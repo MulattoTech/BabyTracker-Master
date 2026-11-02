@@ -139,7 +139,7 @@ export function collectBabyBuddyWarnings(
 
       case 'pumping':
         addWarning(
-          'pumping-defaults-to-stored',
+          'pumping-disposition-unknown',
           'pumping',
           rows.length,
         );

@@ -3160,5 +3160,9 @@
   "This feeding time is ambiguous because the clock repeats. Include the source UTC offset, such as -05:00 or -06:00, before importing.": "Dit voedingstijdstip is dubbelzinnig omdat de klok dit uur herhaalt. Voeg de UTC-offset van de bron toe, zoals -05:00 of -06:00, vóór het importeren.",
   "Both feeding start and end timestamps are required to import a timed session.": "Zowel de begin- als eindtijd is vereist om een getimede voedingssessie te importeren.",
   "Feeding duration must be a non-negative whole number of seconds. Check the source start and end timestamps.": "De voedingsduur moet een niet-negatief geheel aantal seconden zijn. Controleer de begin- en eindtijd van de bron.",
-  "Feeding duration conflicts with the source start and end timestamps.": "De voedingsduur komt niet overeen met de begin- en eindtijd van de bron."
+  "Feeding duration conflicts with the source start and end timestamps.": "De voedingsduur komt niet overeen met de begin- en eindtijd van de bron.",
+  "Needs review": "Controle nodig",
+  "Baby Buddy does not record what happened to pumped milk. Imported sessions need review and do not add to stored milk. Open a pumping session to choose Stored, Fed or Discarded when known.": "Baby Buddy registreert niet wat er met afgekolfde melk is gebeurd. Geïmporteerde sessies moeten worden gecontroleerd en verhogen de melkvoorraad niet. Open een kolfsessie en kies Opgeslagen, Gevoed of Weggegooid wanneer dit bekend is.",
+  "This pumping session needs review. It adds no milk to your stock and creates no feeding entry. Choose Stored, Fed or Discarded only when you know what happened.": "Deze kolfsessie moet worden gecontroleerd. Er wordt geen melk aan uw voorraad en geen voeding toegevoegd. Kies Opgeslagen, Gevoed of Weggegooid alleen als u weet wat er is gebeurd.",
+  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "Ongeldige kolfactie. Moet STORED, FED, DISCARDED of UNKNOWN zijn."
 }

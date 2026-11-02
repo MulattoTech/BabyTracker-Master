@@ -3164,5 +3164,9 @@
   "This feeding time is ambiguous because the clock repeats. Include the source UTC offset, such as -05:00 or -06:00, before importing.": "Ta godzina karmienia jest niejednoznaczna, ponieważ zegar powtarza godzinę. Przed importem dodaj przesunięcie UTC źródła, np. -05:00 lub -06:00.",
   "Both feeding start and end timestamps are required to import a timed session.": "Aby zaimportować sesję karmienia z pomiarem czasu, wymagane są czas rozpoczęcia i zakończenia.",
   "Feeding duration must be a non-negative whole number of seconds. Check the source start and end timestamps.": "Czas trwania karmienia musi być nieujemną całkowitą liczbą sekund. Sprawdź źródłowe czasy rozpoczęcia i zakończenia.",
-  "Feeding duration conflicts with the source start and end timestamps.": "Czas trwania karmienia nie zgadza się ze źródłowymi czasami rozpoczęcia i zakończenia."
+  "Feeding duration conflicts with the source start and end timestamps.": "Czas trwania karmienia nie zgadza się ze źródłowymi czasami rozpoczęcia i zakończenia.",
+  "Needs review": "Wymaga sprawdzenia",
+  "Baby Buddy does not record what happened to pumped milk. Imported sessions need review and do not add to stored milk. Open a pumping session to choose Stored, Fed or Discarded when known.": "Baby Buddy nie zapisuje, co stało się z odciągniętym mlekiem. Zaimportowane sesje wymagają sprawdzenia i nie zwiększają zapasu mleka. Otwórz sesję odciągania i wybierz Zapas, Nakarmiono lub Wyrzucone, gdy wiesz, co się stało.",
+  "This pumping session needs review. It adds no milk to your stock and creates no feeding entry. Choose Stored, Fed or Discarded only when you know what happened.": "Ta sesja odciągania wymaga sprawdzenia. Nie zwiększa zapasu mleka ani nie tworzy wpisu karmienia. Wybierz Zapas, Nakarmiono lub Wyrzucone tylko wtedy, gdy wiesz, co się stało.",
+  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "Nieprawidłowe działanie dotyczące odciągania. Wymagana wartość to STORED, FED, DISCARDED lub UNKNOWN."
 }

@@ -129,6 +129,7 @@ describe('shouldHaveAutoPumpFeed', () => {
   it('is false for non-FED actions', () => {
     expect(shouldHaveAutoPumpFeed({ trackingEnabled: true, pumpAction: 'STORED', totalAmount: 4 })).toBe(false);
     expect(shouldHaveAutoPumpFeed({ trackingEnabled: true, pumpAction: 'DISCARDED', totalAmount: 4 })).toBe(false);
+    expect(shouldHaveAutoPumpFeed({ trackingEnabled: true, pumpAction: 'UNKNOWN', totalAmount: 4 })).toBe(false);
   });
 
   it('is false for missing or non-positive amounts', () => {

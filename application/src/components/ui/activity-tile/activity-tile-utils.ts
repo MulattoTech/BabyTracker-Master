@@ -2,6 +2,7 @@ import { ActivityType } from './activity-tile.types';
 import { BathLogResponse, PumpLogResponse, PlayLogResponse, MeasurementResponse, MilestoneResponse, MedicineLogResponse, VaccineLogResponse } from '@/app/api/types';
 import { useTimezone } from '@/app/context/timezone';
 import { isDirtyDiaper } from '@/src/utils/diaperStats';
+import { useLocalization } from '@/src/context/localization';
 
 /**
  * Gets the activity time from different activity types
@@ -52,6 +53,7 @@ export const getActivityVariant = (activity: ActivityType): 'sleep' | 'feed' | '
  */
 export const useActivityDescription = () => {
   const { formatDateTime, formatTime, formatDuration: formatDurationTime } = useTimezone();
+  const { t } = useLocalization();
   
   /**
    * Formats duration in minutes to HH:MM format with parentheses
@@ -277,6 +279,9 @@ export const useActivityDescription = () => {
         }
       }
       
+      if (activity.pumpAction === 'UNKNOWN') {
+        details += ` - ${t('Needs review')}`;
+      }
       // Add notes if available
       const notes = activity.notes ? ` - ${activity.notes}` : '';
       
