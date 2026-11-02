@@ -3109,5 +3109,7 @@
   "Your payment was processed, but we encountered an issue activating your account. Please contact support or try logging out and back in.": "Płatność została przetworzona, ale napotkaliśmy problem z aktywacją konta. Skontaktuj się ze wsparciem lub spróbuj się wylogować i zalogować ponownie.",
   "Your Personal PIN (6-10 digits)": "Twój osobisty PIN (6-10 cyfr)",
   "Your Personal Profile": "Twój osobisty profil",
-  "Zero “did anyone change him?” texts sent today.": "Zero SMS-ów z pytaniem „czy ktoś go przewinął?” wysłanych dzisiaj."
+  "Zero “did anyone change him?” texts sent today.": "Zero SMS-ów z pytaniem „czy ktoś go przewinął?” wysłanych dzisiaj.",
+  "Use current time until saved": "",
+  "If a matching bottle is found": ""
 }

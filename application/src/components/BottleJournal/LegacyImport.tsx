@@ -65,7 +65,7 @@ export default function LegacyImport({ babyId, timeZone, request, onImported }: 
           <label>{t('Notes')}<textarea value={row.notes || ''} disabled={busy || row.imported} onChange={e => edit(index, { notes: e.target.value || null })} maxLength={2000} /></label>
           {row.sourceCaregiverName && <p>{t('Recorded by')}: {row.sourceCaregiverName}</p>}
           {row.issue && <p className="journal-warning">{t(row.issue)}</p>}
-          {row.possible && !row.imported && <label className="journal-warning">{t('Possible duplicate')}<select disabled={busy} value={row.duplicateDecision || ''} onChange={e => edit(index, { duplicateDecision: e.target.value })}><option value="">{t('Choose a decision')}</option><option value="skip">{t('Skip matching bottle')}</option><option value="keep">{t('Keep both bottles')}</option></select></label>}
+          {!row.imported && <label className={row.possible ? 'journal-warning' : ''}>{t(row.possible ? 'Possible duplicate' : 'If a matching bottle is found')}<select disabled={busy} value={row.duplicateDecision || ''} onChange={e => edit(index, { duplicateDecision: e.target.value })}><option value="">{t('Choose a decision')}</option><option value="skip">{t('Skip matching bottle')}</option><option value="keep">{t('Keep both bottles')}</option></select></label>}
         </section>)}
       </div>
       <label className="journal-check"><input type="checkbox" checked={confirmed} disabled={busy} onChange={e => setConfirmed(e.target.checked)} />{t('I checked every selected bottle against the original journal.')}</label>
