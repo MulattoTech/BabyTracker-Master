@@ -71,5 +71,5 @@ export function useBottleJournal(babyId: string | undefined, day: string, timeZo
     } catch (error) { if (current === identityRef.current) setError(error instanceof Error ? error.message : 'The intake target could not be saved.'); }
     finally { setSaving(false); }
   }
-  return { data: data?.babyId === babyId && data.day === day && data.timeZone === timeZone ? data : null, error, notice, saving, refreshing, lastSynced, refresh, save, setTarget, request };
+  return { data: data && data.babyId === babyId && data.day === day && data.timeZone === timeZone ? data : null, error, notice, saving, refreshing, lastSynced, refresh, save, setTarget, request };
 }
