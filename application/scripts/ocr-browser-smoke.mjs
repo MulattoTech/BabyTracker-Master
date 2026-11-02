@@ -26,7 +26,7 @@ mkdirSync(reportDir, { recursive: true });
 let server, serverLifecycle, browser, browserServer, browserLifecycle, db, failure;
 let output = '';
 const documents = [];
-const report = { syntheticOnly: true, startedAt: new Date().toISOString(), checks: [], screenshots: [] };
+const report = { runId: process.env.SAT_TRACKER_ACCEPTANCE_RUN_ID || null, syntheticOnly: true, startedAt: new Date().toISOString(), checks: [], screenshots: [] };
 
 async function bounded(promise, milliseconds, label) {
   let timer;
@@ -109,13 +109,14 @@ try {
   browserServer = await chromium.launchServer({ headless: true, executablePath: process.env.BABYTRACKER_TEST_BROWSER_PATH || undefined, timeout: 30_000 });
   browserLifecycle = trackOwnedProcess(browserServer.process());
   browser = await chromium.connect(browserServer.wsEndpoint(), { timeout: 15_000 });
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
-  await context.addInitScript(({ token, family, baby, caretakerId }) => {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1100 }, timezoneId: 'America/Chicago' });
+  const initializeContext = target => target.addInitScript(({ token, family, baby, caretakerId }) => {
     localStorage.setItem('authToken', token); localStorage.setItem('unlockTime', String(Date.now()));
     localStorage.setItem('caretakerId', caretakerId); localStorage.setItem('isAdmin', 'true');
     localStorage.setItem('selectedFamily', JSON.stringify(family));
     localStorage.setItem(`selectedBaby_${family.id}`, JSON.stringify(baby));
   }, { token, family, baby, caretakerId: caretaker.id });
+  await initializeContext(context);
   const page = await context.newPage();
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(error.message));
@@ -161,7 +162,134 @@ try {
   const timeline = await fetch(`${base}/api/timeline?babyId=${baby.id}&startDate=2026-10-20T00:00:00Z&endDate=2026-10-21T00:00:00Z`, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(5000) });
   assert.equal(timeline.status, 200);
   assert.match(await timeline.text(), /95/);
+
   report.checks.push('Corrected approved feed/diaper values appear in ordinary Sprout timeline');
+
+  // Follow the real OCR receipt into the canonical journal; no pre-imported history.
+  await page.goto(`${base}/${family.slug}/bottle-journal`, { waitUntil: 'networkidle' });
+  await page.getByRole('heading', { name: 'Bottle Journal', exact: true }).waitFor();
+  await page.getByLabel('Journal date', { exact: true }).fill('2026-10-20');
+  await page.getByTestId('journal-daily-total').filter({ hasText: /^95 mL$/ }).waitFor({ timeout: 20_000 });
+  const history = page.getByRole('region', { name: 'Bottle history', exact: true });
+  await history.getByText('95 ML', { exact: true }).waitFor();
+  report.checks.push('Real corrected OCR import appears in Bottle Journal and daily totals');
+
+  const addBottle = page.getByRole('form', { name: 'Add bottle', exact: true });
+  await addBottle.getByLabel('Feeding date and time', { exact: true }).fill('2026-10-20T10:20');
+  await addBottle.getByRole('spinbutton', { name: /^Consumed/ }).fill('60');
+  await addBottle.getByRole('spinbutton', { name: /^Offered/ }).fill('90');
+  await addBottle.getByLabel('Milk type', { exact: true }).selectOption('Breast Milk');
+  await addBottle.getByRole('button', { name: 'Save bottle', exact: true }).click();
+  await page.getByText('Bottle saved.', { exact: true }).waitFor();
+  await page.getByTestId('journal-daily-total').filter({ hasText: /^155 mL$/ }).waitFor();
+  const added = await db.feedLog.findFirstOrThrow({ where: { time: new Date('2026-10-20T15:20:00.000Z') } });
+  assert.equal(added.amount, 60); assert.equal(added.offeredAmount, 90);
+  assert.equal(added.bottleType, 'Breast Milk'); assert.equal(added.caretakerId, caretaker.id);
+  assert.equal(await db.feedLog.count(), 2);
+  report.checks.push('Bottle entry saves offered/consumed volumes and caregiver in canonical records');
+
+  // A separate browser context has its own storage, like another family device.
+  const otherContext = await browser.newContext({ viewport: { width: 412, height: 915 }, timezoneId: 'America/Chicago' });
+  await initializeContext(otherContext);
+  const otherPage = await otherContext.newPage();
+  otherPage.on('pageerror', error => pageErrors.push(error.message));
+  await otherPage.goto(`${base}/${family.slug}/bottle-journal`, { waitUntil: 'networkidle' });
+  await otherPage.getByLabel('Journal date', { exact: true }).fill('2026-10-20');
+  await otherPage.getByTestId('journal-daily-total').filter({ hasText: /^155 mL$/ }).waitFor({ timeout: 20_000 });
+
+  await history.getByRole('button', { name: 'Edit bottle 10:20', exact: true }).click();
+  const editBottle = page.getByRole('form', { name: 'Edit bottle', exact: true });
+  await editBottle.getByRole('spinbutton', { name: /^Consumed/ }).fill('70');
+  await editBottle.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await page.getByTestId('journal-daily-total').filter({ hasText: /^165 mL$/ }).waitFor();
+  assert.equal((await db.feedLog.findUniqueOrThrow({ where: { id: added.id } })).amount, 70);
+  assert.equal(await db.feedLog.count(), 2, 'Editing must retain the same bottle ID');
+  await otherPage.getByTestId('journal-daily-total').filter({ hasText: /^165 mL$/ }).waitFor({ timeout: 25_000 });
+  report.checks.push('Bottle correction preserves identity and automatically synchronizes a second context');
+
+  await page.getByText('Intake target', { exact: true }).click();
+  await page.getByLabel('Daily target (mL)', { exact: true }).fill('200');
+  await page.getByRole('button', { name: 'Save target', exact: true }).click();
+  await page.getByText('Intake target saved.', { exact: true }).waitFor();
+  const progress = page.getByRole('progressbar', { name: 'Daily target progress', exact: true });
+  await progress.waitFor();
+  assert.equal(await progress.getAttribute('value'), '83');
+  assert.equal((await db.baby.findUniqueOrThrow({ where: { id: baby.id } })).dailyIntakeTargetMl, 200);
+  report.checks.push('Configured daily intake target uses canonical consumed-volume totals');
+
+  await otherPage.getByRole('button', { name: 'Sync now', exact: true }).click();
+  await otherPage.getByRole('progressbar', { name: 'Daily target progress', exact: true }).waitFor();
+  assert.equal(await otherPage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true, '412px journal layout overflows');
+  const saveButton = otherPage.getByRole('button', { name: 'Save bottle', exact: true });
+  assert.ok((await saveButton.boundingBox())?.height >= 44, 'Journal save control must be touch-sized');
+  await otherPage.keyboard.press('Tab');
+  assert.equal(await otherPage.evaluate(() => document.activeElement !== document.body), true);
+  const journalPhone = path.join(reportDir, 'journal-phone-412.png');
+  await otherPage.screenshot({ path: journalPhone, fullPage: true }); report.screenshots.push(journalPhone);
+  report.checks.push('412px journal fits, offers touch-sized saving and supports manual synchronization');
+  // Legacy Sprout records with missing/blank units mean OZ. Editing notes must
+  // never reinterpret their existing amount as mL.
+  const legacy = await db.feedLog.create({ data: {
+    familyId: family.id, babyId: baby.id, caretakerId: caretaker.id, type: 'BOTTLE',
+    time: new Date('2026-10-20T16:00:00.000Z'), amount: 3, unitAbbr: null,
+    bottleType: 'Formula', notes: 'Synthetic legacy bottle',
+  } });
+  for (const legacyUnit of [null, '']) {
+    if (legacyUnit === '') {
+      await db.unit.create({ data: { unitAbbr: '', unitName: 'Synthetic legacy unspecified unit' } });
+      await db.feedLog.update({ where: { id: legacy.id }, data: { unitAbbr: '' } });
+    }
+    await page.getByRole('button', { name: 'Sync now', exact: true }).click();
+    await page.getByRole('button', { name: 'Sync now', exact: true }).waitFor();
+    await page.getByTestId('journal-daily-total').filter({ hasText: /^253\.7 mL$/ }).waitFor();
+    await history.getByRole('button', { name: 'Edit bottle 11:00', exact: true }).click();
+    const legacyForm = page.getByRole('form', { name: 'Edit bottle', exact: true });
+    assert.equal(await legacyForm.getByLabel('Volume unit', { exact: true }).inputValue(), 'OZ');
+    assert.equal(await legacyForm.getByRole('spinbutton', { name: /^Consumed/ }).inputValue(), '3');
+    const notes = legacyUnit === null ? 'Synthetic notes-only edit with null unit' : 'Synthetic notes-only edit with blank unit';
+    await legacyForm.getByLabel('Notes', { exact: true }).fill(notes);
+    await legacyForm.getByRole('button', { name: 'Save changes', exact: true }).click();
+    await page.getByRole('form', { name: 'Add bottle', exact: true }).waitFor();
+    const preserved = await db.feedLog.findUniqueOrThrow({ where: { id: legacy.id } });
+    assert.equal(preserved.amount, 3); assert.equal(preserved.unitAbbr, 'OZ');
+    assert.equal(preserved.notes, notes); assert.equal(await db.feedLog.count(), 3);
+    await page.getByTestId('journal-daily-total').filter({ hasText: /^253\.7 mL$/ }).waitFor();
+  }
+  report.checks.push('Notes-only edits preserve 3 oz and 253.7 mL total for null/blank legacy units');
+  // A long-open quick-entry form uses the current clock, while an uncertain
+  // network retry reuses its original timestamp and request ID exactly.
+  await page.clock.setFixedTime(new Date('2026-10-20T17:00:00.000Z'));
+  await page.reload({ waitUntil: 'networkidle' });
+  const quickBottle = page.getByRole('form', { name: 'Add bottle', exact: true });
+  await quickBottle.waitFor();
+  assert.equal(await quickBottle.getByLabel('Use current time until saved', { exact: true }).isChecked(), true);
+  assert.equal(await quickBottle.getByLabel('Feeding date and time', { exact: true }).inputValue(), '2026-10-20T12:00');
+  await page.clock.setFixedTime(new Date('2026-10-20T20:00:00.000Z'));
+  await quickBottle.getByRole('spinbutton', { name: /^Consumed/ }).fill('30');
+  let lostResponse = false;
+  const simulateResponseLoss = async route => {
+    if (route.request().method() !== 'POST' || lostResponse) return route.continue();
+    const response = await route.fetch();
+    if (!response.ok()) return route.fulfill({ response });
+    lostResponse = true;
+    await route.abort('failed');
+  };
+  await page.route('**/api/bottle-journal', simulateResponseLoss);
+  await quickBottle.getByRole('button', { name: 'Save bottle', exact: true }).click();
+  await page.locator('.journal-error').waitFor();
+  assert.equal(lostResponse, true, 'The synthetic server must save before the response is lost');
+  const quickSaved = await db.feedLog.findFirstOrThrow({ where: { time: new Date('2026-10-20T20:00:00.000Z') } });
+  assert.equal(quickSaved.amount, 30); assert.equal(quickSaved.unitAbbr, 'ML');
+  assert.equal(await db.feedLog.count(), 4);
+  await page.unroute('**/api/bottle-journal', simulateResponseLoss);
+  await page.clock.setFixedTime(new Date('2026-10-20T21:00:00.000Z'));
+  await quickBottle.getByRole('button', { name: 'Save bottle', exact: true }).click();
+  await page.getByText('Bottle saved.', { exact: true }).waitFor();
+  assert.equal(await db.feedLog.count(), 4, 'Retry must not create another bottle');
+  assert.equal((await db.feedLog.findUniqueOrThrow({ where: { id: quickSaved.id } })).time.toISOString(), '2026-10-20T20:00:00.000Z');
+  await page.getByTestId('journal-daily-total').filter({ hasText: /^283\.7 mL$/ }).waitFor();
+  report.checks.push('Quick entry uses current time; response-loss retry preserves one exact bottle');
+  report.journalChecksPassed = true;
   const userToken = jwt.sign({ id: caretaker.id, name: caretaker.name, role: 'USER', familyId: family.id, familySlug: family.slug }, secret, { expiresIn: '5m' });
   const denied = await fetch(`${base}/api/ocr/documents?babyId=${baby.id}`, { headers: { Authorization: `Bearer ${userToken}` }, signal: AbortSignal.timeout(5000) });
   assert.equal(denied.status, 403); await denied.body?.cancel();

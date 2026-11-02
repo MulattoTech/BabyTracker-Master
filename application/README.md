@@ -197,40 +197,32 @@ See [Initial Setup](documentation/Admin-Documentation/initial-setup.md) for deta
 
 
 
-## Acceptance Suite & Release Gate (#29)
+## Source acceptance and release gates (#29)
 
-Sprout Track includes a unified synthetic acceptance suite and release gate validating end-to-end functionality, safety invariants, viewport responsiveness, and parity requirements before release. All acceptance tests use disposable synthetic fixtures only (no production records are ever read or modified).
-
-Run from `application/`:
+Run from `application/` after dependencies, generated Prisma clients, the production
+build, local Tesseract/Poppler tools and Playwright Chromium have been installed:
 
 ```bash
-# Run the complete unified release gate (Vitest E2E + Playwright Browser Viewports + Docker Staging check)
 npm run test:release-gate
-
-# Or run the Vitest acceptance suite directly
-npm test -- tests/e2e-acceptance.test.ts
-
-# Or run the mobile/tablet browser acceptance suite directly
-npm run test:acceptance:browser
 ```
 
-### Verified Parity Requirements
-- **PARITY_MIXED_FEEDING_DIAPER_FLOW**: Synthetic mixed care sheet intake (photo/PDF) -> preview & crop -> parse candidate rows -> review UX adjustments -> explicit human confirmation -> reconciliation ledger -> canonical Sprout events.
-- **PARITY_CROP_AND_PROVENANCE**: Crop specifications (pixel and percentage), rotation (0/90/180/270), and candidate provenance retention.
-- **PARITY_REVIEW_UX_ADJUSTMENTS**: Review UX row adjustments, amounts, notes, and approval toggles.
-- **PARITY_EXPLICIT_HUMAN_CONFIRMATION**: Explicit review confirmation checkbox gating final import.
-- **PARITY_RECONCILIATION_LEDGER**: Reconciliation ledger persistence (`ExternalImportRecord`) with provider ID, source record ID, and target entity type.
-- **PARITY_SPROUT_TIMELINE_INTEGRATION**: Creation of canonical `FeedLog` and `DiaperLog` records with exact amounts and UTC timestamps.
-- **PARITY_SAFETY_CANCELLATION_ZERO_ARTIFACTS**: Cancellation of review or uncommitted drafts leaves zero care records or orphan files.
-- **PARITY_SAFETY_MALFORMED_ROWS_BLOCK_SAVE**: Malformed rows, missing dates/times, unapproved rows, and unacknowledged warnings block save.
-- **PARITY_SAFETY_ATOMIC_ROLLBACK**: Atomic database transaction rollback on any write failure preserves clean timeline state.
-- **PARITY_SAFETY_IDEMPOTENCY_AND_DUPLICATES**: Idempotent re-import, duplicate file hash detection, same-time event duplicate detection in preview, explicit keep vs. skip decisions.
-- **PARITY_SAFETY_CROSS_FAMILY_ISOLATION**: Strict cross-family denial for documents, sources, previews, commits, and cryptographic state seals.
-- **PARITY_VIEWPORT_PHONE_390PX**: Phone viewport (width 390px) responsive layout validation with zero horizontal overflow and accessible touch controls.
-- **PARITY_VIEWPORT_TABLET_820PX**: Tablet viewport (width 820px iPad) layout validation with zero horizontal overflow.
-- **PARITY_KEYBOARD_ACCESSIBILITY**: Keyboard focus navigability on mobile and tablet viewports.
-- **PARITY_ZERO_CLIENT_JS_EXCEPTIONS**: Zero client-side JavaScript console errors.
-- **PARITY_DOCKER_ISOLATED_STAGING**: Docker preview staging container verification against synthetic environment.
+This runs the focused SQLite service acceptance suite and a **fresh real browser**
+workflow: generated image upload → native OCR → correction → explicit confirmation
+→ canonical timeline → Bottle Journal. It also checks bottle creation/editing,
+shared totals, configured targets, a second isolated browser context, and phone /
+tablet layouts. `test-results/release-gate-report.json` identifies the exact source
+revision, invocation, executed checks and any failure. CI runs it after the normal
+regression suite and build; it does not build the application twice.
+
+The service suite seeds parsed drafts to test import transactions and ownership.
+The browser suite independently exercises real image recognition. Neither is
+evidence of representative handwriting accuracy, physical Pixel/camera behavior,
+or a production release. Results are earned per run, not declared by this document.
+
+A source gate PASS does **not** replace protected preview acceptance, a current
+verified backup/restore, migration rehearsal, rollback using the previous immutable
+image, or production smoke/data-preservation checks. Those remain separate gates in
+`scripts/promote-release.ps1` and the release record.
 
 ## Tech Stack
 

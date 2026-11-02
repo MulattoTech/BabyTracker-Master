@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -176,6 +176,19 @@ beforeAll(async () => {
   // Seed measurement units
   for (const unitAbbr of ['ML', 'OZ']) {
     await db.unit.create({ data: { unitAbbr, unitName: unitAbbr } });
+  }
+});
+
+// Each case starts with its own empty care history inside this disposable DB.
+// The duplicate test creates its own canonical event; test order is irrelevant.
+beforeEach(async () => {
+  await db.ocrAudit.deleteMany();
+  await db.externalImportRecord.deleteMany();
+  await db.ocrDocument.deleteMany();
+  await db.feedLog.deleteMany();
+  await db.diaperLog.deleteMany();
+  for (const unitAbbr of ['ML', 'OZ']) {
+    await db.unit.upsert({ where: { unitAbbr }, create: { unitAbbr, unitName: unitAbbr }, update: {} });
   }
 });
 
@@ -450,11 +463,16 @@ describe('BabyTracker End-to-End Acceptance Suite & Release Gate (#29)', () => {
 
       const docCheck = await db.ocrDocument.findUniqueOrThrow({ where: { id: doc.id } });
       expect(docCheck.committedAt).toBeNull();
-      expect(await db.externalImportRecord.count({ where: { sourceRecordId: { contains: doc.id } } })).toBe(0);
+      expect(await db.externalImportRecord.count({ where: { sourceRecordId: { contains: doc.sourceHash } } })).toBe(0);
     });
 
     it('Invariant D: idempotency & duplicate re-import detection', async () => {
-      // 1. Existing events in the timeline
+      // Create this case's duplicate explicitly instead of relying on a prior test.
+      await db.feedLog.create({ data: {
+        id: randomUUID(), familyId: familyA.familyId, babyId: childA,
+        time: new Date('2026-10-20T13:15:00.000Z'), type: 'BOTTLE',
+        bottleType: 'Formula', amount: 95, unitAbbr: 'ML',
+      } });
       const feedCountBefore = await db.feedLog.count();
 
       // Draft an event that matches the previously imported feed at 08:15 (2026-10-20)

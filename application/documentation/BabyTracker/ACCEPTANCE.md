@@ -55,42 +55,44 @@ The release-layout check additionally caught a missing named Tesseract output
 configuration; explicit TSV output flags and protocol validation fixed it.
 
 
-## Release Gate Suite Verification — Issue #29 (2026-11-01)
+## Current source gate — Issue #29
 
-An end-to-end synthetic acceptance test suite and automated release gate have been implemented in canonical BabyTracker:
+The historical October evidence above applies to its named revisions only. The
+new source gate does not inherit those PASS results or require the old staging
+document. Run `npm run test:release-gate` from `application/` after the normal build
+and toolchain setup.
 
-```bash
-# Run the unified release gate (Vitest E2E + Playwright Browser Viewports + Docker Staging check)
-npm run test:release-gate
+| Layer | What the command actually exercises | Evidence |
+| --- | --- | --- |
+| Service acceptance | Fresh synthetic care history per test, seeded parser drafts, correction, explicit confirmation, ledger, exact canonical values, transaction rollback, duplicate decisions and family denial | Vitest JSON; every case must execute and pass |
+| Real browser | New generated image upload through native OCR; edit 90→95 mL, review-only save, confirmation, canonical timeline and the same Bottle Journal | Fresh browser report tied to the gate invocation |
+| Journal | Offered/consumed entry, caregiver, same-ID correction, daily total, configured target, automatic refresh in a second storage-isolated browser context and manual sync | Browser assertions against both visible UI and disposable SQLite |
+| Layout | OCR at 390px and 820px; Bottle Journal at 412px; overflow, keyboard focus and touch-sized save control | Synthetic screenshots and executed assertions |
+| Cleanup | Owned browser/server exit and removal of disposable storage | Browser report cleanup checks |
+| Deployment | Preview, live routing, current backup/restore, migration, previous-image rollback, approval and production preservation | **Not run by this source command**; separate release evidence required |
 
-# Or run the Vitest acceptance suite directly
-npm test -- tests/e2e-acceptance.test.ts
+The gate removes prior reports before execution, associates browser evidence with
+a unique run ID, and fails on missing/failed/skipped evidence. The overall status
+describes **source acceptance**, not a deployment or a complete product. This file
+does not predeclare PASS. See `test-results/release-gate-report.json` and the CI
+artifact for a particular revision.
 
-# Or run the browser acceptance suite directly
-npm run test:acceptance:browser
+The service suite's drafts are intentionally seeded; they are not OCR recognition
+accuracy measurements. The browser's clean printed fixture is not representative
+handwriting. Physical phones, real owner logs, offline behavior and PostgreSQL
+rollback require separate acceptance.
+
+Rollback rehearsal now requires an explicit cached immutable image from the live
+deployment receipt, rather than an obsolete hardcoded image:
+
+```powershell
+./scripts/test-ocr-rollback.ps1 -RollbackImage sha256:<previous-live-image-digest>
 ```
 
-### Gate Results (Synthetic Test Data Only)
-
-| Requirement Code | Parity Requirement Description | Verification Outcome |
-| :--- | :--- | :--- |
-| **PARITY_MIXED_FEEDING_DIAPER_FLOW** | Synthetic mixed care sheet intake (photo/PDF) -> preview & crop -> parse candidate rows -> review UX adjustments -> explicit human confirmation -> reconciliation ledger -> canonical Sprout events | **PASS** |
-| **PARITY_CROP_AND_PROVENANCE** | Crop specifications (pixel and percentage), rotation (0/90/180/270), and candidate provenance retention through review and persistence | **PASS** |
-| **PARITY_REVIEW_UX_ADJUSTMENTS** | Review UX row adjustments, amounts (e.g. 90 -> 95 mL), notes, and approval toggles | **PASS** |
-| **PARITY_EXPLICIT_HUMAN_CONFIRMATION** | Explicit review confirmation checkbox gating final import | **PASS** |
-| **PARITY_RECONCILIATION_LEDGER** | Reconciliation ledger persistence (`ExternalImportRecord`) with provider ID, source record ID, and target entity type | **PASS** |
-| **PARITY_SPROUT_TIMELINE_INTEGRATION** | Creation of canonical `FeedLog` and `DiaperLog` records with exact amounts and UTC timestamps | **PASS** |
-| **PARITY_SAFETY_CANCELLATION_ZERO_ARTIFACTS** | Cancellation of review or uncommitted drafts leaves zero care records or orphan files | **PASS** |
-| **PARITY_SAFETY_MALFORMED_ROWS_BLOCK_SAVE** | Malformed rows, missing dates/times, unapproved rows, and unacknowledged warnings block save | **PASS** |
-| **PARITY_SAFETY_ATOMIC_ROLLBACK** | Atomic database transaction rollback on write error preserves clean timeline state | **PASS** |
-| **PARITY_SAFETY_IDEMPOTENCY_AND_DUPLICATES** | Idempotent re-import, duplicate file hash detection, same-time event duplicate detection in preview, explicit keep vs. skip decisions | **PASS** |
-| **PARITY_SAFETY_CROSS_FAMILY_ISOLATION** | Strict cross-family denial for documents, sources, previews, commits, and cryptographic state seals | **PASS** |
-| **PARITY_VIEWPORT_PHONE_390PX** | Phone viewport (width 390px) responsive layout validation with zero horizontal overflow and accessible touch controls | **PASS** |
-| **PARITY_VIEWPORT_TABLET_820PX** | Tablet viewport (width 820px iPad) layout validation with zero horizontal overflow and keyboard focus navigability | **PASS** |
-| **PARITY_KEYBOARD_ACCESSIBILITY** | Keyboard focus navigability on mobile and tablet viewports | **PASS** |
-| **PARITY_ZERO_CLIENT_JS_EXCEPTIONS** | Zero client-side JavaScript console errors | **PASS** |
-| **PARITY_DOCKER_ISOLATED_STAGING** | Docker preview staging container verification against synthetic environment | **PASS** |
-
+The rehearsal retains its synthetic-stage allowlist, exact two-event fixture
+checks, cloned volumes, isolated networking and owned-resource cleanup. It never
+accepts production volumes. The report identifies both candidate and rollback
+images.
 
 ## Requirement traceability
 
