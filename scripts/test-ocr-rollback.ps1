@@ -1,11 +1,15 @@
 #Requires -Version 7.0
 [CmdletBinding()]
-param()
+param(
+    [Parameter(Mandatory)]
+    [ValidatePattern('^sha256:[a-f0-9]{64}$')]
+    [string]$RollbackImage
+)
 # Synthetic-only rollback rehearsal. Never mount or stop production resources.
 $ErrorActionPreference = 'Stop'
 $stage = 'babytracker-ocr-staging'
 $stageProject = 'babytracker-ocr-staging'
-$oldImage = 'sha256:445b7dfd6cc8976e9e0ec313457c11b8336befea5a2fab69fd573ff55ac77a64'
+$oldImage = $RollbackImage
 $sourceVolumes = [ordered]@{ db='babytracker-ocr-staging_staging-db'; env='babytracker-ocr-staging_staging-env'; files='babytracker-ocr-staging_staging-files' }
 $targets = @{ db='/db'; env='/app/env'; files='/app/Files' }
 $id = [Guid]::NewGuid().ToString('N')
@@ -142,7 +146,7 @@ try {
     if ($after.canonicalDigest -ne $before.canonicalDigest -or $after.ocrDigest -ne $before.ocrDigest -or $after.ledgerDigest -ne $before.ledgerDigest -or $after.encryptedSourceDigest -ne $before.encryptedSourceDigest -or $after.ocrDocuments -ne $before.ocrDocuments -or $after.ocrAudits -ne $before.ocrAudits -or $after.ledgerRecords -ne 2 -or $after.encryptedSourceFiles -ne $before.encryptedSourceFiles) { throw 'Rollback changed canonical data, OCR history, import ledger, or encrypted source files' }
     $stageAfter = Invoke-Inspection $stage 'inspect'
     if ($stageAfter.canonicalDigest -ne $before.canonicalDigest -or $stageAfter.ocrDigest -ne $before.ocrDigest -or $stageAfter.ledgerDigest -ne $before.ledgerDigest -or $stageAfter.encryptedSourceDigest -ne $before.encryptedSourceDigest) { throw 'Synthetic stage changed during the drill' }
-    $report = [ordered]@{ passed=$true; syntheticOnly=$true; originalImageStarted=$true; isolatedNetwork=$true; ordinaryTimelineVerified=$after.ordinaryTimelineVerified; canonicalEvents=2; canonicalDigest=$after.canonicalDigest; ocrTablesPreserved=$true; ocrDigest=$after.ocrDigest; importLedgerPreserved=$true; ledgerRecords=$after.ledgerRecords; ledgerDigest=$after.ledgerDigest; encryptedSourcesPreserved=$true; encryptedSourceFiles=$after.encryptedSourceFiles; encryptedSourceDigest=$after.encryptedSourceDigest; stageResumed=$true }
+    $report = [ordered]@{ passed=$true; syntheticOnly=$true; candidateImage=$stageIdentity.Image; rollbackImage=$oldImage; originalImageStarted=$true; isolatedNetwork=$true; ordinaryTimelineVerified=$after.ordinaryTimelineVerified; canonicalEvents=2; canonicalDigest=$after.canonicalDigest; ocrTablesPreserved=$true; ocrDigest=$after.ocrDigest; importLedgerPreserved=$true; ledgerRecords=$after.ledgerRecords; ledgerDigest=$after.ledgerDigest; encryptedSourcesPreserved=$true; encryptedSourceFiles=$after.encryptedSourceFiles; encryptedSourceDigest=$after.encryptedSourceDigest; stageResumed=$true }
 } catch {
     $failure = "Synthetic rollback drill failed during: $script:CurrentOperation"
 } finally {

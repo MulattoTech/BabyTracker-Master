@@ -193,6 +193,36 @@ See [Initial Setup](documentation/Admin-Documentation/initial-setup.md) for deta
 | [Webhook API](documentation/Admin-Documentation/webhook-api.md) | External integrations (Home Assistant, Grafana, NFC, etc.) |
 | [API Logging](documentation/Admin-Documentation/api-logging.md) | Optional request/response logging |
 | [Admin Password Reset](documentation/Admin-Documentation/admin-password-reset.md) | Automatic reset when upgrading from older versions |
+| [Acceptance Suite & Release Gate](documentation/BabyTracker/ACCEPTANCE.md) | Issue #29 End-to-end acceptance suite for phone, iPad, imports, Docker, and parity |
+
+
+
+## Source acceptance and release gates (#29)
+
+Run from `application/` after dependencies, generated Prisma clients, the production
+build, local Tesseract/Poppler tools and Playwright Chromium have been installed:
+
+```bash
+npm run test:release-gate
+```
+
+This runs the focused SQLite service acceptance suite and a **fresh real browser**
+workflow: generated image upload → native OCR → correction → explicit confirmation
+→ canonical timeline → Bottle Journal. It also checks bottle creation/editing,
+shared totals, configured targets, a second isolated browser context, and phone /
+tablet layouts. `test-results/release-gate-report.json` identifies the exact source
+revision, invocation, executed checks and any failure. CI runs it after the normal
+regression suite and build; it does not build the application twice.
+
+The service suite seeds parsed drafts to test import transactions and ownership.
+The browser suite independently exercises real image recognition. Neither is
+evidence of representative handwriting accuracy, physical Pixel/camera behavior,
+or a production release. Results are earned per run, not declared by this document.
+
+A source gate PASS does **not** replace protected preview acceptance, a current
+verified backup/restore, migration rehearsal, rollback using the previous immutable
+image, or production smoke/data-preservation checks. Those remain separate gates in
+`scripts/promote-release.ps1` and the release record.
 
 ## Tech Stack
 
