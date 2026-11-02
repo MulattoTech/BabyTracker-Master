@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { Prisma } from '@prisma/client';
 import prisma from '../db';
 import { ApiResponse, PumpLogCreate, PumpLogResponse } from '../types';
 import { withAuthContext, AuthResult } from '../utils/auth';
@@ -14,6 +15,12 @@ import {
 import { normalizeVolumeUnit } from '@/src/utils/unit-conversion';
 import { isPumpAction } from '@/src/utils/pumpAction';
 import { preparePumpFields } from './fields';
+
+class PumpUpdateConflictError extends Error {
+  constructor() {
+    super('This pumping record changed while you were saving. Reopen it, review the latest values, and try again.');
+  }
+}
 
 async function handlePost(req: NextRequest, authContext: AuthResult) {
   // Check write permissions for expired accounts
@@ -224,6 +231,37 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
     const trackingEnabled = familySettings?.enableBreastMilkTracking !== false;
 
     const pumpLog = await prisma.$transaction(async (tx) => {
+      // Validation and derived fields use the snapshot read above. Claim that
+      // exact state before reading or changing its owned feed. updatedAt alone
+      // is insufficient because another writer can share its millisecond value.
+      const claimed = await tx.pumpLog.updateMany({
+        where: {
+          id,
+          familyId: userFamilyId,
+          babyId: existingPumpLog.babyId,
+          caretakerId: existingPumpLog.caretakerId,
+          startTime: existingPumpLog.startTime,
+          endTime: existingPumpLog.endTime,
+          duration: existingPumpLog.duration,
+          leftAmount: existingPumpLog.leftAmount,
+          rightAmount: existingPumpLog.rightAmount,
+          totalAmount: existingPumpLog.totalAmount,
+          unitAbbr: existingPumpLog.unitAbbr,
+          pumpAction: existingPumpLog.pumpAction,
+          notes: existingPumpLog.notes,
+          createdAt: existingPumpLog.createdAt,
+          updatedAt: existingPumpLog.updatedAt,
+          deletedAt: existingPumpLog.deletedAt,
+        } satisfies Prisma.PumpLogWhereInput,
+        data: {
+          ...data,
+          // Even an unchanged form must claim the snapshot before feed sync.
+          updatedAt: new Date(Math.max(Date.now(), existingPumpLog.updatedAt.getTime() + 1)),
+        },
+      });
+      if (claimed.count !== 1) throw new PumpUpdateConflictError();
+      const updatedPumpLog = await tx.pumpLog.findFirstOrThrow({ where: { id, familyId: userFamilyId } });
+
       const linkedAutoFeed = await tx.feedLog.findFirst({
         where: {
           sourcePumpId: id,
@@ -245,11 +283,6 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
           deletedAt: null,
         },
         orderBy: { createdAt: 'desc' },
-      });
-
-      const updatedPumpLog = await tx.pumpLog.update({
-        where: { id },
-        data,
       });
 
       const plan = planAutoFeedSync({
@@ -306,6 +339,9 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
+    if (error instanceof PumpUpdateConflictError) {
+      return NextResponse.json<ApiResponse<null>>({ success: false, error: error.message }, { status: 409 });
+    }
     console.error('Error updating pump log:', error);
     return NextResponse.json<ApiResponse<PumpLogResponse>>(
       {
