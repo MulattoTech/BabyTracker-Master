@@ -384,8 +384,8 @@ export const SideNav: React.FC<SideNavProps> = ({
                 {/* Logo positioned to center between app name and family name */}
                 <div className="flex items-center">
                   <Image
-                    src="/sprout-128.png"
-                    alt="Sprout Logo"
+                    src="/sat-tracker.svg"
+                    alt="Sat Tracker"
                     width={40}
                     height={40}
                     className={sideNavStyles.logo}
@@ -403,10 +403,10 @@ export const SideNav: React.FC<SideNavProps> = ({
                       className="text-left cursor-pointer hover:opacity-80 transition-opacity"
                       aria-label="Go to home page"
                     >
-                      <span className={cn(sideNavStyles.appName, "side-nav-app-name")}>{t('Sprout Track')}</span>
+                      <span className={cn(sideNavStyles.appName, "side-nav-app-name")}>{t('Sat Tracker')}</span>
                     </button>
                   ) : (
-                    <span className={cn(sideNavStyles.appName, "side-nav-app-name")}>{t('Sprout Track')}</span>
+                    <span className={cn(sideNavStyles.appName, "side-nav-app-name")}>{t('Sat Tracker')}</span>
                   )}
 
                   {/* Family name with share button */}
@@ -446,6 +446,13 @@ export const SideNav: React.FC<SideNavProps> = ({
 
         {/* Navigation Items */}
         <nav className={sideNavStyles.navItems}>
+          <SideNavItem
+            path="/bottle-journal"
+            label={t('Bottle Journal')}
+            isActive={currentPath.endsWith('/bottle-journal')}
+            onClick={onNavigate}
+            className="side-nav-item"
+          />
           <SideNavItem
             path="/log-entry"
             label={t('Log Entry')}

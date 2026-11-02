@@ -1,3 +1,14 @@
+# Sat Tracker
+
+A unified family care journal at https://tracker.m-techlabs.com.
+Bottle Journal, document review/OCR, and everyday Sprout care events use the same
+authenticated family, child, caregiver and database models. Preview is
+https://tracker-preview.m-techlabs.com with separate synthetic storage.
+
+Based on Sprout Track by Oak and Sprout; its license and attribution are preserved.
+Baby Buddy imports use the canonical adapter rather than a separate Django service.
+The repository and production volumes keep their existing names.
+
 # BabyTracker Master
 
 **One maintained source:** [BabyTracker-Master](https://github.com/MulattoTech/BabyTracker-Master), local `C:\Tools\Dev\BabyTracker-Master`.

@@ -127,7 +127,7 @@ export default function AccountFamilySetupPage() {
               <Link href="/" className="saas-logo">
                 <img 
                   src="/sprout-256.png" 
-                  alt="Sprout Track Logo" 
+                  alt="Sat Tracker Logo"
                   className="saas-logo-image"
                 />
                 <span className="saas-logo-text">{t('Sprout Track')}</span>
@@ -165,7 +165,7 @@ export default function AccountFamilySetupPage() {
               <Link href="/" className="saas-logo">
                 <img 
                   src="/sprout-256.png" 
-                  alt="Sprout Track Logo" 
+                  alt="Sat Tracker Logo"
                   className="saas-logo-image"
                 />
                 <span className="saas-logo-text">{t('Sprout Track')}</span>
@@ -240,7 +240,7 @@ export default function AccountFamilySetupPage() {
               <Link href="/" className="saas-logo">
                 <img 
                   src="/sprout-256.png" 
-                  alt="Sprout Track Logo" 
+                  alt="Sat Tracker Logo"
                   className="saas-logo-image"
                 />
                 <span className="saas-logo-text">{t('Sprout Track')}</span>
@@ -284,7 +284,7 @@ export default function AccountFamilySetupPage() {
               <Link href="/" className="saas-logo">
                 <img 
                   src="/sprout-256.png" 
-                  alt="Sprout Track Logo" 
+                  alt="Sat Tracker Logo"
                   className="saas-logo-image"
                 />
                 <span className="saas-logo-text">{t('Sprout Track')}</span>
@@ -362,7 +362,7 @@ export default function AccountFamilySetupPage() {
             <Link href="/" className="saas-logo">
               <img 
                 src="/sprout-256.png" 
-                alt="Sprout Track Logo" 
+                alt="Sat Tracker Logo"
                 className="saas-logo-image"
               />
               <span className="saas-logo-text">{t('Sprout Track')}</span>
@@ -393,7 +393,7 @@ export default function AccountFamilySetupPage() {
             <Link href="/" className="saas-logo">
               <img 
                 src="/sprout-256.png" 
-                alt="Sprout Track Logo" 
+                alt="Sat Tracker Logo"
                 className="saas-logo-image"
               />
               <span className="saas-logo-text">{t('Sprout Track')}</span>

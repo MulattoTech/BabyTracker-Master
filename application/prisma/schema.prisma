@@ -253,6 +253,7 @@ model Baby {
   diaperWarningTime String    @default("02:00") // Default 2 hours
   feedTimerFrom     String    @default("start") // "start" | "end" - count feed timer from start or end of feeding
   feedTimerTypes    String? // JSON array of feed categories that reset the feed timer (issue #225); null = all feeds count
+  dailyIntakeTargetMl Float? // Caregiver-entered tracking target; never a calculated prescription
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   deletedAt         DateTime?
@@ -403,6 +404,11 @@ model FeedLog {
   pauseDuration Int? // Total session pause in seconds (same value on all rows of a breastfeed session; null on non-breast rows and legacy rows)
   type         FeedType
   amount       Float? // Amount in specified unit
+  offeredAmount Float? // Offered volume, in the same unit as amount (consumed)
+  formulaKcalOz Float? // Optional documented concentration in kcal per US fluid ounce
+  formulaName  String?
+  bottleLabel  String?
+  sourceCaregiverName String? // Imported attribution; never grants caretaker permissions
   unit         Unit?       @relation(fields: [unitAbbr], references: [unitAbbr])
   unitAbbr     String?
   side         BreastSide?
