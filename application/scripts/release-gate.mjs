@@ -68,6 +68,7 @@ try {
   assert.equal(browser.medicationChecksPassed, true, 'Real medication import UI, dose fidelity, duplicate replay and ownership checks must run');
   assert.equal(browser.feedingImportChecksPassed, true, 'Real feeding import UI, elapsed time fidelity, atomic rejection and replay must run');
   assert.equal(browser.pumpingImportChecksPassed, true, 'Real pumping import and review UI, honest stock, safe corrections, authorization and replay must run');
+  assert.equal(browser.pumpingConflictChecksPassed, true, 'Stale pumping edits, retained drafts and explicit reviewed conflict recovery must run');
   assert.deepEqual(browser.cleanup?.errors, [], 'Owned browser/server cleanup must be verified');
   assert.equal(browser.cleanup?.server?.exited, true, 'Synthetic server exit must be verified');
   assert.equal(browser.cleanup?.browser?.exited, true, 'Synthetic browser exit must be verified');

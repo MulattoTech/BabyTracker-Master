@@ -3164,5 +3164,14 @@
   "Needs review": "समीक्षा आवश्यक है",
   "Baby Buddy does not record what happened to pumped milk. Imported sessions need review and do not add to stored milk. Open a pumping session to choose Stored, Fed or Discarded when known.": "Baby Buddy यह दर्ज नहीं करता कि निकाले गए दूध का क्या हुआ। आयात किए गए सत्रों की समीक्षा आवश्यक है और वे संग्रहित दूध नहीं बढ़ाते हैं। पता होने पर सत्र खोलें और संग्रहित, फीड कराया या फेंका गया चुनें।",
   "This pumping session needs review. It adds no milk to your stock and creates no feeding entry. Choose Stored, Fed or Discarded only when you know what happened.": "इस दूध निकालने के सत्र की समीक्षा आवश्यक है। यह आपके भंडार में दूध नहीं जोड़ता और पिलाने की प्रविष्टि नहीं बनाता। क्या हुआ यह पता होने पर ही संग्रहित, फीड कराया या फेंका गया चुनें।",
-  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "दूध निकालने की अमान्य कार्रवाई। मान STORED, FED, DISCARDED या UNKNOWN होना चाहिए।"
+  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "दूध निकालने की अमान्य कार्रवाई। मान STORED, FED, DISCARDED या UNKNOWN होना चाहिए।",
+  "Pumping correction conflict": "पंपिंग सुधार में टकराव",
+  "This pumping record changed. Your changes were not saved.": "इस पंपिंग रिकॉर्ड में बदलाव हुआ है। आपके बदलाव सहेजे नहीं गए।",
+  "Your unsaved input is still below. Loading the latest record does not change it.": "आपकी बिना सहेजी प्रविष्टि अभी भी नीचे है। नवीनतम रिकॉर्ड लोड करने से वह नहीं बदलती।",
+  "Load latest record": "नवीनतम रिकॉर्ड लोड करें",
+  "Latest saved values": "नवीनतम सहेजे गए मान",
+  "Replacing your draft discards its unsaved values. You can then enter your correction using the latest record.": "ड्राफ़्ट बदलने से उसके बिना सहेजे मान हट जाएंगे। फिर आप नवीनतम रिकॉर्ड के आधार पर अपना सुधार दर्ज कर सकते हैं।",
+  "Replace draft with latest values": "ड्राफ़्ट को नवीनतम मानों से बदलें",
+  "Could not load the latest record. Your unsaved input is unchanged. Check your connection and sign-in, then try again.": "नवीनतम रिकॉर्ड लोड नहीं हो सका। आपकी बिना सहेजी प्रविष्टि नहीं बदली है। अपना कनेक्शन और साइन-इन जांचें, फिर दोबारा कोशिश करें।",
+  "This pumping record is no longer available for this child. Close this form and reopen it from the correct history.": "यह पंपिंग रिकॉर्ड अब इस बच्चे के लिए उपलब्ध नहीं है। इस फ़ॉर्म को बंद करें और सही इतिहास से फिर खोलें।"
 }

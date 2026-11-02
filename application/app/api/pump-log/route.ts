@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { Prisma } from '@prisma/client';
 import prisma from '../db';
-import { ApiResponse, PumpLogCreate, PumpLogResponse } from '../types';
+import { ApiResponse, PumpLogCreate, PumpLogResponse, PumpLogUpdate } from '../types';
 import { withAuthContext, AuthResult } from '../utils/auth';
 import { toUTC, formatForResponse } from '../utils/timezone';
 import { checkWritePermission } from '../utils/writeProtection';
@@ -15,10 +15,11 @@ import {
 import { normalizeVolumeUnit } from '@/src/utils/unit-conversion';
 import { isPumpAction } from '@/src/utils/pumpAction';
 import { preparePumpFields } from './fields';
+import { checkPumpRevision, PUMP_REVISION_CONFLICT } from '@/src/utils/pumpRevision';
 
 class PumpUpdateConflictError extends Error {
   constructor() {
-    super('This pumping record changed while you were saving. Reopen it, review the latest values, and try again.');
+    super(PUMP_REVISION_CONFLICT);
   }
 }
 
@@ -154,7 +155,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    const body: Partial<PumpLogCreate> = await req.json().catch(() => null);
+    const body: PumpLogUpdate = await req.json().catch(() => null);
 
     if (!id) {
       return NextResponse.json<ApiResponse<PumpLogResponse>>(
@@ -178,6 +179,13 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
         },
         { status: 404 }
       );
+    }
+    // A client may have opened its form before a different caregiver's edit
+    // completed. Check that original revision separately from the atomic
+    // server snapshot claim below, after family-scoped resource lookup.
+    const revisionError = checkPumpRevision(body?.expectedUpdatedAt, existingPumpLog.updatedAt);
+    if (revisionError) {
+      return NextResponse.json<ApiResponse<null>>({ success: false, error: revisionError.error }, { status: revisionError.status });
     }
     const prepared = preparePumpFields(body, existingPumpLog);
     if ('error' in prepared) {

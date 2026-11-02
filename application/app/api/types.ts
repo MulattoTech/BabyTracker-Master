@@ -326,6 +326,11 @@ export interface PumpLogCreate {
   notes?: string;
 }
 
+export interface PumpLogUpdate extends Partial<PumpLogCreate> {
+  /** Exact updatedAt from the record the caregiver reviewed. */
+  expectedUpdatedAt?: string;
+}
+
 // Breast milk adjustment types
 export type BreastMilkAdjustmentResponse = Omit<BreastMilkAdjustment, 'time' | 'createdAt' | 'updatedAt' | 'deletedAt'> & {
   time: string;

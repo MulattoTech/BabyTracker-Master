@@ -3164,5 +3164,14 @@
   "Needs review": "Controle nodig",
   "Baby Buddy does not record what happened to pumped milk. Imported sessions need review and do not add to stored milk. Open a pumping session to choose Stored, Fed or Discarded when known.": "Baby Buddy registreert niet wat er met afgekolfde melk is gebeurd. Geïmporteerde sessies moeten worden gecontroleerd en verhogen de melkvoorraad niet. Open een kolfsessie en kies Opgeslagen, Gevoed of Weggegooid wanneer dit bekend is.",
   "This pumping session needs review. It adds no milk to your stock and creates no feeding entry. Choose Stored, Fed or Discarded only when you know what happened.": "Deze kolfsessie moet worden gecontroleerd. Er wordt geen melk aan uw voorraad en geen voeding toegevoegd. Kies Opgeslagen, Gevoed of Weggegooid alleen als u weet wat er is gebeurd.",
-  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "Ongeldige kolfactie. Moet STORED, FED, DISCARDED of UNKNOWN zijn."
+  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "Ongeldige kolfactie. Moet STORED, FED, DISCARDED of UNKNOWN zijn.",
+  "Pumping correction conflict": "Conflict bij het corrigeren van kolven",
+  "This pumping record changed. Your changes were not saved.": "Deze kolfregistratie is gewijzigd. Je wijzigingen zijn niet opgeslagen.",
+  "Your unsaved input is still below. Loading the latest record does not change it.": "Je niet-opgeslagen invoer staat nog hieronder. Het laden van de nieuwste registratie verandert die niet.",
+  "Load latest record": "Nieuwste registratie laden",
+  "Latest saved values": "Laatst opgeslagen waarden",
+  "Replacing your draft discards its unsaved values. You can then enter your correction using the latest record.": "Als je je concept vervangt, worden de niet-opgeslagen waarden verwijderd. Daarna kun je je correctie invoeren op basis van de nieuwste registratie.",
+  "Replace draft with latest values": "Concept vervangen door de nieuwste waarden",
+  "Could not load the latest record. Your unsaved input is unchanged. Check your connection and sign-in, then try again.": "De nieuwste registratie kon niet worden geladen. Je niet-opgeslagen invoer is ongewijzigd. Controleer je verbinding en aanmelding en probeer het opnieuw.",
+  "This pumping record is no longer available for this child. Close this form and reopen it from the correct history.": "Deze kolfregistratie is niet meer beschikbaar voor dit kind. Sluit dit formulier en open het opnieuw vanuit de juiste geschiedenis."
 }

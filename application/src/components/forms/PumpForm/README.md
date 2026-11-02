@@ -117,17 +117,27 @@ The form submits data to the `/api/pump-log` endpoint, using:
 
 The form includes the authentication token in the request headers for secure API access.
 
-Overlapping PUT requests use an atomic conditional update against the record
-read for validation. If another writer has changed that record, the losing
-request returns `409` without changing the winning pump or its owned feed. The
-form displays the server's error and remains open; reopen the record, review its
-latest values, then submit the intended correction. The client does not silently
-retry a conflict. Empty and same-value corrections remain valid and preserve
-care fields while advancing the update timestamp.
+The editor captures the original record when it opens and sends its exact
+`updatedAt` string as `expectedUpdatedAt` on every PUT. A completed edit made
+after that baseline returns `409` before changing the pump or its owned feed.
+The transaction separately claims the entire server-read record to protect
+overlapping requests, including writers that share a millisecond timestamp.
+Canonical edits advance `updatedAt` by at least one millisecond.
 
-This protects overlapping server read/validate/write operations. The API does
-not carry a client revision token, so it does not detect a stale form submitted
-after another save has already completed.
+A conflict keeps the form open with its unsaved values and disables submission.
+**Load latest record** retrieves the saved values for comparison without
+changing the draft or its revision. **Replace draft with latest values** is the
+explicit discard action: it loads those values into the form, after which the
+caregiver can enter a reviewed correction. A subsequent intervening edit still
+causes another conflict. Failed reloads retain the draft; there is no automatic
+retry or field merging. Closing/reloading the entire page does not persist an
+ordinary edit draft.
+
+The precondition is optional for legacy API clients. A present value must match
+the API's canonical UTC millisecond format; invalid values return `400`, and
+stale values return `409`. Legacy clients that omit it retain overlapping-write
+protection but do not gain late stale-form detection. Empty and same-value
+corrections remain valid and preserve care fields while advancing the revision.
 
 ### Multi-Family Support
 

@@ -26,3 +26,9 @@ html.dark .decrement-button:hover {
 html.dark .pump-review-hint {
   color: #d1d5db;
 }
+
+html.dark .pump-conflict-panel {
+  background-color: #292015;
+  border-color: #d97706;
+  color: #fef3c7;
+}

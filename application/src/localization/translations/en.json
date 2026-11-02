@@ -3164,5 +3164,14 @@
   "Needs review": "Needs review",
   "Baby Buddy does not record what happened to pumped milk. Imported sessions need review and do not add to stored milk. Open a pumping session to choose Stored, Fed or Discarded when known.": "Baby Buddy does not record what happened to pumped milk. Imported sessions need review and do not add to stored milk. Open a pumping session to choose Stored, Fed or Discarded when known.",
   "This pumping session needs review. It adds no milk to your stock and creates no feeding entry. Choose Stored, Fed or Discarded only when you know what happened.": "This pumping session needs review. It adds no milk to your stock and creates no feeding entry. Choose Stored, Fed or Discarded only when you know what happened.",
-  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN."
+  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.",
+  "Pumping correction conflict": "Pumping correction conflict",
+  "This pumping record changed. Your changes were not saved.": "This pumping record changed. Your changes were not saved.",
+  "Your unsaved input is still below. Loading the latest record does not change it.": "Your unsaved input is still below. Loading the latest record does not change it.",
+  "Load latest record": "Load latest record",
+  "Latest saved values": "Latest saved values",
+  "Replacing your draft discards its unsaved values. You can then enter your correction using the latest record.": "Replacing your draft discards its unsaved values. You can then enter your correction using the latest record.",
+  "Replace draft with latest values": "Replace draft with latest values",
+  "Could not load the latest record. Your unsaved input is unchanged. Check your connection and sign-in, then try again.": "Could not load the latest record. Your unsaved input is unchanged. Check your connection and sign-in, then try again.",
+  "This pumping record is no longer available for this child. Close this form and reopen it from the correct history.": "This pumping record is no longer available for this child. Close this form and reopen it from the correct history."
 }
