@@ -92,14 +92,35 @@ describe('composeReactionDescription', () => {
 });
 
 describe('filterUnconverted (idempotency guard)', () => {
-  it('drops feeds whose id already appears in FoodLog.feedLogId', () => {
-    const feeds = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
-    expect(filterUnconverted(feeds, ['b'])).toEqual([{ id: 'a' }, { id: 'c' }]);
+  const feeds = ['a', 'b', 'c'].map(id => ({ id, familyId: 'family', babyId: 'baby' }));
+
+  it('skips a feed only when its linked food try belongs to the same family and child', () => {
+    expect(filterUnconverted(feeds, [{ feedLogId: 'b', familyId: 'family', babyId: 'baby' }]))
+      .toEqual([feeds[0], feeds[2]]);
   });
 
   it('passes everything through when nothing was converted yet', () => {
-    const feeds = [{ id: 'a' }];
     expect(filterUnconverted(feeds, [])).toEqual(feeds);
+  });
+
+  it('ignores foreign-family and wrong-child links, including removed tries', () => {
+    expect(filterUnconverted(feeds, [
+      { feedLogId: 'a', familyId: 'foreign', babyId: 'baby' },
+      { feedLogId: 'b', familyId: 'family', babyId: 'sibling', deletedAt: new Date() },
+    ])).toEqual(feeds);
+  });
+
+  it('retains matching removed history even when another invalid link names the same feed', () => {
+    expect(filterUnconverted(feeds, [
+      { feedLogId: 'b', familyId: 'foreign', babyId: 'baby' },
+      { feedLogId: 'b', familyId: 'family', babyId: 'baby', deletedAt: new Date() },
+    ])).toEqual([feeds[0], feeds[2]]);
+  });
+
+  it('matches legacy null-family provenance without treating it as another family', () => {
+    const legacy = [{ id: 'old', familyId: null, babyId: 'baby' }];
+    expect(filterUnconverted(legacy, [{ feedLogId: 'old', familyId: 'family', babyId: 'baby' }])).toEqual(legacy);
+    expect(filterUnconverted(legacy, [{ feedLogId: 'old', familyId: null, babyId: 'baby' }])).toEqual([]);
   });
 });
 

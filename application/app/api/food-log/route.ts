@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { Prisma } from '@prisma/client';
 import prisma from '../db';
 import { ApiResponse, FoodLogCreate, FoodLogItemInput, FoodLogResponse } from '../types';
 import { withAuthContext, AuthResult } from '../utils/auth';
@@ -18,6 +19,39 @@ const foodInclude = {
     select: { id: true, name: true, commonAllergen: true },
   },
 } as const;
+
+class FoodLogWriteError extends Error {
+  constructor(message: string, readonly status: 400 | 404) {
+    super(message);
+  }
+}
+
+/** Omission preserves provenance; null and the legacy empty string clear it. */
+function parseFeedLogId(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new FoodLogWriteError('Feed log ID must be a string or null.', 400);
+  }
+  return value;
+}
+
+async function validateFeedLink(
+  tx: Prisma.TransactionClient,
+  feedLogId: string | null | undefined,
+  familyId: string,
+  babyId: string,
+  previousFeedLogId?: string | null
+) {
+  // Converted sources are hard-deleted. An unchanged historical ID remains
+  // provenance, but it must never authorize a new or replacement relationship.
+  if (feedLogId == null || feedLogId === previousFeedLogId) return;
+  const feed = await tx.feedLog.findFirst({
+    where: { id: feedLogId, familyId, babyId, type: 'SOLIDS', deletedAt: null },
+    select: { id: true },
+  });
+  if (!feed) throw new FoodLogWriteError('Solids feed not found for this child.', 404);
+}
 
 /** True when `value` is a usable amount (positive finite number) or empty (null/undefined). */
 function isValidAmount(value: unknown): boolean {
@@ -142,6 +176,7 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
     }
 
     const body: FoodLogCreate = await req.json();
+    const feedLogId = parseFeedLogId(body.feedLogId);
 
     const baby = await prisma.baby.findFirst({
       where: { id: body.babyId, familyId: userFamilyId },
@@ -181,23 +216,26 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
 
     const foodFields = buildFoodLogFoodFields(items);
 
-    const foodLog = await prisma.foodLog.create({
-      data: {
-        babyId: body.babyId,
-        foodId: foodFields.foodId,
-        foods: foodFields.foods,
-        time: toUTC(body.time),
-        amount: body.amount ?? null,
-        unitAbbr: body.amount != null ? normalizeUnitAbbr(body.unitAbbr) : null,
-        enjoyment: body.enjoyment ?? null,
-        hadReaction: foodFields.hadReaction,
-        reactionDescription: foodFields.reactionDescription,
-        notes: body.notes && body.notes.trim() ? body.notes : null,
-        ...(body.feedLogId && { feedLogId: body.feedLogId }),
-        caretakerId,
-        familyId: userFamilyId,
-      },
-      include: foodInclude,
+    const foodLog = await prisma.$transaction(async tx => {
+      await validateFeedLink(tx, feedLogId, userFamilyId, baby.id);
+      return tx.foodLog.create({
+        data: {
+          babyId: body.babyId,
+          foodId: foodFields.foodId,
+          foods: foodFields.foods,
+          time: toUTC(body.time),
+          amount: body.amount ?? null,
+          unitAbbr: body.amount != null ? normalizeUnitAbbr(body.unitAbbr) : null,
+          enjoyment: body.enjoyment ?? null,
+          hadReaction: foodFields.hadReaction,
+          reactionDescription: foodFields.reactionDescription,
+          notes: body.notes && body.notes.trim() ? body.notes : null,
+          feedLogId: feedLogId ?? null,
+          caretakerId,
+          familyId: userFamilyId,
+        },
+        include: foodInclude,
+      });
     });
 
     const catalog = await loadCatalogMap(
@@ -210,6 +248,9 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       data: formatFoodLog(foodLog, catalog),
     });
   } catch (error) {
+    if (error instanceof FoodLogWriteError) {
+      return NextResponse.json({ success: false, error: error.message }, { status: error.status });
+    }
     console.error('Error creating food log:', error);
     return NextResponse.json<ApiResponse<FoodLogResponse>>(
       {
@@ -239,6 +280,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     const body: Partial<FoodLogCreate> = await req.json();
+    const feedLogId = parseFeedLogId(body.feedLogId);
 
     if (!id) {
       return NextResponse.json<ApiResponse<FoodLogResponse>>(
@@ -247,20 +289,6 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
           error: 'Food log ID is required',
         },
         { status: 400 }
-      );
-    }
-
-    const existingFoodLog = await prisma.foodLog.findFirst({
-      where: { id, familyId: userFamilyId },
-    });
-
-    if (!existingFoodLog) {
-      return NextResponse.json<ApiResponse<FoodLogResponse>>(
-        {
-          success: false,
-          error: 'Food log not found or access denied',
-        },
-        { status: 404 }
       );
     }
 
@@ -289,32 +317,39 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       );
     }
 
-    const foodLog = await prisma.foodLog.update({
-      where: { id },
-      data: {
-        ...(body.time && { time: toUTC(body.time) }),
-        ...(foodFields && {
-          foodId: foodFields.foodId,
-          foods: foodFields.foods,
-          hadReaction: foodFields.hadReaction,
-          reactionDescription: foodFields.reactionDescription,
-        }),
-        ...(body.amount !== undefined && { amount: body.amount }),
-        ...((body.amount !== undefined || body.unitAbbr !== undefined) && {
-          unitAbbr: (body.amount !== undefined ? body.amount : existingFoodLog.amount) != null
-            ? normalizeUnitAbbr(body.unitAbbr)
-            : null,
-        }),
-        ...(body.enjoyment !== undefined && { enjoyment: body.enjoyment }),
-        // Legacy single-field reaction updates only when foods[] was not sent
-        ...(!foodFields && body.hadReaction !== undefined && { hadReaction: body.hadReaction === true }),
-        ...(!foodFields && body.reactionDescription !== undefined && {
-          reactionDescription: body.reactionDescription && body.reactionDescription.trim() ? body.reactionDescription : null,
-        }),
-        ...(body.notes !== undefined && { notes: body.notes && body.notes.trim() ? body.notes : null }),
-        ...(body.feedLogId !== undefined && { feedLogId: body.feedLogId || null }),
-      },
-      include: foodInclude,
+    const foodLog = await prisma.$transaction(async tx => {
+      const existingFoodLog = await tx.foodLog.findFirst({
+        where: { id, familyId: userFamilyId },
+      });
+      if (!existingFoodLog) throw new FoodLogWriteError('Food log not found or access denied', 404);
+      await validateFeedLink(tx, feedLogId, userFamilyId, existingFoodLog.babyId, existingFoodLog.feedLogId);
+      return tx.foodLog.update({
+        where: { id, familyId: userFamilyId },
+        data: {
+          ...(body.time && { time: toUTC(body.time) }),
+          ...(foodFields && {
+            foodId: foodFields.foodId,
+            foods: foodFields.foods,
+            hadReaction: foodFields.hadReaction,
+            reactionDescription: foodFields.reactionDescription,
+          }),
+          ...(body.amount !== undefined && { amount: body.amount }),
+          ...((body.amount !== undefined || body.unitAbbr !== undefined) && {
+            unitAbbr: (body.amount !== undefined ? body.amount : existingFoodLog.amount) != null
+              ? normalizeUnitAbbr(body.unitAbbr)
+              : null,
+          }),
+          ...(body.enjoyment !== undefined && { enjoyment: body.enjoyment }),
+          // Legacy single-field reaction updates only when foods[] was not sent
+          ...(!foodFields && body.hadReaction !== undefined && { hadReaction: body.hadReaction === true }),
+          ...(!foodFields && body.reactionDescription !== undefined && {
+            reactionDescription: body.reactionDescription && body.reactionDescription.trim() ? body.reactionDescription : null,
+          }),
+          ...(body.notes !== undefined && { notes: body.notes && body.notes.trim() ? body.notes : null }),
+          ...(feedLogId !== undefined && { feedLogId }),
+        },
+        include: foodInclude,
+      });
     });
 
     const catalog = await loadCatalogMap(
@@ -327,6 +362,9 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       data: formatFoodLog(foodLog, catalog),
     });
   } catch (error) {
+    if (error instanceof FoodLogWriteError) {
+      return NextResponse.json({ success: false, error: error.message }, { status: error.status });
+    }
     console.error('Error updating food log:', error);
     return NextResponse.json<ApiResponse<FoodLogResponse>>(
       {
