@@ -1,4 +1,5 @@
 import { IconName } from '../icons';
+import type { ReactNode } from 'react';
 
 /** Latest logged activity summary shown in a card/tile meta line. */
 export interface TileLog {
@@ -58,6 +59,8 @@ export interface ActivityView {
   buttons: ActionButton[];
   /** When true, buttons keep their intrinsic size and wrap to new rows instead of shrinking to fit one row (e.g. sleep's location picker, which can have many options). */
   buttonsWrap?: boolean;
+  /** Activity-specific dialog, rendered once outside the cards/tiles layouts. */
+  overlay?: ReactNode;
 }
 
 export interface UndoInfo {
@@ -86,7 +89,7 @@ export async function undoDeleteLog(endpoint: string, id: string): Promise<boole
 export interface ActivityHookArgs {
   babyId: string;
   toUTCString: (d: Date | null | undefined) => string | null;
-  onLog: (tileId: string, note: string) => void;
+  onLog: (tileId: string, note: string, at?: string) => void;
   onUndoable: (u: UndoInfo) => void; // instant logs only (bottle, diaper)
   enableBreastMilkTracking?: boolean;
   /** Locations offered by useSleepActions' location picker; defaults to ['Crib', 'Contact']. */

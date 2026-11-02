@@ -3201,5 +3201,6 @@
   "This pumping request was already saved and has different values or was removed. Review the care log before making another entry.": "Questa richiesta di estrazione è già stata salvata e ha valori diversi oppure è stata rimossa. Controlla il registro delle cure prima di creare un’altra voce.",
   "This pumping session is being saved. Keep the session and retry after the other request finishes.": "Questa sessione di estrazione è in fase di salvataggio. Conservala e riprova quando l’altra richiesta sarà terminata.",
   "This session may already be in the care log. Check it before dismissing. Dismiss only this browser’s saved pumping session? This does not delete any care records.": "Questa sessione potrebbe essere già nel registro delle cure. Controllalo prima di scartarla. Scartare solo la sessione di estrazione conservata in questo browser? Nessuna voce del registro verrà eliminata.",
-  "Waiting for confirmation": "In attesa di conferma"
+  "Waiting for confirmation": "In attesa di conferma",
+  "Enter the amount you observed, choose the milk type, and check the unit before saving.": "Inserisci la quantità osservata, scegli il tipo di latte e controlla l’unità prima di salvare."
 }

@@ -15,6 +15,7 @@ const QUICK_ACTION_ICONS: Record<string, IconName> = {
   stop: 'stop',
   resumeLeft: 'resumeLeft',
   resumeRight: 'resumeRight',
+  pendingBottles: 'bottle',
 };
 
 export interface BigTileProps {
@@ -38,7 +39,7 @@ export function BigTile({ view, log, iconColor, iconShape }: BigTileProps): Reac
   const headerButtons = searchPrompt ? buttons.filter(b => b.cancel) : [];
   const listButtons = searchPrompt ? buttons.filter(b => !b.cancel) : buttons;
 
-  const metaLine = active && statusText ? statusText : log ? log.last : '';
+  const metaLine = statusText || (log ? log.last : '');
   // Breastfeeding/pumping are long-running sessions — surface their controls directly
   // on the tile face so switching sides, pausing, or stopping doesn't take two taps
   // (open the modal, then tap the button).

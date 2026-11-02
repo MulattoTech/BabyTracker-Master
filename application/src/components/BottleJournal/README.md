@@ -32,6 +32,25 @@ confirmation and removes only the local copy, never a server record. A lost serv
 response retries the same UUID and exact timestamp/payload. The existing server
 idempotency contract prevents duplicate FeedLog/provenance creation.
 
+Nursery Mode opens the same form and outbox in a bottle dialog. It never fills a
+quantity from earlier feeds or averages unlike units. The caregiver enters the
+observed consumed amount, deliberately chooses the milk type, and reviews the
+visible unit before saving. The unit is captured when the form opens; changing a
+preference cannot reinterpret a quantity already entered. Choosing a different
+unit in the form uses the shared explicit volume conversion. Cancel closes an
+unsent form without creating a queue entry or care record. A successful or pending
+submission displays its result separately from the reset form.
+
+Nursery pending entries remain accessible alongside an active breast timer, and
+use the same caregiver/family/child isolation, retry, conflict review and confirmed
+local-discard controls as the Journal. A confirmed queued bottle retains its
+original feeding time in the nursery summary. Pending input is durable after the
+caregiver saves it locally; text in an unsent, open form is not a separate durable
+draft. `scripts/nursery-bottle-browser.mjs` checks the real nursery workflow,
+including mixed-unit history, changed preferences, cancellation, disconnection,
+reload, child/caregiver switches, a lost response, failed IndexedDB writes, and a
+conflicting saved record. Breastfeeding timers keep their existing API workflow.
+
 Historical edits still require the last observed revision timestamp and reject
 concurrent updates; they remain in the open form on failure. This slice supports
 new entries in an already loaded Journal and durable recovery when the app next

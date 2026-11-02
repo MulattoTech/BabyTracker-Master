@@ -3201,5 +3201,6 @@
   "This pumping request was already saved and has different values or was removed. Review the care log before making another entry.": "दूध निकालने का यह अनुरोध पहले ही सहेजा जा चुका है और उसकी जानकारी बदल गई है या उसे हटा दिया गया है। नई प्रविष्टि बनाने से पहले देखभाल का रिकॉर्ड देखें।",
   "This pumping session is being saved. Keep the session and retry after the other request finishes.": "दूध निकालने का यह सत्र सहेजा जा रहा है। इसे सुरक्षित रखें और दूसरे अनुरोध के पूरा होने के बाद फिर प्रयास करें।",
   "This session may already be in the care log. Check it before dismissing. Dismiss only this browser’s saved pumping session? This does not delete any care records.": "यह सत्र देखभाल के रिकॉर्ड में पहले से हो सकता है। हटाने से पहले जाँच लें। क्या केवल इस ब्राउज़र में सहेजा गया दूध निकालने का सत्र हटाना है? इससे देखभाल का कोई रिकॉर्ड नहीं मिटेगा।",
-  "Waiting for confirmation": "पुष्टि की प्रतीक्षा है"
+  "Waiting for confirmation": "पुष्टि की प्रतीक्षा है",
+  "Enter the amount you observed, choose the milk type, and check the unit before saving.": "जो मात्रा आपने देखी है उसे दर्ज करें, दूध का प्रकार चुनें और सहेजने से पहले इकाई जाँचें।"
 }
