@@ -40,14 +40,14 @@ export async function verifyNurseryUndo({ base, db, family: enclosingFamily, sec
   const child = label => db.baby.create({ data: { familyId: family.id, firstName: `Synthetic Undo ${label}`,
     lastName: 'Acceptance', birthDate: new Date('2026-01-01T00:00:00Z') } });
   // The real selector must have more than one child even in the first case.
-  await child('Sibling');
+  const sibling = await child('Sibling');
   async function api(endpoint, method, body, auth = peerToken) {
     const response = await fetch(`${base}${endpoint}`, { method, headers: { Authorization: `Bearer ${auth}`, 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(20_000) });
     return { status: response.status, body: await response.json() };
   }
   async function fixture(label, options = {}) {
-    const baby = await child(label), now = Math.floor(Date.now() / 1000) * 1000;
+    const baby = await child(String(checks.length + 1)), now = Math.floor(Date.now() / 1000) * 1000;
     if (options.breast) await db.activeBreastFeed.create({ data: { familyId: family.id, babyId: baby.id, caretakerId: caretaker.id,
       activeSide: 'RIGHT', firstSide: 'LEFT', leftDuration: 60, rightDuration: options.singleSide ? 0 : 90, pauseDuration: 0,
       isPaused: true, sessionStartTime: new Date(now - 180_000), currentSideStartTime: null, pausedAt: new Date(now - 30_000),
@@ -63,10 +63,15 @@ export async function verifyNurseryUndo({ base, db, family: enclosingFamily, sec
     }, { token, family, baby, caretakerId: caretaker.id });
     const page = await owned.newPage(); page.setDefaultTimeout(15_000); page.setDefaultNavigationTimeout(30_000);
     page.on('pageerror', error => errors.push(`${label}: ${error.message}`));
-    await page.clock.install({ time: new Date(now) });
+    if (!options.realClock) await page.clock.install({ time: new Date(now) });
     const card = name => page.locator('.nursery-card').filter({ has: page.getByRole('heading', { name, exact: true }) });
     const toast = () => page.locator('.nursery-toast');
-    const response = (endpoint, method) => page.waitForResponse(result => new URL(result.url()).pathname === endpoint && result.request().method() === method);
+    const response = (endpoint, method) => {
+      const pending = page.waitForResponse(result => new URL(result.url()).pathname === endpoint && result.request().method() === method);
+      // Held-response assertions may fail before this promise is awaited.
+      // Mark the rejection handled immediately so the owned cleanup still runs.
+      void pending.catch(() => {}); return pending;
+    };
     const select = async other => {
       await page.getByRole('button', { name: 'Switch Baby', exact: true }).click();
       await page.getByRole('option', { name: other.firstName, exact: true }).click();
@@ -203,7 +208,7 @@ export async function verifyNurseryUndo({ base, db, family: enclosingFamily, sec
     assert.equal(await f.toast().getByRole('button', { name: 'Retry Undo', exact: true }).count(), 0);
   });
   await run('A held successful save cannot display the original child’s summary or Undo after a child switch', async f => {
-    const other = await child('Late Save Other'), held = await hold(f, '/api/diaper-log', 'POST');
+    const other = sibling, held = await hold(f, '/api/diaper-log', 'POST');
     const response = f.response('/api/diaper-log', 'POST');
     await f.card('Diaper').getByRole('button', { name: 'Wet', exact: true }).click(); await bounded(held.arrived, 'Saved diaper arrival');
     await f.select(other); held.release(); await rendered(f.page, await response);
@@ -224,7 +229,7 @@ export async function verifyNurseryUndo({ base, db, family: enclosingFamily, sec
     assert.equal((await db.diaperLog.findUniqueOrThrow({ where: { id: second.data.id } })).type, 'DIRTY');
   });
   await run('A late old-child Undo response cannot dismiss a newer child’s action', async f => {
-    const other = await child('Held Undo Other'), first = await diaper(f), held = await hold(f, '/api/diaper-log', 'DELETE');
+    const other = sibling, first = await diaper(f), held = await hold(f, '/api/diaper-log', 'DELETE');
     const response = f.response('/api/diaper-log', 'DELETE'); await f.toast().getByRole('button', { name: 'Undo', exact: true }).click();
     await bounded(held.arrived, 'Old-child Undo arrival'); await f.select(other);
     const saved = f.response('/api/diaper-log', 'POST'); await f.card('Diaper').getByRole('button', { name: 'Dirty', exact: true }).click();
@@ -287,6 +292,7 @@ export async function verifyNurseryUndo({ base, db, family: enclosingFamily, sec
     const updated = await response; assert.equal(updated.status(), 200); const body = await updated.json();
     assert.deepEqual(updated.request().postDataJSON(), { enjoyment: 'LOVED', nurseryUndo: saved.undo });
     assert.notEqual(body.undo.records[0].revision, saved.undo.records[0].revision);
+    await f.card('Food').locator('.nursery-card-meta .d').filter({ hasText: 'Loved' }).waitFor();
     const result = await undo(f, '/api/food-log'); assert.deepEqual(result.request().postDataJSON(), { nurseryUndo: body.undo });
     await f.toast().waitFor({ state: 'detached' }); assert.ok((await db.foodLog.findUniqueOrThrow({ where: { id: saved.data.id } })).deletedAt);
   });
@@ -327,7 +333,47 @@ export async function verifyNurseryUndo({ base, db, family: enclosingFamily, sec
     await dialog.getByRole('button', { name: 'Close', exact: true }).click(); assert.equal(await f.toast().count(), 0);
     assert.equal(await db.feedLog.count({ where: { babyId: f.baby.id } }), 1);
   });
+  await run('A held authentication refresh reaches the Undo deadline without a late delete and permits exact explicit retry', async f => {
+    const saved = await diaper(f), original = await db.diaperLog.findUniqueOrThrow({ where: { id: saved.data.id } });
+    // Establish the actual HTTP-only refresh cookie in this browser context.
+    const login = await f.owned.request.post(`${base}/api/auth`, { data: {
+      familySlug: family.slug, loginId: caretaker.loginId, securityPin: caretaker.securityPin,
+    } });
+    assert.equal(login.status(), 200); assert.ok((await f.owned.cookies()).some(cookie => cookie.name === 'refreshToken'));
+    const entered = deferred(), release = deferred(); releases.add(release.resolve);
+    const refreshing = async route => {
+      entered.resolve(); await release.promise;
+      const response = await route.fetch(); assert.equal(response.status(), 200); await route.fulfill({ response });
+    };
+    const bodies = [];
+    const unauthorized = route => {
+      if (route.request().method() !== 'DELETE') return route.continue();
+      bodies.push(route.request().postDataJSON());
+      return route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ success: false }) });
+    };
+    await f.page.route('**/api/auth/refresh-token', refreshing); await f.page.route('**/api/diaper-log?*', unauthorized);
+    const started = Date.now(); await f.toast().getByRole('button', { name: 'Undo', exact: true }).click();
+    await bounded(entered.promise, 'Real auth refresh arrival');
+    try { await f.toast().getByText(uncertain, { exact: true }).waitFor({ timeout: 25_000 }); }
+    catch (error) {
+      console.log(JSON.stringify({ heldRefreshElapsedMs: Date.now() - started, toast: await f.toast().innerText(),
+        originalRowUnchanged: JSON.stringify(await db.diaperLog.findUnique({ where: { id: original.id } })) === JSON.stringify(original) }));
+      throw error;
+    }
+    assert.equal(await f.toast().getByRole('button', { name: 'Retry Undo', exact: true }).isEnabled(), true);
+    assert.deepEqual(await db.diaperLog.findUnique({ where: { id: original.id } }), original); assert.equal(bodies.length, 1);
+    let lateDeletes = 0;
+    const observe = route => { if (route.request().method() === 'DELETE') lateDeletes++; return route.continue(); };
+    await f.page.unroute('**/api/diaper-log?*', unauthorized); await f.page.route('**/api/diaper-log?*', observe);
+    const response = f.response('/api/auth/refresh-token', 'POST'); release.resolve(); await rendered(f.page, await response);
+    assert.equal(lateDeletes, 0, 'Resolving refresh must not dispatch the aborted original DELETE');
+    assert.deepEqual(await db.diaperLog.findUnique({ where: { id: original.id } }), original);
+    await f.page.unroute('**/api/auth/refresh-token', refreshing); await f.page.unroute('**/api/diaper-log?*', observe);
+    const retried = await undo(f, '/api/diaper-log', 200, 'Retry Undo');
+    assert.deepEqual(retried.request().postDataJSON(), bodies[0]); assert.deepEqual(bodies[0], { nurseryUndo: saved.undo });
+    await f.toast().waitFor({ state: 'detached' }); assert.equal(await db.diaperLog.findUnique({ where: { id: original.id } }), null);
+  }, { realClock: true });
   assert.deepEqual(errors, [], 'Conditional Undo browser JavaScript errors');
-  assert.equal(checks.length, 16);
+  assert.equal(checks.length, 17);
   return checks;
 }

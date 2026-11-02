@@ -15,13 +15,26 @@ export async function requestNurseryUndo(undo: NurseryUndo, scopeNow: () => stri
   fetcher: typeof fetch = fetch): Promise<boolean> {
   if (!readNurseryUndo(undo)) throw new NurseryUndoFailure(undoConflict, false);
   if (scopeNow() !== undo.scope) throw new NurseryUndoFailure(undoScopeChanged, false);
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  // The shared fetch wrapper can await an independent authentication refresh.
+  // Bound that entire operation and response reading, even if either ignores
+  // the request signal. Aborting also prevents a late refresh from dispatching
+  // the original DELETE after this caller has already entered review.
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => { controller.abort(); reject(new Error(undoUnconfirmed)); }, 20_000);
+  });
   try {
     const token = localStorage.getItem('authToken');
-    const response = await fetcher(nurseryUndoEndpoint(undo), {
-      method: 'DELETE', cache: 'no-store', headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
-      body: JSON.stringify({ nurseryUndo: undo }), signal: AbortSignal.timeout(20_000),
-    });
-    const body = await response.json();
+    const { response, body } = await Promise.race([
+      (async () => {
+        const response = await fetcher(nurseryUndoEndpoint(undo), {
+          method: 'DELETE', cache: 'no-store', headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
+          body: JSON.stringify({ nurseryUndo: undo }), signal: controller.signal,
+        });
+        return { response, body: await response.json() };
+      })(), deadline,
+    ]);
     if (scopeNow() !== undo.scope) return false;
     if (response.ok && body.success === true) return true;
     if (response.status === 401 || response.status === 403) throw new NurseryUndoFailure(undoSignIn, true);
@@ -32,5 +45,5 @@ export async function requestNurseryUndo(undo: NurseryUndo, scopeNow: () => stri
     if (error instanceof NurseryUndoFailure) throw error;
     if (scopeNow() !== undo.scope) return false;
     throw new NurseryUndoFailure(undoUnconfirmed, true);
-  }
+  } finally { if (timer !== undefined) clearTimeout(timer); }
 }

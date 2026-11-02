@@ -5,7 +5,7 @@ import { requestNurseryUndo, NurseryUndoFailure, undoConflict, undoUnconfirmed, 
 const scope = JSON.stringify(['family', 'caretaker:actor', 'child']);
 const record = { id: 'record', revision: 'a'.repeat(64) };
 const original: NurseryUndo = { version: 1, kind: 'diaper', scope, babyId: 'child', records: [record] };
-afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe('immutable Nursery Undo descriptors', () => {
   it('copies the exact descriptor without retaining mutable caller arrays', () => {
@@ -62,5 +62,22 @@ describe('conditional Undo transport', () => {
     let current = scope;
     expect(await requestNurseryUndo(original, () => current, async () => { current = 'other'; return Response.json({ success: true }); })).toBe(false);
     expect(new NurseryUndoFailure(undoConflict, false)).toBeInstanceOf(Error);
+  });
+  it.each(['fetch', 'body'])('bounds an unresponsive %s even when it ignores the request signal', async stage => {
+    setup(); vi.useFakeTimers(); let signal: AbortSignal | null | undefined;
+    const fetcher = vi.fn<typeof fetch>((_url, options) => {
+      signal = options?.signal;
+      if (stage === 'fetch') return new Promise<Response>(() => {});
+      const response = Response.json({ success: true });
+      vi.spyOn(response, 'json').mockReturnValue(new Promise(() => {}));
+      return Promise.resolve(response);
+    });
+    let outcome: { error?: unknown } | undefined;
+    const pending = requestNurseryUndo(original, () => scope, fetcher)
+      .then(() => { outcome = {}; }, error => { outcome = { error }; });
+    await vi.advanceTimersByTimeAsync(20_001);
+    expect(outcome).toMatchObject({ error: { message: undoUnconfirmed, retryable: true } });
+    expect(signal?.aborted).toBe(true); expect(fetcher).toHaveBeenCalledOnce();
+    await pending; expect(vi.getTimerCount()).toBe(0);
   });
 });

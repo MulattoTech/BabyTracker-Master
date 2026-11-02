@@ -353,14 +353,16 @@ update is confirmed. Receipts survive deletion.
 The view checks caregiver, child and request generation before applying late
 callbacks. A newer activity summary is not cleared by an older Undo response.
 Unattempted toasts expire after six seconds; an in-flight or failed Undo remains
-visible with explicit retry or care-log review. Later saves do not replace that
-retained descriptor. A missing row on retry remains a review outcome, including
+visible with explicit retry or care-log review. A twenty-second deadline covers
+the request, any shared authentication refresh and response reading; a late
+refresh cannot dispatch the aborted original deletion. Later saves do not replace
+that retained descriptor. A missing row on retry remains a review outcome, including
 when a successful deletion's response was lost.
 
 `tests/nurseryUndo.test.ts` covers strict metadata and transport outcomes.
 `tests/nurseryUndo.integration.test.ts` uses real USER logins, migrated SQLite,
 independent Prisma clients, peer corrections, transaction rollback and fresh
-transactions through both clients after contention. The sixteen scenarios in
+transactions through both clients after contention. The seventeen scenarios in
 `scripts/nursery-undo-browser.mjs` exercise actual compiled Nursery controls;
 the release gate requires `nurseryUndoChecksPassed`.
 
