@@ -19,7 +19,8 @@ export function changedPumpFields(
     }
     Object.assign(update, { [key]: value });
   }
-  if ((update.startTime !== undefined || update.endTime !== undefined) && draft.duration !== undefined) {
+  const hasEnd = update.endTime !== undefined || existing.endTime !== null;
+  if (hasEnd && (update.startTime !== undefined || update.endTime !== undefined) && draft.duration !== undefined) {
     update.duration = draft.duration;
   }
   return update;

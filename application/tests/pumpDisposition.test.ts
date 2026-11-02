@@ -50,6 +50,8 @@ describe('unresolved pump disposition', () => {
     expect(changedPumpFields(existing, { ...draft, endTime: '2026-10-20T08:30:20Z', duration: 30 }, { start: false, end: true }))
       .toEqual({ endTime: '2026-10-20T08:30:20Z', duration: 30 });
     expect(changedPumpFields({ ...existing, endTime: null, duration: null }, draft, { start: false, end: false })).toEqual({});
+    expect(changedPumpFields({ ...existing, endTime: null, duration: null }, { ...draft, startTime: '2026-10-20T08:05:10Z' }, { start: true, end: false }))
+      .toEqual({ startTime: '2026-10-20T08:05:10Z' });
     expect(changedPumpFields(existing, { ...draft, startTime: '2026-10-20T03:00:10-05:00' }, { start: true, end: false })).toEqual({});
   });
 });

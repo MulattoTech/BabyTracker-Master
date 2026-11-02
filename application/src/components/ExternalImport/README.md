@@ -27,7 +27,7 @@ Stored adds its amount to stock; Fed follows the existing linked automatic-feed
 behavior when milk tracking is enabled; Discarded and Needs review add no stock.
 Saving an unrelated edit retains the unresolved action. Disposition-only edits
 preserve the original timestamps, duration, amount, notes and absent sides.
-Reverting a fed pump to Needs review removes only its linked automatic feed.
+Reverting a fed pump to Needs review removes its linked or eligible legacy automatic feed.
 The legacy note-matching fallback is limited to pumps previously marked Fed,
 so a newly imported session cannot adopt or delete another session's feed.
 

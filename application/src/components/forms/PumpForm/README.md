@@ -138,7 +138,7 @@ This component is designed with cross-platform compatibility in mind:
 - Implements touch-friendly input controls with appropriately sized buttons
 - Separates styling concerns with CSS files for easier platform-specific styling
 - Uses a modular approach that can be adapted to different platforms
-# Unresolved imported milk
+## Unresolved imported milk
 
 Baby Buddy pumping imports use `UNKNOWN` because the export has no disposition.
 The form displays **Needs review** and explains its effect on milk stock. The
