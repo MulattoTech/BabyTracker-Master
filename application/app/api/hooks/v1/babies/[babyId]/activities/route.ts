@@ -5,7 +5,7 @@ import { withApiKeyAuth, ApiKeyContext, validateBabyAccess } from '../../../auth
 import { checkRateLimit } from '../../../rate-limiter';
 import { hookSuccess, hookError } from '../../../response';
 import { notifyActivityCreated, resetTimerNotificationState } from '@/src/lib/notifications/activityHook';
-import { startBreastfeedSession, updateBreastfeedSession, endBreastfeedSession } from '../../../../../utils/activeBreastFeed';
+import { startBreastfeedSession, updateBreastfeedSession, endBreastfeedSession, BreastfeedSessionConflict, BreastfeedSessionInputError } from '../../../../../utils/activeBreastFeed';
 import { BATH_TYPES, BOTTLE_TYPES, DIAPER_COLORS, DIAPER_CONDITIONS, FEED_SIDES, PUMP_ACTIONS, SLEEP_QUALITIES, normalizeEnumValue } from '../../../field-values';
 import { prepareHookPumpFields } from '../../../pump-validation';
 import { parsePumpTimestamp, validPumpDuration } from '@/src/utils/pump-validation';
@@ -809,6 +809,8 @@ async function handlePost(req: NextRequest, ctx: ApiKeyContext, routeContext: an
     }
   } catch (error: any) {
     if (error instanceof PumpReconciliationConflict) return hookError('PUMP_CONFLICT', error.message, 409, rl.headers);
+    if (error instanceof BreastfeedSessionConflict) return hookError('FEED_CONFLICT', error.message, 409, rl.headers);
+    if (error instanceof BreastfeedSessionInputError) return hookError('INVALID_FEED_SESSION', error.message, 400, rl.headers);
     console.error('Error creating activity via webhook:', error);
     return hookError('INTERNAL_ERROR', 'Failed to create activity', 500, rl.headers);
   }

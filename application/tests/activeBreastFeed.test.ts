@@ -15,6 +15,12 @@ vi.mock('@/app/api/db', () => ({
     feedLog: {
       create: createFeedLog,
     },
+    // This suite checks layout only; rollback and claims use migrated SQLite
+    // in activeBreastFeedAtomic.integration.test.ts.
+    $transaction: async (callback: Function) => callback({
+      activeBreastFeed: { deleteMany: deleteSession },
+      feedLog: { create: createFeedLog },
+    }),
   },
 }));
 
@@ -67,7 +73,7 @@ describe('endBreastfeedSession', () => {
       ...data,
     }));
     deleteSession.mockReset();
-    deleteSession.mockResolvedValue({});
+    deleteSession.mockResolvedValue({ count: 1 });
   });
 
   it('stamps each FeedLog time with that side\'s start time', async () => {
@@ -127,6 +133,17 @@ describe('endBreastfeedSession', () => {
     const [{ data }] = createFeedLog.mock.calls[0];
     expect(data.time).toEqual(sessionStartTime);
     expect(data.time).toEqual(data.startTime);
+  });
+
+  it('rejects side endpoints outside the JavaScript Date range before claiming or writing', async () => {
+    const session = { id: 'date-bound-session', babyId: 'baby-1', familyId: 'family-1', caretakerId: null,
+      activeSide: 'LEFT', isPaused: false, leftDuration: 60, rightDuration: 0, pauseDuration: 0,
+      pausedAt: null, firstSide: 'LEFT', currentSideStartTime: null,
+      sessionStartTime: new Date(8_640_000_000_000_000 - 1_000),
+    };
+    await expect(endBreastfeedSession(session as any, { familyId: 'family-1' })).rejects.toThrow('durations');
+    expect(deleteSession).not.toHaveBeenCalled();
+    expect(createFeedLog).not.toHaveBeenCalled();
   });
 });
 

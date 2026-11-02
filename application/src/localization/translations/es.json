@@ -3202,5 +3202,22 @@
   "This pumping session is being saved. Keep the session and retry after the other request finishes.": "Esta sesión de extracción se está guardando. Consérvala y reintenta cuando termine la otra solicitud.",
   "This session may already be in the care log. Check it before dismissing. Dismiss only this browser’s saved pumping session? This does not delete any care records.": "Esta sesión puede estar ya en el registro de cuidados. Revísalo antes de descartarla. ¿Descartar solo la sesión de extracción guardada en este navegador? Esto no elimina ningún registro de cuidados.",
   "Waiting for confirmation": "Esperando confirmación",
-  "Enter the amount you observed, choose the milk type, and check the unit before saving.": "Introduce la cantidad que observaste, elige el tipo de leche y comprueba la unidad antes de guardar."
+  "Enter the amount you observed, choose the milk type, and check the unit before saving.": "Introduce la cantidad que observaste, elige el tipo de leche y comprueba la unidad antes de guardar.",
+  "Could not reload the breastfeeding session. Your current timer and stop review have been kept.": "No se pudo recargar la sesión de lactancia. Se conservaron el temporizador actual y la revisión de finalización.",
+  "Discard stop and use current timer": "Descartar finalización y usar temporizador actual",
+  "Dismiss stop review": "Cerrar revisión de finalización",
+  "No active session was found. Your stop may already be saved. Check the care log before dismissing this review.": "No se encontró una sesión activa. Puede que la finalización ya esté guardada. Revisa el registro de cuidados antes de cerrar esta revisión.",
+  "Reload current session": "Recargar sesión actual",
+  "Retry stopped feed": "Reintentar finalizar toma",
+  "Review the breastfeeding timer before stopping it.": "Revisa el temporizador de lactancia antes de finalizarlo.",
+  "Sign in as a caregiver for this child before changing the breastfeeding timer.": "Inicia sesión como cuidador de este niño antes de cambiar el temporizador de lactancia.",
+  "Stop review": "Revisar finalización",
+  "Stop was not confirmed. Your first stop time is kept. Retry or reload the current session and review the care log.": "No se confirmó la finalización. Se conserva la hora del primer intento. Reintenta o recarga la sesión actual y revisa el registro de cuidados.",
+  "The feed was saved, but this tab could not clear its stop review. Check the care log before dismissing it.": "La toma se guardó, pero esta pestaña no pudo borrar la revisión de finalización. Revisa el registro de cuidados antes de cerrarla.",
+  "The session changed. Your first stop time is kept. Reload and review the current timer before choosing what to do.": "La sesión cambió. Se conserva la hora del primer intento de finalizar. Recarga y revisa el temporizador actual antes de decidir.",
+  "The timer change was not confirmed. Reload the current breastfeeding session before trying again.": "No se confirmó el cambio del temporizador. Recarga la sesión de lactancia actual antes de volver a intentarlo.",
+  "This tab could not clear the stop review. Keep this page open and check browser storage.": "Esta pestaña no pudo borrar la revisión de finalización. Mantén esta página abierta y revisa el almacenamiento del navegador.",
+  "This tab could not read its saved stop review. Keep this page open and check the care log and browser storage.": "Esta pestaña no pudo leer la revisión de finalización guardada. Mantén esta página abierta y revisa el registro de cuidados y el almacenamiento del navegador.",
+  "This tab could not save the stop time. Keep this page open and check browser storage before retrying. No request was sent on this attempt.": "Esta pestaña no pudo guardar la hora de finalización. Mantén esta página abierta y revisa el almacenamiento del navegador antes de reintentar. No se envió ninguna solicitud en este intento.",
+  "Your first stop time is kept. Reload to inspect the current session. Using the current timer discards this stop time.": "Se conserva la hora del primer intento de finalizar. Recarga para revisar la sesión actual. Usar el temporizador actual descarta esa hora."
 }

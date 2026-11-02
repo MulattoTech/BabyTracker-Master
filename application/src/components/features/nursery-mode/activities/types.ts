@@ -50,6 +50,8 @@ export interface ActivityView {
   icon: IconName; // bottle | pump | diaper | moon
   label: string; // localized
   statusText: string | null; // active timer line, e.g. "Left Side — 4:12 · L: 4:12 R: 0:00"
+  /** Keep review facts visible inside Big Tiles' action dialog for active timers. */
+  showStatusInDialog?: boolean;
   errorText?: string | null;
   active: boolean; // a timer/session is running
   /** True while a decision screen is showing (e.g. pump's amount/action step, sleep's location picker) — the card expands to fill the grid in cards layout. */
