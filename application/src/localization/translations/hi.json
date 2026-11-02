@@ -3150,5 +3150,15 @@
   "This pending bottle changed in another tab. Refresh the journal before trying again.": "इस लंबित बोतल में दूसरे टैब में बदलाव हुआ है। फिर से कोशिश करने से पहले जर्नल को रीफ़्रेश करें।",
   "Waiting to sync": "सिंक होने का इंतज़ार है",
   "Offline": "ऑफ़लाइन",
-  "Medication entries without an amount are preserved as notes with an unknown dose": "बिना मात्रा वाली दवा की प्रविष्टियाँ अज्ञात खुराक वाले नोट के रूप में सुरक्षित रखी जाती हैं"
+  "Medication entries without an amount are preserved as notes with an unknown dose": "बिना मात्रा वाली दवा की प्रविष्टियाँ अज्ञात खुराक वाले नोट के रूप में सुरक्षित रखी जाती हैं",
+  "Timestamps without a UTC offset use this timezone. Feeding timestamps with an offset keep their exact time.": "UTC ऑफ़सेट के बिना समय इस समय क्षेत्र का उपयोग करते हैं। ऑफ़सेट वाले दूध पिलाने के समय अपना सटीक क्षण बनाए रखते हैं।",
+  "Invalid feeding timestamp. Use YYYY-MM-DD HH:mm:ss with an optional UTC offset.": "दूध पिलाने का समय अमान्य है। वैकल्पिक UTC ऑफ़सेट के साथ YYYY-MM-DD HH:mm:ss का उपयोग करें।",
+  "Invalid feeding calendar date. Correct the source before importing.": "दूध पिलाने की कैलेंडर तारीख अमान्य है। आयात से पहले स्रोत को ठीक करें।",
+  "Source timezone is required": "स्रोत का समय क्षेत्र आवश्यक है",
+  "Invalid source timezone. Choose a valid timezone before importing.": "स्रोत का समय क्षेत्र अमान्य है। आयात से पहले मान्य समय क्षेत्र चुनें।",
+  "This feeding time does not exist in the source timezone because the clock changed. Correct the source time before importing.": "घड़ी बदलने के कारण दूध पिलाने का यह समय स्रोत के समय क्षेत्र में मौजूद नहीं है। आयात से पहले स्रोत का समय ठीक करें।",
+  "This feeding time is ambiguous because the clock repeats. Include the source UTC offset, such as -05:00 or -06:00, before importing.": "घड़ी में समय दोहराने के कारण दूध पिलाने का यह समय अस्पष्ट है। आयात से पहले स्रोत का UTC ऑफ़सेट, जैसे -05:00 या -06:00, शामिल करें।",
+  "Both feeding start and end timestamps are required to import a timed session.": "समयबद्ध दूध पिलाने का सत्र आयात करने के लिए शुरुआत और समाप्ति दोनों के समय आवश्यक हैं।",
+  "Feeding duration must be a non-negative whole number of seconds. Check the source start and end timestamps.": "दूध पिलाने की अवधि सेकंड में एक गैर-ऋणात्मक पूर्णांक होनी चाहिए। स्रोत की शुरुआत और समाप्ति के समय जाँचें।",
+  "Feeding duration conflicts with the source start and end timestamps.": "दूध पिलाने की अवधि स्रोत की शुरुआत और समाप्ति के समय से मेल नहीं खाती।"
 }

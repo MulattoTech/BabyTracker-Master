@@ -12,6 +12,7 @@ import sharp from 'sharp';
 import jwt from 'jsonwebtoken';
 import { verifyJournalOutbox } from './journal-outbox-browser.mjs';
 import { verifyMedicationImport } from './medication-import-browser.mjs';
+import { verifyFeedingImport } from './feeding-import-browser.mjs';
 const require = createRequire(import.meta.url);
 const { PrismaClient } = require('@prisma/client');
 const { createPrismaAdapter } = require('../prisma/prisma-adapter.js');
@@ -319,6 +320,8 @@ try {
   report.journalOutboxChecksPassed = true;
   report.checks.push(...await verifyMedicationImport({ base, db, family, baby, caretaker, token, secret, context }));
   report.medicationChecksPassed = true;
+  report.checks.push(...await verifyFeedingImport({ base, db, family, baby, caretaker, token, secret, context }));
+  report.feedingImportChecksPassed = true;
   const userToken = jwt.sign({ id: caretaker.id, name: caretaker.name, role: 'USER', familyId: family.id, familySlug: family.slug }, secret, { expiresIn: '5m' });
   const denied = await fetch(`${base}/api/ocr/documents?babyId=${baby.id}`, { headers: { Authorization: `Bearer ${userToken}` }, signal: AbortSignal.timeout(5000) });
   assert.equal(denied.status, 403); await denied.body?.cancel();

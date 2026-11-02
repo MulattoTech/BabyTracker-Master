@@ -315,6 +315,14 @@ export default function ExternalImport({
       )}
     >
       <FormPageContent>
+        {error && (
+          <div
+            role="alert"
+            className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+          >
+            {t(error)}
+          </div>
+        )}
         {step === 'select' && (
           <div className="space-y-6">
           {isPreviewing && (
@@ -385,15 +393,6 @@ export default function ExternalImport({
               </ul>
             )}
           </section>
-
-          {error && (
-            <div
-              role="alert"
-              className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700"
-            >
-              {error}
-            </div>
-          )}
 
           {preview && (
             <section className="rounded-lg border border-slate-600 p-4">

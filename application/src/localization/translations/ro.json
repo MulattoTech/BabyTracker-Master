@@ -3150,5 +3150,15 @@
   "This pending bottle changed in another tab. Refresh the journal before trying again.": "Această înregistrare în așteptare pentru un biberon a fost modificată în altă filă. Reîmprospătează jurnalul înainte de a încerca din nou.",
   "Waiting to sync": "În așteptarea sincronizării",
   "Offline": "Offline",
-  "Medication entries without an amount are preserved as notes with an unknown dose": "Înregistrările de medicamente fără cantitate sunt păstrate ca note cu doză necunoscută"
+  "Medication entries without an amount are preserved as notes with an unknown dose": "Înregistrările de medicamente fără cantitate sunt păstrate ca note cu doză necunoscută",
+  "Timestamps without a UTC offset use this timezone. Feeding timestamps with an offset keep their exact time.": "Marcajele de timp fără decalaj UTC folosesc acest fus orar. Marcajele de hrănire cu decalaj își păstrează momentul exact.",
+  "Invalid feeding timestamp. Use YYYY-MM-DD HH:mm:ss with an optional UTC offset.": "Marcaj de timp al hrănirii nevalid. Folosiți YYYY-MM-DD HH:mm:ss cu un decalaj UTC opțional.",
+  "Invalid feeding calendar date. Correct the source before importing.": "Dată calendaristică a hrănirii nevalidă. Corectați sursa înainte de import.",
+  "Source timezone is required": "Fusul orar al sursei este obligatoriu",
+  "Invalid source timezone. Choose a valid timezone before importing.": "Fus orar al sursei nevalid. Alegeți un fus orar valid înainte de import.",
+  "This feeding time does not exist in the source timezone because the clock changed. Correct the source time before importing.": "Această oră de hrănire nu există în fusul orar al sursei din cauza schimbării orei. Corectați ora sursei înainte de import.",
+  "This feeding time is ambiguous because the clock repeats. Include the source UTC offset, such as -05:00 or -06:00, before importing.": "Această oră de hrănire este ambiguă deoarece ceasul repetă ora. Includeți decalajul UTC al sursei, precum -05:00 sau -06:00, înainte de import.",
+  "Both feeding start and end timestamps are required to import a timed session.": "Pentru a importa o sesiune de hrănire cronometrată sunt necesare atât ora de început, cât și cea de sfârșit.",
+  "Feeding duration must be a non-negative whole number of seconds. Check the source start and end timestamps.": "Durata hrănirii trebuie să fie un număr întreg nenegativ de secunde. Verificați orele de început și de sfârșit ale sursei.",
+  "Feeding duration conflicts with the source start and end timestamps.": "Durata hrănirii nu corespunde orelor de început și de sfârșit ale sursei."
 }
