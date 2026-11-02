@@ -385,3 +385,10 @@
 .nursery-preset-opt:hover { background: rgba(255,255,255,.08); }
 .nursery-preset-opt .nursery-preset-dots i { width: 16px; height: 16px; margin-left: -5px; border-width: 2px; }
 .nursery-preset-name { font-size: 13px; font-weight: 500; }
+.nursery-save-error {
+  display: block;
+  color: #ffb5b5;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  margin: 0.5rem 0;
+}

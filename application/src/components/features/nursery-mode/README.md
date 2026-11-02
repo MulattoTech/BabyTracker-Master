@@ -178,6 +178,43 @@ animation is gated.
 
 ## Tests
 
+### Pumping recovery
+
+Nursery pumping stores a draft for the original family, authenticated caregiver
+and child. The draft captures its unit and request ID when timing starts. Stop
+freezes the wall-clock endpoint; duration is rounded from active seconds, with
+zero preserved for very short sessions. A failed validation or definite rejected
+write keeps the amounts, timer and selected disposition available for correction.
+
+Before any POST, the exact request is persisted. Network interruption, timeout,
+server failure or an unreadable response keeps that request immutable until the
+caregiver retries it. Reload and browser restart do not generate a new ID or end
+time. The authenticated API stores a receipt with the pump/feed transaction and
+only replays an unchanged, still-owned record. Changed or deleted records require
+care-log review; a receipt survives deletion so a late retry cannot resurrect it.
+
+All scoped draft mutations use Web Locks and recheck the current request ID and
+pending payload inside the lock. A late response or stale timer snapshot cannot
+overwrite another tab's newer draft or unfreeze a dispatched request. Browsers
+without Web Locks, and browsers with unavailable local storage, retain the visible
+input and block dispatch with an explanation. They cannot promise durable recovery
+until those browser capabilities are available. A storage read failure is distinct
+from a deliberately removed draft and does not clear the in-memory input.
+
+An old unscoped V1 timer is kept for explicit caregiver and unit review; it is
+never silently attributed to whichever caregiver next opens the page. Uncertain
+drafts also offer care-log review and a confirmed local dismissal. Dismissal does
+not delete any server record or report a successful save.
+
+`tests/nursery-pump-session.test.ts` covers draft validation, scope isolation,
+frozen requests, unavailable storage/locks and guarded mutations.
+`tests/pumpCreateReplay.integration.test.ts` uses real JWT authorization and a
+disposable migrated SQLite database for atomic replay, ownership, tombstones,
+rollback and overlapping create requests. `scripts/nursery-pump-browser.mjs`
+exercises the real Nursery controls and canonical API with synthetic failure,
+restart, expired-auth, response-loss and two-tab scenarios. The release browser
+gate requires these checks.
+
 Pure logic extracted to `src/utils/nursery/` is covered in `tests/`:
 
 - `nursery-settings.test.ts` — `normalizeNurserySettings` clamping/coercion.
@@ -191,6 +228,6 @@ Pure logic extracted to `src/utils/nursery/` is covered in `tests/`:
 - `nursery-food-activity.test.ts` — `foodActivity.ts` (picker sorting, meta-line note).
 - `nursery-activity-freshness.test.ts` — `activityFreshness.ts` (24 h meta-line cutoff).
 
-Component/hook behavior (drawer interactions, activity state machines, the
-container's polling/undo flow) is exercised manually via the running app —
-there's no React-render test harness for this feature.
+Other component/hook behavior (drawer interactions, the container's polling/undo
+flow) is exercised manually via the running app; there is no React-render test
+harness for this feature.

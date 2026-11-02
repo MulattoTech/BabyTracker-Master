@@ -13,6 +13,7 @@ import {
 import { normalizeVolumeUnit } from '@/src/utils/unit-conversion';
 import { isPumpAction } from '@/src/utils/pumpAction';
 import { preparePumpFields } from './fields';
+import { createPumpOnce, pumpRequestIdentity, PumpRequestError } from './request';
 import { checkPumpRevision } from '@/src/utils/pumpRevision';
 import { deletePumpWithFeed, PumpReconciliationConflict, updatePumpWithFeed } from '../utils/pumpReconciliation';
 
@@ -29,14 +30,14 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'User is not associated with a family.' }, { status: 403 });
     }
 
-    const body: PumpLogCreate = await req.json().catch(() => null);
+    const body: PumpLogCreate & { requestId?: unknown; expectedScope?: unknown } = await req.json().catch(() => null);
     const prepared = preparePumpFields(body);
     if ('error' in prepared) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: prepared.error }, { status: 400 });
     }
 
     const baby = await prisma.baby.findFirst({
-      where: { id: body.babyId, familyId: userFamilyId },
+      where: { id: body.babyId, familyId: userFamilyId, deletedAt: null },
     });
 
     if (!baby) {
@@ -68,18 +69,21 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
     });
     const trackingEnabled = familySettings?.enableBreastMilkTracking !== false;
 
-    const pumpLog = await prisma.$transaction(async (tx) => {
+    const identity = pumpRequestIdentity(body, authContext);
+    const createData: Prisma.PumpLogUncheckedCreateInput = {
+      ...prepared.data,
+      ...(identity ? { id: identity.pumpId } : {}),
+      babyId: body.babyId,
+      startTime: startTimeUTC,
+      unitAbbr,
+      pumpAction,
+      notes: body.notes,
+      caretakerId,
+      familyId: userFamilyId,
+    };
+    const { pumpLog, created } = await createPumpOnce(prisma, identity, createData, trackingEnabled, async (tx) => {
       const createdPumpLog = await tx.pumpLog.create({
-        data: {
-          ...prepared.data,
-          babyId: body.babyId,
-          startTime: startTimeUTC,
-          unitAbbr,
-          pumpAction,
-          notes: body.notes,
-          caretakerId: caretakerId,
-          familyId: userFamilyId,
-        },
+        data: createData,
       });
 
       // Keep the feeding record for reports, but link it to the pump so it can
@@ -115,13 +119,17 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
     };
 
     // Notify subscribers about activity creation (non-blocking)
-    notifyActivityCreated(pumpLog.babyId, 'pump', { accountId: authContext.accountId, caretakerId: authContext.caretakerId }, { totalAmount, unitAbbr }).catch(console.error);
+    if (created) notifyActivityCreated(pumpLog.babyId, 'pump', { accountId: authContext.accountId, caretakerId: authContext.caretakerId }, { totalAmount, unitAbbr }).catch(console.error);
 
-    return NextResponse.json<ApiResponse<PumpLogResponse>>({
+    return NextResponse.json({
       success: true,
       data: response,
+      ...(identity ? { requestId: identity.requestId } : {}),
     });
   } catch (error) {
+    if (error instanceof PumpRequestError) {
+      return NextResponse.json<ApiResponse<null>>({ success: false, error: error.message }, { status: error.status });
+    }
     console.error('Error creating pump log:', error);
     return NextResponse.json<ApiResponse<PumpLogResponse>>(
       {
