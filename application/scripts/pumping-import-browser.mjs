@@ -1,5 +1,6 @@
 // Real wizard, canonical API and milk stock checks on the owned synthetic server.
 import assert from 'node:assert/strict';
+import { createHash, randomUUID } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 
 const csv = [
@@ -137,12 +138,40 @@ export async function verifyPumpingImport({ base, db, family, baby, caretaker, t
     assert.equal(await stock(), stockBefore + 100); assert.deepEqual(await counts(db), after);
     checks.push('Explicit Stored selection through the real editor adds exactly the recorded amount and changes only disposition');
 
-    for (const action of ['FED', 'FED', 'UNKNOWN', 'DISCARDED', 'STORED']) {
+    for (const [index, action] of ['FED', 'FED', 'UNKNOWN', 'DISCARDED', 'STORED'].entries()) {
       const response = await request(`/api/pump-log?id=${pumps[0].id}`, 'PUT', { pumpAction: action });
       assert.equal(response.status, 200);
       assert.equal(await stock(), stockBefore + (action === 'STORED' ? 100 : 0));
       assert.equal(await db.feedLog.count({ where: { sourcePumpId: pumps[0].id } }), action === 'FED' ? 1 : 0);
       assert.deepEqual(sourceFields(await db.pumpLog.findUniqueOrThrow({ where: { id: pumps[0].id } })), sourceFields(pumps[0]));
+      if (index === 0) {
+        const pumpBefore = await db.pumpLog.findUniqueOrThrow({ where: { id: pumps[0].id } });
+        const feedsBefore = await db.feedLog.findMany({ where: { sourcePumpId: pumps[0].id }, orderBy: { id: 'asc' } });
+        const countsBefore = await counts(db); const stockBeforeRejection = await stock();
+        assert.equal(feedsBefore.length, 1, 'Rejected corrections must exercise a real owned feeding link');
+        const rejected = async (path, method, body, bearer = token) => {
+          assert.equal((await request(path, method, body, bearer)).status, 400);
+          assert.deepEqual(await db.pumpLog.findUniqueOrThrow({ where: { id: pumps[0].id } }), pumpBefore);
+          assert.deepEqual(await db.feedLog.findMany({ where: { sourcePumpId: pumps[0].id }, orderBy: { id: 'asc' } }), feedsBefore);
+          assert.deepEqual(await counts(db), countsBefore); assert.equal(await stock(), stockBeforeRejection);
+        };
+        const reversedEnd = new Date(pumpBefore.startTime.getTime() - 1000).toISOString();
+        await rejected(`/api/pump-log?id=${pumpBefore.id}`, 'PUT', { totalAmount: -1 });
+        await rejected(`/api/pump-log?id=${pumpBefore.id}`, 'PUT', { endTime: reversedEnd });
+        const hookToken = 'st_live_synthetic_' + randomUUID();
+        const hookKey = await db.apiKey.create({ data: {
+          name: 'Owned pumping acceptance', keyPrefix: hookToken.slice(0, 16), keyHash: createHash('sha256').update(hookToken).digest('hex'),
+          familyId: family.id, babyId: baby.id, scopes: JSON.stringify(['write']),
+        } });
+        try {
+          const hookPath = `/api/hooks/v1/babies/${baby.id}/activities`;
+          await rejected(hookPath, 'POST', { type: 'pump', action: 'log', time: pumpBefore.startTime.toISOString(), totalAmount: -1, unitAbbr: 'ML' }, hookToken);
+          await rejected(`${hookPath}/${pumpBefore.id}`, 'PUT', { type: 'pump', totalAmount: '-1' }, hookToken);
+          await rejected(`${hookPath}/${pumpBefore.id}`, 'PUT', { type: 'pump', endTime: reversedEnd }, hookToken);
+        } finally {
+          await db.apiKey.delete({ where: { id: hookKey.id } });
+        }
+      }
     }
     const beforeReplay = await db.pumpLog.findMany({ where: { id: { in: pumps.map(pump => pump.id) } }, orderBy: { id: 'asc' } });
     const replayResponse = await importRequest(); assert.equal(replayResponse.status, 200);
@@ -150,7 +179,7 @@ export async function verifyPumpingImport({ base, db, family, baby, caretaker, t
     assert.deepEqual(replay.data.records.map(record => record.targetRecordId), imported.data.records.map(record => record.targetRecordId));
     assert.deepEqual(await db.pumpLog.findMany({ where: { id: { in: pumps.map(pump => pump.id) } }, orderBy: { id: 'asc' } }), beforeReplay);
     assert.deepEqual(await counts(db), after); assert.equal(await stock(), stockBefore + 100);
-    checks.push('Authenticated action corrections synchronize the single owned feed and replay preserves the caregiver choice and source identity');
+    checks.push('Authenticated action corrections synchronize the owned feed; invalid manual/API-key hook writes preserve pump, feed and stock; replay preserves source identity');
 
     const otherFamily = await db.family.create({ data: { id: 'browser-pump-other-family', slug: 'synthetic-pump-other', name: 'Other synthetic pumping family' } });
     const otherBaby = await db.baby.create({ data: { id: 'browser-pump-other-baby', familyId: otherFamily.id, firstName: 'Other', lastName: 'Synthetic', birthDate: new Date('2026-01-01Z') } });
