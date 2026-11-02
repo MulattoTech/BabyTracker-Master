@@ -48,7 +48,7 @@ export default function BottleForm({ timeZone, saving, initial, onSave, onCancel
     {error && <p className="journal-error" role="alert">{t(error)}</p>}
     <div className="journal-fields">
       <label>{t('Feeding date and time')}<input type="datetime-local" value={localTime} onChange={e => { setLocalTime(e.target.value); setFollowNow(false); setRetryTime(null); setExactTime(''); }} required disabled={saving} /></label>
-      <label>{t('Milk type')}<select value={milk} onChange={e => setMilk(e.target.value)} disabled={saving}>
+      <label>{t('Milk type')}<select aria-label={t('Milk type')} value={milk} onChange={e => setMilk(e.target.value)} disabled={saving}>
         <option value="Formula">{t('Formula')}</option><option value="Breast Milk">{t('Breast Milk')}</option><option value="Formula/Breast">{t('Formula and breast milk')}</option><option value="Other">{t('Other')}</option>
       </select></label>
       <label>{t('Consumed')}<div className="journal-volume"><input type="number" inputMode="decimal" min="0" step="any" required value={amount} onChange={e => setAmount(e.target.value)} disabled={saving} />
