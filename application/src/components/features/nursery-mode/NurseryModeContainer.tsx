@@ -34,6 +34,8 @@ export function NurseryModeContainer() {
   const params = useParams();
   const slug = params?.slug as string;
   const { selectedBaby, setSelectedBaby } = useBaby();
+  const selectedBabyRef = useRef(selectedBaby);
+  selectedBabyRef.current = selectedBaby;
   const { toUTCString, timeFormat } = useTimezone();
   const { t } = useLocalization();
   const wakeLock = useWakeLock();
@@ -120,7 +122,10 @@ export function NurseryModeContainer() {
           if (data.success) {
             const activeBabies = data.data.filter((b: Baby) => !b.inactive);
             setBabies(activeBabies);
-            if (!selectedBaby && activeBabies.length > 0) {
+            // BabyProvider may restore the last child while this request is in
+            // flight. The mount-time null closure must not replace that child
+            // and hide their saved activity drafts after a reload.
+            if (!selectedBabyRef.current && activeBabies.length > 0) {
               setSelectedBaby(activeBabies[0]);
             }
           }
@@ -301,8 +306,13 @@ export function NurseryModeContainer() {
   // strings frozen at poll time stayed English for the life of the entry.
   const logs = useMemo(() => formatTileLogs(entries, timeFormat, t), [entries, timeFormat, t]);
 
-  const handleLog = useCallback((tileId: string, note: string) => {
-    setEntries(prev => ({ ...prev, [tileId]: { kind: 'note', at: new Date().toISOString(), note } }));
+  const handleLog = useCallback((tileId: string, note: string, at?: string) => {
+    // A queued bottle keeps its actual feeding time. A later delivery must not
+    // make an older bottle look new or replace a more recent activity summary.
+    setEntries(prev => {
+      if (at && (!isWithinTileWindow(at, Date.now()) || Date.parse(prev[tileId]?.at || '') > Date.parse(at))) return prev;
+      return { ...prev, [tileId]: { kind: 'note', at: at || new Date().toISOString(), note } };
+    });
   }, []);
 
   // Stable identity: the container re-renders every second while an activity
@@ -434,6 +444,7 @@ export function NurseryModeContainer() {
       )}
 
       <UndoToast undo={undo} onUndo={handleUndo} onDismiss={dismissUndo} />
+      {feedView.overlay}
 
       <SettingsDrawer
         open={settingsOpen}

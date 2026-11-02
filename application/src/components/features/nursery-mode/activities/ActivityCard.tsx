@@ -81,13 +81,14 @@ export function ActivityCard({ view, log, iconColor, iconShape, dimmed = false }
           ) : null}
         </div>
       </div>
+      {view.errorText && <p role="alert" className="nursery-save-error">{view.errorText}</p>}
       {amountPrompt && (
         <div className="nursery-amount-row">
           {amountPrompt.fields.map(f => (
             <label key={f.key} className="nursery-amount-field">
               <span className="al">{f.label}</span>
               <span className="ai">
-                <input type="number" inputMode="decimal" min={0} value={f.value} onChange={e => f.onChange(e.target.value)} />
+                <input type="number" inputMode="decimal" min={0} value={f.value} disabled={f.disabled} onChange={e => f.onChange(e.target.value)} />
                 <span className="au">{f.unit}</span>
               </span>
             </label>

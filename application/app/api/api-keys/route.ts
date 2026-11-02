@@ -113,10 +113,10 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       );
     }
 
-    // Validate babyId belongs to family if provided
+    // A removed child cannot be selected for a newly issued key.
     if (babyId) {
       const baby = await prisma.baby.findFirst({
-        where: { id: babyId, familyId },
+        where: { id: babyId, familyId, deletedAt: null },
       });
       if (!baby) {
         return NextResponse.json<ApiResponse<null>>(

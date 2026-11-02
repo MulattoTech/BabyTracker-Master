@@ -15,6 +15,7 @@ const QUICK_ACTION_ICONS: Record<string, IconName> = {
   stop: 'stop',
   resumeLeft: 'resumeLeft',
   resumeRight: 'resumeRight',
+  pendingBottles: 'bottle',
 };
 
 export interface BigTileProps {
@@ -38,7 +39,7 @@ export function BigTile({ view, log, iconColor, iconShape }: BigTileProps): Reac
   const headerButtons = searchPrompt ? buttons.filter(b => b.cancel) : [];
   const listButtons = searchPrompt ? buttons.filter(b => !b.cancel) : buttons;
 
-  const metaLine = active && statusText ? statusText : log ? log.last : '';
+  const metaLine = statusText || (log ? log.last : '');
   // Breastfeeding/pumping are long-running sessions — surface their controls directly
   // on the tile face so switching sides, pausing, or stopping doesn't take two taps
   // (open the modal, then tap the button).
@@ -66,6 +67,7 @@ export function BigTile({ view, log, iconColor, iconShape }: BigTileProps): Reac
           </span>
           <span className="tlabel">{view.label}</span>
           {metaLine ? <span className="tmeta">{metaLine}</span> : null}
+          {view.errorText && !open && <span role="alert" className="nursery-save-error">{view.errorText}</span>}
         </button>
         {showQuickActions && (
           <div className="tqa">
@@ -163,13 +165,14 @@ export function BigTile({ view, log, iconColor, iconShape }: BigTileProps): Reac
                 ))}
               </div>
             )}
+            {view.errorText && <p role="alert" className="nursery-save-error">{view.errorText}</p>}
             {amountPrompt && (
               <div className="nursery-amount-row">
                 {amountPrompt.fields.map(f => (
                   <label key={f.key} className="nursery-amount-field">
                     <span className="al">{f.label}</span>
                     <span className="ai">
-                      <input type="number" inputMode="decimal" min={0} value={f.value} onChange={e => f.onChange(e.target.value)} />
+                      <input type="number" inputMode="decimal" min={0} value={f.value} disabled={f.disabled} onChange={e => f.onChange(e.target.value)} />
                       <span className="au">{f.unit}</span>
                     </span>
                   </label>

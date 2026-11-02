@@ -1,4 +1,5 @@
 import { IconName } from '../icons';
+import type { ReactNode } from 'react';
 
 /** Latest logged activity summary shown in a card/tile meta line. */
 export interface TileLog {
@@ -29,6 +30,7 @@ export interface AmountPromptField {
   value: string;
   onChange: (value: string) => void;
   unit: string; // e.g. "oz", shown next to the input
+  disabled?: boolean;
 }
 
 /** Optional amount entry (e.g. pump volume) shown above the action buttons. */
@@ -48,6 +50,7 @@ export interface ActivityView {
   icon: IconName; // bottle | pump | diaper | moon
   label: string; // localized
   statusText: string | null; // active timer line, e.g. "Left Side — 4:12 · L: 4:12 R: 0:00"
+  errorText?: string | null;
   active: boolean; // a timer/session is running
   /** True while a decision screen is showing (e.g. pump's amount/action step, sleep's location picker) — the card expands to fill the grid in cards layout. */
   question: boolean;
@@ -56,6 +59,8 @@ export interface ActivityView {
   buttons: ActionButton[];
   /** When true, buttons keep their intrinsic size and wrap to new rows instead of shrinking to fit one row (e.g. sleep's location picker, which can have many options). */
   buttonsWrap?: boolean;
+  /** Activity-specific dialog, rendered once outside the cards/tiles layouts. */
+  overlay?: ReactNode;
 }
 
 export interface UndoInfo {
@@ -84,7 +89,7 @@ export async function undoDeleteLog(endpoint: string, id: string): Promise<boole
 export interface ActivityHookArgs {
   babyId: string;
   toUTCString: (d: Date | null | undefined) => string | null;
-  onLog: (tileId: string, note: string) => void;
+  onLog: (tileId: string, note: string, at?: string) => void;
   onUndoable: (u: UndoInfo) => void; // instant logs only (bottle, diaper)
   enableBreastMilkTracking?: boolean;
   /** Locations offered by useSleepActions' location picker; defaults to ['Crib', 'Contact']. */

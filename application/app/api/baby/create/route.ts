@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/app/api/db';
 import { z } from 'zod';
-import { ApiResponse, getAuthenticatedUser } from '@/app/api/utils/auth';
+import { ApiResponse, AuthResult, withAuthContext } from '@/app/api/utils/auth';
 import { checkWritePermission } from '@/app/api/utils/writeProtection';
+import { resolveFamilyScope } from '@/app/api/utils/family-scope';
 import { Baby, Gender } from '@prisma/client';
 import { isValidFeedTimerTypes } from '@/src/utils/feedTimerConfig';
 
@@ -22,16 +23,8 @@ const CreateBabySchema = z.object({
     .refine(isValidFeedTimerTypes, 'Invalid feed timer types'),
 });
 
-export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<Baby>>> {
-  // Check authentication and write permissions for expired accounts
-  const authContext = await getAuthenticatedUser(req);
-  if (!authContext.authenticated) {
-    return NextResponse.json(
-      { success: false, error: 'Authentication required' },
-      { status: 401 }
-    );
-  }
-
+async function handlePost(req: NextRequest, authContext: AuthResult): Promise<NextResponse<ApiResponse<Baby>>> {
+  // Check write permissions for expired accounts
   const writeCheck = checkWritePermission(authContext);
   if (!writeCheck.allowed) {
     return writeCheck.response!;
@@ -48,7 +41,12 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<B
       );
     }
 
-    const { familyId, ...babyData } = validation.data;
+    const { familyId: requestedFamilyId, ...babyData } = validation.data;
+    const scope = resolveFamilyScope(authContext, requestedFamilyId);
+    if (!scope.ok) {
+      return NextResponse.json({ success: false, error: scope.error }, { status: scope.status });
+    }
+    const familyId = scope.familyId;
     
     // Verify family exists
     const family = await prisma.family.findUnique({
@@ -86,4 +84,6 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<B
     }
     return NextResponse.json({ success: false, error: 'Error creating baby' }, { status: 500 });
   }
-} 
+}
+
+export const POST = withAuthContext(handlePost);

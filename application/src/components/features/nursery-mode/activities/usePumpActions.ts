@@ -2,333 +2,329 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocalization } from '@/src/context/localization';
-import { formatPumpNote, PumpNoteLabels } from '@/src/utils/nursery/activityDetail';
-import { loadPumpSession, savePumpSession, clearPumpSession } from '@/src/utils/nursery/pumpSession';
+import { useFamily } from '@/src/context/family';
+import { journalScopeFromToken } from '@/src/lib/bottle-journal/outbox-identity';
+import { formatPumpNote } from '@/src/utils/nursery/activityDetail';
+import { loadPumpSession, readPumpSession, mutatePumpSession, clearPumpSession, pumpSessionKey, preparePumpSubmission, type PumpSessionSnapshot, type PumpSessionSide } from '@/src/utils/nursery/pumpSession';
 import { ActivityHookArgs, ActivityView, ActionButton, AmountPrompt, formatMMSS, undoDeleteLog } from './types';
-import { cacheDefaultBottleUnit, readCachedDefaultBottleUnit } from '@/src/utils/defaultBottleUnit';
-import type { BottleUnit } from '@/src/utils/defaultBottleUnit';
+import { cacheDefaultBottleUnit, readCachedDefaultBottleUnit, type BottleUnit } from '@/src/utils/defaultBottleUnit';
+import type { PumpAction } from '@/src/utils/pumpAction';
 
-type PumpSide = 'left' | 'right' | 'both';
-type PumpPhase = 'idle' | 'timing' | 'paused' | 'selecting_action';
+const awaitingConfirmation = 'Saving could not be confirmed. Your pumping session is kept. Retry the saved request.';
+const storageError = 'This browser could not keep your pumping session. Keep this page open and free storage before retrying.';
+const lockingError = 'This browser cannot safely coordinate saved pumping sessions. Keep this page open and use a browser with Web Locks support before saving.';
+const identityError = 'Sign in as the original caregiver before saving this pumping session.';
+const newerSessionMessage = 'A newer pumping session is saved on this browser. It has been kept.';
+const elapsedNow = (session: PumpSessionSnapshot) => session.phase === 'timing' && session.resumeTime !== null
+  ? session.pauseAccumulated + Math.max(0, Math.floor((Date.now() - session.resumeTime) / 1000)) : session.elapsed;
 
-/**
- * Pump activity state machine — transplanted 1:1 from PumpTile.tsx.
- * Local timer; enableBreastMilkTracking===false skips action selection;
- * POST /api/pump-log on submit.
- */
-export function usePumpActions({ babyId, toUTCString, onLog, onUndoable, enableBreastMilkTracking = true }: ActivityHookArgs): ActivityView {
+/** Local timer with an owner-scoped durable draft and a frozen, idempotent save. */
+export function usePumpActions({ babyId, onLog, onUndoable, enableBreastMilkTracking = true }: ActivityHookArgs): ActivityView {
   const { t } = useLocalization();
-  const [phase, setPhase] = useState<PumpPhase>('idle');
-  const [activeSide, setActiveSide] = useState<PumpSide | null>(null);
-  const [elapsed, setElapsed] = useState(0);
-  // Seconds already banked for each side by a prior segment (folded in on switch) —
-  // 'both' never switches, so these stay 0 and the whole session lives in `elapsed`.
-  const [sideDuration, setSideDuration] = useState({ left: 0, right: 0 });
-  const [pauseAccumulated, setPauseAccumulated] = useState(0);
-  const [startTime, setStartTime] = useState<Date | null>(null);
-  const [resumeTime, setResumeTime] = useState<number | null>(null);
+  const { family, authenticatedFetch } = useFamily();
+  const [session, setSession] = useState<PumpSessionSnapshot | null>(null);
+  const persistedSnapshot = useRef<PumpSessionSnapshot | null>(null);
+  const adoptSession = useCallback((snapshot: PumpSessionSnapshot | null) => {
+    persistedSnapshot.current = snapshot;
+    setSession(snapshot);
+  }, []);
+  const [legacy, setLegacy] = useState<PumpSessionSnapshot | null>(null);
+  const [loadedScope, setLoadedScope] = useState<string | null>(null);
+  const loadedScopeRef = useRef<string | null>(null);
+  const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [defaultUnit, setDefaultUnit] = useState<BottleUnit>(() => readCachedDefaultBottleUnit());
-  const [amountLeft, setAmountLeft] = useState('');
-  const [amountRight, setAmountRight] = useState('');
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const readScope = useCallback(() => {
+    try { return journalScopeFromToken(localStorage.getItem('authToken'), family?.id, babyId); }
+    catch { return null; }
+  }, [family?.id, babyId]);
+  const currentScope = useRef(readScope); currentScope.current = readScope;
 
-  const refreshDefaultUnit = useCallback(async () => {
-    try {
-      const authToken = localStorage.getItem('authToken');
-      const res = await fetch('/api/settings', {
-        cache: 'no-store',
-        headers: { Authorization: authToken ? `Bearer ${authToken}` : '' },
-      });
-      const data = await res.json();
-      const unit = cacheDefaultBottleUnit(data.success && data.data?.defaultBottleUnit);
-      if (unit) setDefaultUnit(unit);
-    } catch { /* keep the cached/default unit */ }
+  useEffect(() => {
+    const refresh = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        const res = await fetch('/api/settings', { cache: 'no-store', headers: { Authorization: token ? `Bearer ${token}` : '' } });
+        const data = await res.json();
+        const unit = cacheDefaultBottleUnit(data.success && data.data?.defaultBottleUnit);
+        if (unit) setDefaultUnit(unit);
+      } catch { /* A session keeps the unit captured when it started. */ }
+    };
+    void refresh();
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
   }, []);
 
-  // Fetch bottle/pump amount unit default (same setting FeedTile uses).
   useEffect(() => {
-    refreshDefaultUnit();
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') refreshDefaultUnit();
+    const restore = (force = false) => {
+      const scope = readScope();
+      if (submittingRef.current && scope === loadedScopeRef.current) return;
+      if (!force && scope === loadedScopeRef.current) return;
+      const read = scope ? readPumpSession(babyId, scope) : null;
+      if (scope === loadedScopeRef.current && (read?.status === 'unavailable' || read?.status === 'invalid')) {
+        setError(storageError); return;
+      }
+      const saved = read?.status === 'saved' ? read.snapshot : null;
+      loadedScopeRef.current = scope;
+      setLoadedScope(scope);
+      adoptSession(saved);
+      setLegacy(!saved && scope ? loadPumpSession(babyId) : null);
+      setError(saved?.pending ? awaitingConfirmation : '');
     };
-    window.addEventListener('focus', refreshDefaultUnit);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      window.removeEventListener('focus', refreshDefaultUnit);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    const onStorage = (event: StorageEvent) => {
+      const scope = readScope();
+      if (event.key === 'authToken' || event.key === pumpSessionKey(babyId)
+        || (scope && event.key === pumpSessionKey(babyId, scope))) restore(true);
     };
-  }, [refreshDefaultUnit]);
+    const onFocus = () => restore();
+    restore(true);
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('storage', onStorage);
+    return () => { window.removeEventListener('focus', onFocus); window.removeEventListener('storage', onStorage); };
+  }, [babyId, readScope, adoptSession]);
 
-  // Guards the persistence effect below against writing a stale ('idle') snapshot
-  // in the same render pass this rehydration effect fires in — state updates from
-  // this effect aren't visible to other effects until the next render, so without
-  // this flag the persist effect would clear out the session we're about to restore.
-  const skipNextPersistRef = useRef(true);
-
-  // Pump sessions have no server-side "active session" record (unlike
-  // breastfeeding/sleep), so on mount / baby switch, recall any in-progress local
-  // timer from localStorage — otherwise a reload or switching babies loses it, and
-  // Stop would either log nothing or log against the wrong baby.
   useEffect(() => {
-    skipNextPersistRef.current = true;
-    const snapshot = loadPumpSession(babyId);
-    if (snapshot) {
-      setPhase(snapshot.phase);
-      setActiveSide(snapshot.activeSide);
-      setStartTime(new Date(snapshot.startTime));
-      setSideDuration(snapshot.sideDuration);
-      setPauseAccumulated(snapshot.pauseAccumulated);
-      setResumeTime(snapshot.resumeTime);
-      setElapsed(snapshot.elapsed);
-      setAmountLeft(snapshot.amountLeft);
-      setAmountRight(snapshot.amountRight);
-    } else {
-      setPhase('idle');
-      setActiveSide(null);
-      setElapsed(0);
-      setSideDuration({ left: 0, right: 0 });
-      setPauseAccumulated(0);
-      setStartTime(null);
-      setResumeTime(null);
-      setAmountLeft('');
-      setAmountRight('');
-    }
-  }, [babyId]);
-
-  // Mirror the in-progress session to localStorage (keyed per baby) on every change
-  // so it survives a reload and can be recalled before the final POST /api/pump-log.
-  useEffect(() => {
-    if (skipNextPersistRef.current) {
-      skipNextPersistRef.current = false;
-      return;
-    }
-    if (!babyId) return;
-    if (phase === 'idle' || !startTime || !activeSide) {
-      clearPumpSession(babyId);
-      return;
-    }
-    savePumpSession(babyId, {
-      phase,
-      activeSide,
-      startTime: startTime.toISOString(),
-      sideDuration,
-      pauseAccumulated,
-      resumeTime,
-      elapsed,
-      amountLeft,
-      amountRight,
+    if (!loadedScope || loadedScope !== readScope()) return;
+    // Frozen submissions are persisted explicitly before dispatch. Re-saving
+    // one from a later passive effect could resurrect it after a 4xx rejection.
+    // Running ticks are derived from the persisted resume time; they do not
+    // write whole snapshots back over another tab's user edits.
+    if (!session || session.phase === 'timing' || session.pending || session === persistedSnapshot.current) return;
+    if (session.scope !== loadedScope) return;
+    let active = true;
+    void mutatePumpSession(babyId, loadedScope, { kind: 'save', snapshot: session }).then(result => {
+      if (!active || currentScope.current() !== loadedScope) return;
+      if (result.status === 'changed' && result.snapshot) {
+        adoptSession(result.snapshot); setError(result.snapshot.requestId === session.requestId ? awaitingConfirmation : newerSessionMessage);
+      } else if (result.status === 'locking-unavailable') setError(lockingError);
+      else if (result.status === 'unavailable' || result.status === 'invalid') setError(storageError);
     });
-  }, [babyId, phase, activeSide, startTime, sideDuration, pauseAccumulated, resumeTime, elapsed, amountLeft, amountRight]);
+    return () => { active = false; };
+  }, [babyId, loadedScope, session, readScope, adoptSession]);
 
   useEffect(() => {
-    if (phase === 'timing' && resumeTime != null) {
-      const update = () => {
-        const now = Date.now();
-        setElapsed(pauseAccumulated + Math.floor((now - resumeTime) / 1000));
-      };
-      update();
-      intervalRef.current = setInterval(update, 1000);
-    } else {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+    if (session?.phase !== 'timing') return;
+    const tick = () => setSession(value => {
+      if (value?.phase !== 'timing') return value;
+      const elapsed = elapsedNow(value);
+      return elapsed === value.elapsed ? value : { ...value, elapsed };
+    });
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [session?.phase]);
+
+  const canAct = () => {
+    const scope = readScope();
+    if (!scope || scope !== loadedScope || (session && scope !== session.scope)) { setError(identityError); return false; }
+    return !submittingRef.current;
+  };
+  const beginSession = (draft: PumpSessionSnapshot, kind: 'create' | 'save' = 'create') => {
+    setSession(draft); setLegacy(null); setError('');
+    void mutatePumpSession(babyId, draft.scope!, { kind, snapshot: draft }).then(result => {
+      if (currentScope.current() !== draft.scope) return;
+      if (result.status === 'changed' && result.snapshot) { adoptSession(result.snapshot); setError(newerSessionMessage); }
+      else if (result.status === 'locking-unavailable') setError(lockingError);
+      else if (result.status === 'unavailable' || result.status === 'invalid') setError(storageError);
+    });
+  };
+  const start = (side: PumpSessionSide) => {
+    if (!canAct()) return;
+    beginSession({ phase: 'timing', activeSide: side, startTime: new Date().toISOString(),
+      sideDuration: { left: 0, right: 0 }, pauseAccumulated: 0, resumeTime: Date.now(), elapsed: 0,
+      amountLeft: '', amountRight: '', scope: loadedScope!, requestId: crypto.randomUUID(), unitAbbr: defaultUnit });
+  };
+  const pause = () => {
+    if (!session || !canAct()) return;
+    const elapsed = elapsedNow(session);
+    setSession({ ...session, phase: 'paused', elapsed, pauseAccumulated: elapsed, resumeTime: null });
+  };
+  const resume = () => {
+    if (!session || !canAct() || session.pending) return;
+    beginSession({ ...session, phase: 'timing', resumeTime: Date.now(), endTime: undefined }, 'save');
+  };
+  const switchSide = () => {
+    if (!session || session.activeSide === 'both' || !canAct() || session.pending) return;
+    const elapsed = elapsedNow(session);
+    beginSession({ ...session, activeSide: session.activeSide === 'left' ? 'right' : 'left',
+      sideDuration: { ...session.sideDuration, [session.activeSide]: session.sideDuration[session.activeSide] + elapsed },
+      elapsed: 0, pauseAccumulated: 0, resumeTime: Date.now(), phase: 'timing', endTime: undefined }, 'save');
+  };
+
+  const submit = async (action: PumpAction, stopped = session) => {
+    if (!stopped || !canAct() || stopped.scope !== loadedScope) return;
+    const readBeforeSave = readPumpSession(babyId, stopped.scope);
+    if (readBeforeSave.status === 'unavailable' || readBeforeSave.status === 'invalid') { setError(storageError); return; }
+    const storedBeforeSave = readBeforeSave.status === 'saved' ? readBeforeSave.snapshot : null;
+    if (storedBeforeSave && storedBeforeSave.requestId !== stopped.requestId) {
+      adoptSession(storedBeforeSave); setError(newerSessionMessage); return;
     }
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [phase, resumeTime, pauseAccumulated]);
-
-  const handleStart = (side: PumpSide) => {
-    setActiveSide(side);
-    setStartTime(new Date());
-    setPauseAccumulated(0);
-    setResumeTime(Date.now());
-    setElapsed(0);
-    setSideDuration({ left: 0, right: 0 });
-    setAmountLeft('');
-    setAmountRight('');
-    setPhase('timing');
-  };
-
-  const handlePause = () => {
-    setPauseAccumulated(elapsed);
-    setResumeTime(null);
-    setPhase('paused');
-  };
-
-  const handleResume = () => {
-    setResumeTime(Date.now());
-    setPhase('timing');
-  };
-
-  const handleSwitch = () => {
-    if (!activeSide || activeSide === 'both') return;
-    setSideDuration(prev => ({ ...prev, [activeSide]: prev[activeSide] + elapsed }));
-    setActiveSide(activeSide === 'left' ? 'right' : 'left');
-    setPauseAccumulated(0);
-    setResumeTime(Date.now());
-    setElapsed(0);
-  };
-
-  const submitPump = useCallback(async (pumpAction: string) => {
-    if (submitting || !startTime || !activeSide) return;
-    setSubmitting(true);
+    submittingRef.current = true; setSubmitting(true); setError('');
+    const scope = stopped.scope!;
+    let pending = stopped.pending;
+    if (!pending) setSession({ ...stopped, pumpAction: action });
+    const adoptChangedDraft = () => {
+      const read = readPumpSession(babyId, scope);
+      if (read.status === 'unavailable' || read.status === 'invalid') return false;
+      const saved = read.status === 'saved' ? read.snapshot : null;
+      if (saved?.requestId === stopped.requestId) return false;
+      if (currentScope.current() === scope) {
+        adoptSession(saved); setError(saved ? newerSessionMessage : '');
+      }
+      return true;
+    };
     try {
-      const authToken = localStorage.getItem('authToken');
-      const endTime = new Date();
-      const totalElapsed = sideDuration.left + sideDuration.right + elapsed;
-      const durationMinutes = Math.max(1, Math.round(totalElapsed / 60));
-      const leftVal = amountLeft.trim() !== '' ? parseFloat(amountLeft) : undefined;
-      const rightVal = amountRight.trim() !== '' ? parseFloat(amountRight) : undefined;
-      const hasLeft = leftVal !== undefined && !isNaN(leftVal);
-      const hasRight = rightVal !== undefined && !isNaN(rightVal);
-
-      const payload: Record<string, unknown> = {
-        babyId,
-        startTime: toUTCString(startTime),
-        endTime: toUTCString(endTime),
-        duration: durationMinutes,
-        pumpAction,
-      };
-      if (hasLeft) payload.leftAmount = leftVal;
-      if (hasRight) payload.rightAmount = rightVal;
-      if (hasLeft || hasRight) payload.unitAbbr = defaultUnit;
-
-      const res = await fetch('/api/pump-log', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: authToken ? `Bearer ${authToken}` : '',
-        },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (data.success) {
-        const pumpNoteLabels: PumpNoteLabels = {
-          left: t('Left'), right: t('Right'), both: t('Both'),
-          stored: t('Stored'), fed: t('Fed'), discarded: t('Discarded'),
-          unknown: t('Needs review'),
-        };
-        const note = formatPumpNote({
-          side: activeSide,
-          leftAmount: hasLeft ? leftVal : null,
-          rightAmount: hasRight ? rightVal : null,
-          unitAbbr: defaultUnit,
-          durationSeconds: totalElapsed,
-          action: pumpAction,
-        }, pumpNoteLabels);
-        onLog('pump', note);
-        if (data.data?.id) {
-          const logId = data.data.id;
-          onUndoable({
-            tileId: 'pump',
-            message: t('Pump logged'),
-            undo: () => undoDeleteLog('/api/pump-log', logId),
-          });
+      if (!pending) {
+        // Finish persisting even invalid user input before showing a validation
+        // failure. A reload immediately after that message must keep the choice
+        // and amounts, not just the last asynchronous timer snapshot.
+        const intent = { ...stopped, pumpAction: action };
+        const recorded = await mutatePumpSession(babyId, scope, { kind: 'create', snapshot: intent });
+        if (currentScope.current() !== scope) return;
+        if (recorded.status === 'changed') { adoptSession(recorded.snapshot); setError(recorded.snapshot ? newerSessionMessage : ''); return; }
+        if (recorded.status !== 'saved') throw new Error(recorded.status === 'locking-unavailable' ? lockingError : storageError);
+      }
+      pending ??= preparePumpSubmission(stopped, babyId, action);
+      const frozen = { ...stopped, phase: 'selecting_action' as const, pumpAction: pending.pumpAction, pending };
+      // Persist before dispatch. A crash after the server commits must leave the
+      // exact request available, including its original child, end time and unit.
+      const persisted = await mutatePumpSession(babyId, scope, { kind: stopped.pending ? 'save' : 'create', snapshot: frozen });
+      if (currentScope.current() !== scope) return;
+      if (persisted.status === 'changed') { adoptSession(persisted.snapshot); setError(persisted.snapshot ? newerSessionMessage : ''); return; }
+      if (persisted.status !== 'saved') throw new Error(persisted.status === 'locking-unavailable' ? lockingError : storageError);
+      adoptSession(persisted.snapshot);
+      const response = await authenticatedFetch('/api/pump-log', { method: 'POST', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(20_000), body: JSON.stringify(pending) });
+      const data = await response.json();
+      if (!response.ok || data.success !== true || data.requestId !== pending.requestId || typeof data.data?.id !== 'string') {
+        if (adoptChangedDraft()) return;
+        if (currentScope.current() === scope) {
+          // A first attempt rejected before a care write can be corrected.
+          // After any uncertain attempt, even a later auth/validation rejection
+          // says nothing about that earlier transaction: keep its exact request.
+          if (!stopped.pending && [400, 401, 403, 404].includes(response.status)) {
+            const rejected = await mutatePumpSession(babyId, scope, { kind: 'reject', requestId: pending.requestId, pending });
+            if (currentScope.current() !== scope) return;
+            if (rejected.status === 'changed') { adoptSession(rejected.snapshot); setError(rejected.snapshot ? newerSessionMessage : ''); return; }
+            if (rejected.status !== 'saved') { setError(rejected.status === 'locking-unavailable' ? lockingError : storageError); return; }
+            adoptSession(rejected.snapshot);
+          }
+          setError(response.status === 401 || response.status === 403
+            ? 'Sign in again to save this pumping session. Your input has been kept.'
+            : response.status >= 400 && response.status < 500 && typeof data.error === 'string' ? data.error : awaitingConfirmation);
+        }
+        return;
+      }
+      // Do not clear another tab's newer session or the newly selected child.
+      const removed = await mutatePumpSession(babyId, scope, { kind: 'remove', requestId: pending.requestId, pending });
+      if (removed.status !== 'removed' && removed.status !== 'changed') {
+        if (currentScope.current() === scope) setError(removed.status === 'locking-unavailable' ? lockingError : storageError);
+        return;
+      }
+      const newerSession = removed.status === 'changed' ? removed.snapshot : null;
+      if (stopped.recoveredLegacy && loadPumpSession(babyId)?.startTime === stopped.startTime) clearPumpSession(babyId);
+      if (currentScope.current() !== scope) return;
+      adoptSession(newerSession); setLegacy(null); setError(newerSession?.pending ? awaitingConfirmation : '');
+      onLog('pump', formatPumpNote({ side: stopped.activeSide, leftAmount: pending.leftAmount ?? null,
+        rightAmount: pending.rightAmount ?? null, unitAbbr: pending.unitAbbr,
+        durationSeconds: stopped.sideDuration.left + stopped.sideDuration.right + stopped.elapsed, action: pending.pumpAction },
+      { left: t('Left'), right: t('Right'), both: t('Both'), stored: t('Stored'), fed: t('Fed'), discarded: t('Discarded'), unknown: t('Needs review') }));
+      onUndoable({ tileId: 'pump', message: t('Pump logged'), undo: () => undoDeleteLog('/api/pump-log', data.data.id) });
+    } catch (failure) {
+      const localFailure = failure instanceof Error && [storageError, lockingError].includes(failure.message);
+      if (pending && !localFailure && adoptChangedDraft()) return;
+      if (currentScope.current() === scope) setError(localFailure ? failure.message
+        : pending ? awaitingConfirmation : failure instanceof Error ? failure.message : awaitingConfirmation);
+    } finally {
+      submittingRef.current = false; setSubmitting(false);
+      // Storage events for this owner were held while the request was in
+      // flight. Observe the newest replacement once more before showing it.
+      if (currentScope.current() === scope) {
+        const latest = readPumpSession(babyId, scope);
+        if (latest.status === 'saved' && latest.snapshot.requestId !== stopped.requestId) {
+          adoptSession(latest.snapshot); setError(newerSessionMessage);
         }
       }
-    } catch (err) {
-      console.error('Error logging pump:', err);
-    } finally {
-      setSubmitting(false);
-      setPhase('idle');
-      setActiveSide(null);
-      setStartTime(null);
-      setResumeTime(null);
-      setPauseAccumulated(0);
-      setElapsed(0);
-      setSideDuration({ left: 0, right: 0 });
-      setAmountLeft('');
-      setAmountRight('');
-    }
-  }, [babyId, startTime, activeSide, elapsed, sideDuration, amountLeft, amountRight, defaultUnit, toUTCString, onLog, onUndoable, submitting, t]);
-
-  const handleStop = () => {
-    if (enableBreastMilkTracking === false) {
-      submitPump('STORED');
-    } else {
-      setPhase('selecting_action');
     }
   };
-
-  const sideLabels: Record<PumpSide, string> = {
-    left: t('Left Side'),
-    right: t('Right Side'),
-    both: t('Both'),
+  const stop = () => {
+    if (!session || !canAct() || session.pending) return;
+    const elapsed = elapsedNow(session);
+    const stopped = { ...session, phase: 'selecting_action' as const, elapsed, pauseAccumulated: elapsed, resumeTime: null, endTime: new Date().toISOString() };
+    setSession(stopped);
+    if (!enableBreastMilkTracking) void submit('STORED', stopped);
   };
-
-  const canSwitch = activeSide === 'left' || activeSide === 'right';
-  // Total across every segment/side so far — sideDuration holds completed segments
-  // (folded in on switch), `elapsed` is whichever side is currently live.
-  const totalElapsed = sideDuration.left + sideDuration.right + elapsed;
+  const setAmount = (side: 'Left' | 'Right', value: string) => {
+    if (!canAct()) return;
+    setSession(previous => previous && !previous.pending ? { ...previous, [`amount${side}`]: value } : previous);
+  };
+  const dismiss = async () => {
+    if (!session?.pending || !canAct() || !window.confirm(t('This session may already be in the care log. Check it before dismissing. Dismiss only this browser’s saved pumping session? This does not delete any care records.')) || !canAct()) return;
+    submittingRef.current = true; setSubmitting(true);
+    try {
+      const result = await mutatePumpSession(babyId, session.scope!, { kind: 'remove', requestId: session.requestId!, pending: session.pending });
+      if (currentScope.current() !== session.scope) return;
+      if (result.status === 'changed') { adoptSession(result.snapshot); setError(result.snapshot ? newerSessionMessage : ''); return; }
+      if (result.status !== 'removed') { setError(result.status === 'locking-unavailable' ? lockingError : storageError); return; }
+      // Deliberate local dismissal is not a server success or a record deletion.
+      adoptSession(null); setLegacy(null); setError('');
+    } finally { submittingRef.current = false; setSubmitting(false); }
+  };
 
   let statusText: string | null = null;
   let buttons: ActionButton[] = [];
   let amountPrompt: AmountPrompt | null = null;
-
-  if (phase === 'selecting_action') {
-    statusText = `${formatMMSS(totalElapsed)} — ${t('Select Action')}`;
-    const unit = defaultUnit.toLowerCase();
-    // Show a field for every side that was actually pumped this session — not just
-    // the side active at Stop — so switching left/right mid-session still lets you
-    // enter an amount for both instead of silently dropping the finished side.
-    const leftUsed = activeSide === 'both' || activeSide === 'left' || sideDuration.left > 0;
-    const rightUsed = activeSide === 'both' || activeSide === 'right' || sideDuration.right > 0;
+  const totalElapsed = session ? session.sideDuration.left + session.sideDuration.right + session.elapsed : 0;
+  if (session?.phase === 'selecting_action') {
+    statusText = `${formatMMSS(totalElapsed)} — ${t(session.pending ? 'Waiting for confirmation' : 'Select Action')}`;
+    if (session.pumpAction) statusText += ` · ${t({ STORED: 'Stored', FED: 'Fed', DISCARDED: 'Discarded', UNKNOWN: 'Needs review' }[session.pumpAction])}`;
     const fields = [];
-    if (leftUsed) fields.push({ key: 'left', label: t('Left'), value: amountLeft, onChange: setAmountLeft, unit });
-    if (rightUsed) fields.push({ key: 'right', label: t('Right'), value: amountRight, onChange: setAmountRight, unit });
+    for (const side of ['Left', 'Right'] as const) {
+      const key = side === 'Left' ? 'left' : 'right';
+      if (session.activeSide === 'both' || session.activeSide === key || session.sideDuration[key] > 0) {
+        fields.push({ key, label: t(side), value: side === 'Left' ? session.amountLeft : session.amountRight,
+          onChange: (value: string) => setAmount(side, value), unit: (session.unitAbbr || defaultUnit).toLowerCase(), disabled: submitting || !!session.pending });
+      }
+    }
     amountPrompt = { fields };
-    buttons = [
-      { key: 'stored', label: t('Stored'), onClick: () => submitPump('STORED'), disabled: submitting },
-      { key: 'fed', label: t('Fed'), onClick: () => submitPump('FED'), disabled: submitting },
-      { key: 'discarded', label: t('Discarded'), onClick: () => submitPump('DISCARDED'), disabled: submitting },
-      // Back out of Select Action into a paused session (mirrors handlePause) so
-      // the timer state survives an accidental Stop.
-      {
-        key: 'cancel',
-        label: t('Cancel'),
-        onClick: () => { setPauseAccumulated(elapsed); setResumeTime(null); setPhase('paused'); },
-        disabled: submitting,
-        cancel: true,
-      },
-    ];
-  } else if ((phase === 'timing' || phase === 'paused') && activeSide) {
-    const isPaused = phase === 'paused';
-    let sideTimer: string;
-    if (activeSide === 'both') {
-      sideTimer = `${sideLabels.both}: ${formatMMSS(elapsed)}`;
+    if (session.pending) {
+      buttons = [{ key: 'retry', label: t('Retry saved pumping session'), onClick: () => void submit(session.pending!.pumpAction), disabled: submitting, keepOpen: true }];
+      if (family?.slug) buttons.push({ key: 'review', label: t('Review care log'), disabled: submitting,
+        onClick: () => window.location.assign(`/${encodeURIComponent(family.slug)}/full-log`) });
+      buttons.push({ key: 'dismiss', label: t('Dismiss saved session'), onClick: dismiss, disabled: submitting, keepOpen: true });
     } else {
+      buttons = (enableBreastMilkTracking ? ['STORED', 'FED', 'DISCARDED'] as const : ['STORED'] as const).map(action => ({
+        key: action.toLowerCase(), label: t(action === 'STORED' ? 'Stored' : action === 'FED' ? 'Fed' : 'Discarded'),
+        onClick: () => void submit(action), disabled: submitting, keepOpen: true,
+      }));
+      buttons.push({ key: 'cancel', label: t('Cancel'), onClick: pause, disabled: submitting, cancel: true });
+    }
+  } else if (session) {
+    const activeSide = session.activeSide;
+    const sideLabels = { left: t('Left Side'), right: t('Right Side'), both: t('Both') };
+    const activeTotal = activeSide === 'both' ? session.elapsed : session.sideDuration[activeSide] + session.elapsed;
+    statusText = `${sideLabels[activeSide]}: ${formatMMSS(activeTotal)}`;
+    if (activeSide !== 'both') {
       const other = activeSide === 'left' ? 'right' : 'left';
-      const activeTotal = sideDuration[activeSide] + elapsed;
-      const otherTotal = sideDuration[other];
-      const shortOtherLabel = other === 'left' ? t('Left') : t('Right');
-      sideTimer = `${sideLabels[activeSide]}: ${formatMMSS(activeTotal)}`;
-      if (otherTotal > 0) sideTimer += ` (${shortOtherLabel}: ${formatMMSS(otherTotal)})`;
+      if (session.sideDuration[other] > 0) statusText += ` (${t(other === 'left' ? 'Left' : 'Right')}: ${formatMMSS(session.sideDuration[other])})`;
+      buttons.push({ key: 'switch', label: t('Switch'), onClick: switchSide });
     }
-    statusText = isPaused ? `${t('Paused')} · ${sideTimer}` : sideTimer;
-    if (canSwitch) {
-      buttons.push({ key: 'switch', label: t('Switch'), onClick: handleSwitch });
-    }
-    if (isPaused) {
-      buttons.push({ key: 'resume', label: t('Resume'), onClick: handleResume });
-    } else {
-      buttons.push({ key: 'pause', label: t('Pause'), onClick: handlePause });
-    }
-    buttons.push({ key: 'stop', label: t('Stop'), onClick: handleStop, emphasized: true, keepOpen: enableBreastMilkTracking !== false });
+    if (session.phase === 'paused') { statusText = `${t('Paused')} · ${statusText}`; buttons.push({ key: 'resume', label: t('Resume'), onClick: resume }); }
+    else buttons.push({ key: 'pause', label: t('Pause'), onClick: pause });
+    buttons.push({ key: 'stop', label: t('Stop'), onClick: stop, emphasized: true, keepOpen: true });
+  } else if (legacy) {
+    statusText = t('An older pumping timer is saved on this browser. Confirm the caregiver and review the amounts and unit before saving.');
+    buttons = (['ML', 'OZ'] as const).map(unitAbbr => ({ key: `reviewLegacy${unitAbbr}`,
+      label: t(unitAbbr === 'ML' ? 'Review in mL as this caregiver' : 'Review in oz as this caregiver'), keepOpen: true, onClick: () => {
+      if (!canAct()) return;
+      beginSession({ ...legacy, phase: 'paused', elapsed: elapsedNow(legacy), pauseAccumulated: elapsedNow(legacy), resumeTime: null,
+        requestId: crypto.randomUUID(), scope: loadedScope!, unitAbbr, recoveredLegacy: true });
+    } }));
   } else {
-    buttons = [
-      { key: 'startLeft', label: t('Start Left'), onClick: () => handleStart('left') },
-      { key: 'startRight', label: t('Start Right'), onClick: () => handleStart('right') },
-      { key: 'startBoth', label: t('Start Both'), onClick: () => handleStart('both') },
-    ];
+    buttons = (['left', 'right', 'both'] as const).map(side => ({ key: `start${side}`, label: t(side === 'left' ? 'Start Left' : side === 'right' ? 'Start Right' : 'Start Both'), onClick: () => start(side), disabled: !loadedScope || submitting }));
   }
-
-  return {
-    id: 'pump',
-    icon: 'pump',
-    label: t('Pump'),
-    statusText,
-    active: phase === 'timing' || phase === 'paused',
-    question: phase === 'selecting_action',
-    amountPrompt,
-    buttons,
-  };
+  return { id: 'pump', icon: 'pump', label: t('Pump'), statusText, errorText: error ? t(error) : null,
+    active: session?.phase === 'timing' || session?.phase === 'paused', question: session?.phase === 'selecting_action', amountPrompt, buttons,
+    buttonsWrap: !!session?.pending || !!legacy };
 }

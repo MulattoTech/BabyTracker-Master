@@ -31,6 +31,14 @@ Each key:
 - Can have an optional **expiration date**
 - Can be **revoked** at any time
 
+Removing a baby in the app also removes that baby from hook discovery. Subsequent
+requests to that baby's activity, status, reference and measurement endpoints
+return `404 BABY_NOT_FOUND`; an existing key cannot keep creating, changing or
+deleting that baby's retained care records. The independent inactive flag is
+also respected. Removing a baby does not delete or broaden an existing key: a
+key restricted to that baby stays restricted, while a family key can still serve
+other active babies. New keys cannot be restricted to a removed baby.
+
 ### Key Format
 
 ```
@@ -67,7 +75,7 @@ All API requests from public/external networks must use HTTPS. Plain HTTP is all
 | `KEY_EXPIRED` | 401 | Key has passed its expiration date |
 | `INSUFFICIENT_SCOPE` | 403 | Key lacks the required scope (read or write) |
 | `BABY_ACCESS_DENIED` | 403 | Key is restricted to a different baby |
-| `BABY_NOT_FOUND` | 404 | Baby ID not found in this family |
+| `BABY_NOT_FOUND` | 404 | Baby ID is missing, inactive, removed, or outside this family |
 
 ---
 
@@ -124,7 +132,9 @@ When exceeded, the API returns `429` with error code `RATE_LIMITED`.
 
 ### GET /babies
 
-List all babies in the family. Respects baby-scoped key restrictions.
+List active babies that have not been removed from the family. Respects
+baby-scoped key restrictions; a key restricted to a removed baby returns an
+empty list.
 
 ```bash
 curl -s \
