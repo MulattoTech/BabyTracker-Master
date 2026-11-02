@@ -10,7 +10,7 @@ describe('startup unit seed preservation', () => {
   it('adds missing units and corrects changed mappings once, then preserves every Unit row on a later full seed', async () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'sat-seed-units-'));
     const databaseUrl = `file:${path.join(directory, 'isolated.db')}`;
-    const env = {
+    const env: NodeJS.ProcessEnv = {
       ...process.env, DATABASE_URL: databaseUrl, LOG_DATABASE_URL: `file:${path.join(directory, 'isolated-log.db')}`,
       ENC_HASH: 'cc'.repeat(32), NODE_ENV: 'test', ENABLE_NOTIFICATIONS: 'false', ENABLE_LOG: 'false',
     };
