@@ -26,6 +26,15 @@ import are exercised by automated tests. Generated documents use no real infant
 data. Engine confidence is a 0–100 recognition score, not a field-correctness
 probability. No benchmark on messy family handwriting has been performed.
 
+Parsed rows retain the recognized page's requested rotation and crop in their
+source evidence, including rows split from the same line. The crop is the page
+recognition region, not a detected row bounding box: its pixel or percentage
+coordinates apply after EXIF orientation and the requested rotation, before the
+final image size limit. PDF pages are rasterized before those transforms. The
+original encrypted upload remains unchanged. Persisted server evidence takes
+precedence over source metadata submitted with review edits; older drafts without
+these optional fields remain readable and do not gain inferred coordinates.
+
 Tesseract's own FAQ states that it is designed for printed text and does not work
 well for handwriting: https://tesseract-ocr.github.io/tessdoc/FAQ . The UI must retain
 manual transcription and explicit approval even when recognition looks confident.

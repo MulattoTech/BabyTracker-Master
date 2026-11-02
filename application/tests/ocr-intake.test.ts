@@ -92,15 +92,7 @@ describe('bounded local OCR intake', () => {
     const row = rows[0];
     expect(row.source.page).toBe(3);
 
-    const rowWithSourceProvenance: OcrCandidate = {
-      ...row,
-      source: {
-        ...row.source,
-        rotation: 90,
-        crop: page.crop,
-      },
-    };
-    const validated = validateOcrCandidate(rowWithSourceProvenance, { allowIncomplete: true });
+    const validated = validateOcrCandidate(row, { allowIncomplete: true });
     expect(validated.valid).toBe(true);
     expect(validated.candidate?.source.page).toBe(3);
     expect(validated.candidate?.source.rotation).toBe(90);
@@ -115,6 +107,8 @@ describe('bounded local OCR intake', () => {
     expect(opened.pages[0].rotation).toBe(90);
     expect(opened.pages[0].crop).toEqual(page.crop);
     expect(opened.rows[0].source.page).toBe(3);
+    expect(opened.rows[0].source.rotation).toBe(90);
+    expect(opened.rows[0].source.crop).toEqual(page.crop);
   });
 
   it('rejects candidate with invalid rotation or crop provenance', () => {

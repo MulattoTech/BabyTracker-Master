@@ -85,21 +85,35 @@ afterAll(async () => {
 });
 
 describe('OCR → review → canonical Sprout import on a real SQLite database', () => {
-  it('recognizes a real image, persists encrypted sources, corrects a field and saves exact approved events', async () => {
-    const image = await sharp(Buffer.from('<svg width="1700" height="700" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="white"/><g font-family="DejaVu Sans" font-size="48"><text x="60" y="130">08:15 bottle formula 90 mL; duration: 20 min</text><text x="60" y="280">09:30 wet diaper</text></g></svg>')).png().toBuffer();
-    const document = await createOcrDocument(db, actor, { bytes: image, name: 'synthetic-sheet.png', babyId: 'ocr-child-a', timeZone: 'America/Chicago', defaultDate: '2026-10-20', timeFormat: '24h', rotation: 0, retentionDays: 30 });
+  it('recognizes a transformed real image, binds row provenance and saves exact approved events', async () => {
+    const image = await sharp(Buffer.from('<svg width="1700" height="700" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="white"/><g font-family="DejaVu Sans" font-size="48"><text x="60" y="130">08:15 bottle formula 90 mL; duration: 20 min</text><text x="60" y="280">09:30 wet diaper</text></g></svg>')).rotate(270).png().toBuffer();
+    // Crop coordinates belong to the upright page AFTER the requested rotation.
+    const crop = { left: 30, top: 50, width: 1640, height: 400, unit: 'pixel' as const };
+    const document = await createOcrDocument(db, actor, { bytes: image, name: 'synthetic-sheet.png', babyId: 'ocr-child-a', timeZone: 'America/Chicago', defaultDate: '2026-10-20', timeFormat: '24h', rotation: 90, crop, retentionDays: 30 });
     sources.push(document.id);
     expect(document.rows.filter(row => ['feed', 'diaper'].includes(row.eventType))).toHaveLength(2);
     expect(await db.feedLog.count()).toBe(0);
     expect(await db.diaperLog.count()).toBe(0);
     expect((await readOcrSource(db, actor, document.id)).bytes.equals(image)).toBe(true);
+    const preview = await readOcrSource(db, actor, document.id, 1);
+    expect(await sharp(preview.bytes).metadata()).toMatchObject({ width: crop.width, height: crop.height });
+    for (const row of [...document.rows, ...document.originalRows]) {
+      expect(row.source).toMatchObject({ page: 1, rotation: 90, crop });
+      expect(row.approved).toBe(false);
+    }
     const stored = await requireOcrDocument(db, actor, document.id);
     expect(readFileSync(path.join(process.env.BABYTRACKER_OCR_FILES_DIR!, stored.sourceFile!)).equals(image)).toBe(false);
     const review = reviewOf(document);
-    review.rows = review.rows.map(row => ({ ...row, amount: row.eventType === 'feed' ? 95 : row.amount, approved: true }));
+    review.rows = review.rows.map(row => ({
+      ...row, amount: row.eventType === 'feed' ? 95 : row.amount, approved: true,
+      // A review client cannot replace the transform bound by server recognition.
+      source: { ...row.source, rotation: 0, crop: { left: 0, top: 0, width: 1, height: 1 } },
+    }));
     const saved = await saveOcrReview(db, actor, document.id, review);
     expect(saved.originalRows.find(row => row.eventType === 'feed')?.amount).toBe(90);
     expect(saved.rows.find(row => row.eventType === 'feed')?.fieldSources.amount).toBe('corrected');
+    expect(saved.rows.every(row => row.source.rotation === 90)).toBe(true);
+    expect(saved.rows.map(row => row.source.crop)).toEqual(saved.rows.map(() => crop));
     review.revision = saved.revision;
     const committed = await commitOcrReview(db, actor, document.id, review);
     expect(committed.result?.created).toBe(2);
@@ -109,6 +123,10 @@ describe('OCR → review → canonical Sprout import on a real SQLite database',
     expect(await db.diaperLog.count()).toBe(1);
     expect(await db.externalImportRecord.count()).toBe(2);
     expect(await db.ocrAudit.count({ where: { documentId: document.id, action: 'commit' } })).toBe(1);
+    const commitAudit = await db.ocrAudit.findFirstOrThrow({ where: { documentId: document.id, action: 'commit' } });
+    const audit = openOcrState<{ review: OcrReviewRequest }>(commitAudit.snapshot, `${actor.familyId}:${document.id}:audit`);
+    expect(audit.review.rows.map(row => row.source.crop)).toEqual(document.rows.map(() => crop));
+    expect(audit.review.rows.every(row => row.source.rotation === 90)).toBe(true);
     // Network-loss retry and exact duplicate file return the same durable receipt.
     expect((await commitOcrReview(db, actor, document.id, review)).result).toEqual(committed.result);
     const duplicateUpload = await createOcrDocument(db, actor, { bytes: image, name: 'renamed.png', babyId: 'ocr-child-a', timeZone: 'UTC', timeFormat: 'unknown', rotation: 0, retentionDays: 30 });

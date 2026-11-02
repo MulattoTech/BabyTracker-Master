@@ -32,6 +32,32 @@ describe('OCR care-event drafts', () => {
     expect(first.every(row => row.localDate === null)).toBe(true);
   });
 
+  it.each([0, 90, 180, 270])('binds page transforms to every parsed row without changing row identity (%s degrees)', rotation => {
+    const pixelCrop = { left: 10, top: 20, width: 500, height: 400, unit: 'pixel' as const };
+    const percentCrop = { left: 5, top: 10, width: 80, height: 75, unit: 'percent' as const };
+    const pages = [
+      { page: 3, text: '8 AM bottle formula 60 mL; wet diaper', rotation, crop: pixelCrop },
+      { page: 7, text: '9 AM unclear handwriting', rotation: 180, crop: percentCrop },
+      { page: 8, text: '10 AM wet diaper' },
+    ];
+    const rows = parseOcrPages(pages);
+    expect(rows).toHaveLength(4);
+    expect(rows[0].source).toMatchObject({ page: 3, line: 1, slot: 0, rotation, crop: pixelCrop });
+    expect(rows[1].source).toMatchObject({ page: 3, line: 1, slot: 1, rotation, crop: pixelCrop });
+    expect(rows[2]).toMatchObject({ eventType: 'unknown', source: { page: 7, rotation: 180, crop: percentCrop } });
+    expect(rows[3].source).not.toHaveProperty('rotation');
+    expect(rows[3].source).not.toHaveProperty('crop');
+    expect(rows.map(row => row.id)).toEqual(parseOcrPages(pages.map(({ page, text }) => ({ page, text }))).map(row => row.id));
+    expect(rows.every(row => !row.approved)).toBe(true);
+    expect(rows[0].source.crop).not.toBe(pixelCrop);
+    expect(rows[1].source.crop).not.toBe(rows[0].source.crop);
+    pixelCrop.left = 100;
+    percentCrop.width = 10;
+    expect(rows[0].source.crop?.left).toBe(10);
+    expect(rows[1].source.crop?.left).toBe(10);
+    expect(rows[2].source.crop?.width).toBe(80);
+  });
+
   it('uses explicit supplied date as context and never invents a date from the clock', () => {
     const withoutDate = parseOcrPages([{ page: 1, text: '8 AM bottle 60 ml' }])[0];
     const supplied = parse('8 AM bottle 60 ml')[0];
