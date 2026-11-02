@@ -70,6 +70,6 @@ export default function BottleForm({ timeZone, saving, initial, onSave, onCancel
     </details>
     <div className="journal-actions"><button className="journal-primary" disabled={saving} type="submit">{t(saving ? 'Saving…' : initial ? 'Save changes' : 'Save bottle')}</button>
       {initial && <button type="button" disabled={saving} onClick={onCancel}>{t('Cancel')}</button>}</div>
-    <p className="journal-muted">{t('Wait for Bottle saved before closing. If the connection drops, keep this form open and retry.')}</p>
+    <p className="journal-muted">{t(initial ? 'Wait for Bottle saved before closing. If the connection drops, keep this form open and retry.' : 'New bottles can wait on this browser while offline. Wait for a saved or pending confirmation before closing. Historical edits require a connection.')}</p>
   </form>;
 }

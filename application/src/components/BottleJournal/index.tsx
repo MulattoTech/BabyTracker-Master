@@ -10,6 +10,7 @@ import { useLocalization } from '@/src/context/localization';
 import { useBottleJournal } from './useBottleJournal';
 import BottleForm from './BottleForm';
 import LegacyImport from './LegacyImport';
+import PendingBottles from './PendingBottles';
 import type { BottleRow } from './types';
 import './bottle-journal.css';
 
@@ -30,11 +31,13 @@ export default function BottleJournal() {
     </header>
     {!selectedBaby ? <div className="journal-card"><Baby aria-hidden="true" /><h2>{t('Choose a child first')}</h2><p>{t('Use the child selector above to choose whose care records you want to view.')}</p></div> : <>
       <div className="journal-toolbar"><label>{t('Journal date')}<input type="date" value={day} onChange={e => { if (e.target.value) setDay(e.target.value); }} /></label>
-        <div><button type="button" onClick={() => void state.refresh(true)} disabled={state.refreshing}><RefreshCw size={16} aria-hidden="true" />{t(state.refreshing ? 'Refreshing…' : 'Sync now')}</button>
+        <div><button type="button" onClick={() => { void state.refresh(true); void state.outbox.sync(); }} disabled={state.refreshing}><RefreshCw size={16} aria-hidden="true" />{t(state.refreshing ? 'Refreshing…' : 'Sync now')}</button>
           <p className="journal-muted" role="status">{state.lastSynced ? `${t('Last synced')} ${formatInTimeZone(state.lastSynced, zone, 'HH:mm:ss')}` : t('Waiting for a confirmed connection')}</p></div>
       </div>
       {state.error && <p className="journal-error" role="alert">{t(state.error)}</p>}
       {state.notice && <p className="journal-notice" role="status">{t(state.notice)}</p>}
+      {state.outbox.error && <p className="journal-error" role="alert">{t(state.outbox.error)}</p>}
+      <PendingBottles rows={state.outbox.rows} timeZone={zone} syncing={state.outbox.syncing} online={state.outbox.online} onChange={state.outbox.change} />
       <div className="journal-stats" aria-label={t('Bottle totals')}>
         <article className="journal-card"><span>{t('Selected day')}</span><strong data-testid="journal-daily-total">{totals ? `${totals.dailyMl} mL` : '—'}</strong><small>{totals?.dailyCount ?? '—'} {t('bottles')}</small></article>
         <article className="journal-card"><span>{t('Last 24 hours')}</span><strong data-testid="journal-rolling-total">{totals ? `${totals.rollingMl} mL` : '—'}</strong><small>{t('Rolling total through now')}</small></article>

@@ -2,7 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { bottleInput, BottleInput, journalTotals, journalWindow, JournalError, number, text } from './validation';
 
-export interface JournalActor { familyId: string; caretakerId?: string | null; canManage?: boolean }
+export interface JournalActor { familyId: string; caretakerId?: string | null; canManage?: boolean; actorKey?: string }
 export async function requireJournalBaby(db: PrismaClient, actor: JournalActor, babyId: string) {
   const baby = await db.baby.findFirst({ where: { id: babyId, familyId: actor.familyId, deletedAt: null } });
   if (!baby) throw new JournalError('Child not found in this family.', 404);
