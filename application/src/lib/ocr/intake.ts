@@ -243,6 +243,44 @@ export function readTesseractTsv(tsv: string): { text: string; confidence: numbe
   };
 }
 
+/** Native text is evidence, not an OCR confidence score. Reject broken font maps. */
+export function usableNativePdfText(text: string): boolean {
+  const visible = text.replace(/\s/g, '');
+  return visible.length >= 4 && /[\p{L}\p{N}]/u.test(visible)
+    && !/[\u0000-\u0008\u000b\u000e-\u001f\ufffd]/u.test(text);
+}
+
+/** Only trust a text-only page; a raster layer may contain additional care entries. */
+export function pdfPageHasRasterContent(listing: string): boolean {
+  const lines = listing.split(/\r?\n/);
+  if (!lines.some(line => /^\s*page\s+num\s+type\s+width\s+height\b/.test(line))) return true;
+  return lines.some(line => /^\s*\d+\s+\d+\s+\S+\s+\d+\s+\d+\b/.test(line));
+}
+
+async function extractNativePdfPage(source: string, page: number, signal?: AbortSignal): Promise<string | null> {
+  let extracted: string;
+  try {
+    extracted = await run('pdftotext', ['-f', String(page), '-l', String(page), '-layout', '-enc', 'UTF-8', source, '-'], signal);
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    // Malformed/missing text layers fall back to local recognition of this page.
+    return null;
+  }
+  const text = extracted.replace(/\f/g, '\n').trim();
+  if (text.length > OCR_LIMITS.text) throw new OcrError('Too much text was found. Upload a smaller section.');
+  if (!usableNativePdfText(text)) return null;
+  try {
+    const images = await run('pdfimages', ['-f', String(page), '-l', String(page), '-list', source], signal);
+    // A mixed page can contain both selectable headers and scanned handwriting.
+    // OCR the whole page rather than silently dropping the image-only content.
+    if (pdfPageHasRasterContent(images)) return null;
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    return null;
+  }
+  return text;
+}
+
 export async function recognizeOcrDocument(
   bytes: Buffer,
   optionsOrRotation: number | OcrIntakeOptions = 0,
@@ -258,7 +296,7 @@ export async function recognizeOcrDocument(
 
   const mime = identifyOcrUpload(bytes);
   if (![0, 90, 180, 270].includes(rotation)) throw new OcrError('Choose a rotation of 0, 90, 180 or 270 degrees.');
-  const engine = await verifiedEngine(signal);
+  let engine: string | undefined;
   const dir = await mkdtemp(path.join(tmpdir(), 'babytracker-ocr-'));
   try {
     let targetPages: number[] = [1];
@@ -292,17 +330,29 @@ export async function recognizeOcrDocument(
       const image = await applyImageTransform(input, { rotation, crop });
       const imagePath = path.join(dir, `page-${page}.png`);
       await writeFile(imagePath, image, { mode: 0o600 });
-      // Explicit output flags work with a model-only TESSDATA_PREFIX; a named
-      // `tsv` config requires a separate configs/tsv file and can silently fall
-      // back to plain text when that file is absent.
-      const tsv = await run('tesseract', [imagePath, 'stdout', '-l', 'eng', '--psm', '6', '-c', 'tessedit_create_tsv=1'], signal);
-      if (!tsv.startsWith('level\tpage_num\tblock_num\t')) throw new OcrError('The local recognition engine returned an unsupported result. No care records were created.', 503);
-      const result = readTesseractTsv(tsv);
+      // Crop/rotation requests must be recognized from the transformed preview.
+      // Otherwise selectable text on a text-only PDF page preserves exact digits.
+      const nativeText = mime === 'application/pdf' && !rotation && !crop
+        ? await extractNativePdfPage(source, page, signal)
+        : null;
+      let result: { text: string; confidence: number | null };
+      let pageEngine: string;
+      if (nativeText !== null) {
+        result = { text: nativeText, confidence: null };
+        pageEngine = 'poppler pdftotext; native PDF text';
+      } else {
+        engine ??= await verifiedEngine(signal);
+        // Explicit output flags work with a model-only TESSDATA_PREFIX.
+        const tsv = await run('tesseract', [imagePath, 'stdout', '-l', 'eng', '--psm', '6', '-c', 'tessedit_create_tsv=1'], signal);
+        if (!tsv.startsWith('level\tpage_num\tblock_num\t')) throw new OcrError('The local recognition engine returned an unsupported result. No care records were created.', 503);
+        result = readTesseractTsv(tsv);
+        pageEngine = engine;
+      }
       if (result.text.length > OCR_LIMITS.text) throw new OcrError('Too much text was found. Upload a smaller section.');
       pages.push({
         page,
         ...result,
-        engine,
+        engine: pageEngine,
         image,
         ...(rotation ? { rotation } : {}),
         ...(crop ? { crop } : {}),

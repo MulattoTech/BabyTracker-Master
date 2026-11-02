@@ -2996,5 +2996,19 @@
   "Your payment was processed, but we encountered an issue activating your account. Please contact support or try logging out and back in.": "Plata dvs. a fost procesată, dar am întâmpinat o problemă la activarea contului. Vă rugăm să contactați asistența sau să încercați să vă deconectați și să vă reconectați.",
   "Your Personal PIN (6-10 digits)": "PIN-ul dvs. personal (6-10 cifre)",
   "Your Personal Profile": "Profilul dvs. personal",
-  "Zero “did anyone change him?” texts sent today.": "Zero mesaje de tipul „i-a schimbat cineva scutecul?” trimise azi."
+  "Zero “did anyone change him?” texts sent today.": "Zero mesaje de tipul „i-a schimbat cineva scutecul?” trimise azi.",
+  "Volume offered (same unit)": "",
+  "Formula concentration (kcal/oz)": "",
+  "Formula name": "",
+  "Bottle identifier": "",
+  "Source caregiver name": "",
+  "Feeding amount is consumed volume. Leave unrecorded details blank. Source caregiver is a label, not an account assignment.": "",
+  "Invalid optional bottle metadata.": "",
+  "Invalid optional bottle quantity or concentration.": "",
+  "Offered volume requires the same explicit unit as consumed volume.": "",
+  "Consumed volume cannot exceed offered volume.": "",
+  "Confirm the consumed volume; offered or remaining volume is not consumption.": "",
+  "Multiple offered volumes need correction.": "",
+  "An unlabelled quantity was not assigned to offered or consumed volume.": "",
+  "A rejected event cannot also be approved.": ""
 }

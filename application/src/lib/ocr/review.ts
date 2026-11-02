@@ -8,7 +8,7 @@ import { resolveOcrLocalDateTime, validateOcrCandidate } from './validation';
 import { OCR_LIMITS } from './intake';
 import { OcrError } from './errors';
 
-const fields: OcrEditableField[] = ['eventType', 'localDate', 'localTime', 'endLocalDate', 'endLocalTime', 'feedType', 'bottleType', 'amount', 'unit', 'diaperType', 'sleepType', 'notes'];
+const fields: OcrEditableField[] = ['eventType', 'localDate', 'localTime', 'endLocalDate', 'endLocalTime', 'feedType', 'bottleType', 'amount', 'unit', 'diaperType', 'sleepType', 'notes', 'offeredAmount', 'formulaKcalOz', 'formulaName', 'bottleLabel', 'sourceCaregiverName'];
 export const ocrScope = (document: Pick<OcrDocument, 'id' | 'familyId'>) => `${document.familyId}:${document.id}`;
 export interface OriginalOcrState { rows: OcrCandidate[]; pages: { page: number; text: string; engine: string; confidence: number | null }[] }
 
@@ -31,9 +31,13 @@ export function readReviewRequest(input: unknown, document: OcrDocument): OcrRev
     const manual = /^manual-[a-f\d-]{36}$/i.test(row.id);
     if (!baseline && !manual) throw new OcrError('An event has an unknown source row.');
     const manualPage = row.source?.page;
-    if (!baseline && (!Number.isInteger(manualPage) || manualPage < 1 || manualPage > document.pageCount)) throw new OcrError('Select the source page for the manual event.');
+    if (!baseline && (!Number.isInteger(manualPage) || !original.pages.some(page => page.page === manualPage))) throw new OcrError('Select the source page for the manual event.');
     const fieldSources: OcrCandidate['fieldSources'] = {};
-    for (const field of fields) fieldSources[field] = baseline && row[field] === baseline[field] ? baseline.fieldSources[field] || 'source' : 'corrected';
+    for (const field of fields) {
+      // Leave absent optional fields absent so receipts for older drafts still replay.
+      if (row[field] === undefined && baseline?.[field] === undefined) continue;
+      fieldSources[field] = baseline && row[field] === baseline[field] ? baseline.fieldSources[field] || 'source' : 'corrected';
+    }
     // Source evidence and extraction warnings come from persisted server data, never review JSON.
     const bound = {
       ...row,
@@ -328,7 +332,13 @@ export function toSproutRecords(document: OcrDocument, review: OcrReviewRequest)
     const source = { providerId: 'babytracker-ocr-v1', entityType: row.eventType, recordId: `${document.babyId}:${document.sourceHash}:${row.id}`, childId: document.babyId };
     const base = { source, sourceChildId: document.babyId, notes: row.notes || undefined };
     const time = start.utc.slice(0, 19);
-    if (row.eventType === 'feed' && row.feedType) return { ...base, targetType: 'feed', time, type: row.feedType, amount: row.amount ?? undefined, unitAbbr: row.unit ?? undefined, bottleType: row.bottleType ?? undefined };
+    if (row.eventType === 'feed' && row.feedType) return {
+      ...base, targetType: 'feed', time, type: row.feedType, amount: row.amount ?? undefined,
+      unitAbbr: row.unit ?? undefined, bottleType: row.bottleType ?? undefined,
+      offeredAmount: row.offeredAmount ?? undefined, formulaKcalOz: row.formulaKcalOz ?? undefined,
+      formulaName: row.formulaName ?? undefined, bottleLabel: row.bottleLabel ?? undefined,
+      sourceCaregiverName: row.sourceCaregiverName ?? undefined,
+    };
     if (row.eventType === 'diaper' && row.diaperType) return { ...base, targetType: 'diaper', time, type: row.diaperType };
     if (row.eventType === 'sleep' && row.sleepType && end?.utc) return { ...base, targetType: 'sleep', startTime: time, endTime: end.utc.slice(0, 19), type: row.sleepType };
     throw new OcrError('Resolve every approved event type before importing.');

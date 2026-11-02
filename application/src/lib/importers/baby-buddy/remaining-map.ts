@@ -102,6 +102,9 @@ export function mapBabyBuddyTummyTime(row: BabyBuddyCsvRow): ExternalImportPlayR
   if (!Number.isFinite(duration) || duration < 0) throw new Error('Tummy time end time must not be before start time');
   return {
     targetType: 'play', source: source('tummy-time', row), sourceChildId,
-    startTime, duration, type: 'TUMMY_TIME', notes: row.milestone?.trim() || undefined,
+    startTime, duration, type: 'TUMMY_TIME',
+    notes: row.milestone?.trim() && row.notes?.trim()
+      ? `Milestone: ${row.milestone.trim()}\nNotes: ${row.notes.trim()}`
+      : row.milestone?.trim() || row.notes?.trim() || undefined,
   };
 }

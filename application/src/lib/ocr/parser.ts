@@ -13,7 +13,13 @@ const sleepPattern = /\b(?:sleep|slept|asleep|nap(?:ped)?|bedtime|awake|woke)\b/
 const volumePattern = /(?<![\w.,/+-])([+-]?(?:\d+\s+\d+\s*\/\s*\d+|\d+\s*[¼½¾]|\d+\s*\/\s*\d+|\d+(?:[.,]\d+)?|[¼½¾]))\s*(m[lL](?:s)?|millilit(?:er|re)s?|cc(?:s)?|c\.c\.?|(?:fl\.?\s*)?oz|ounces?)\b/gi;
 const volumeRangePattern = /(?<![\w.,/+-])((?:\d+(?:[.,]\d+)?|[¼½¾]|\d+\s*\/\s*\d+))\s*(?:-|–|—|\bto\b)\s*((?:\d+(?:[.,]\d+)?|[¼½¾]|\d+\s*\/\s*\d+))\s*(m[lL](?:s)?|millilit(?:er|re)s?|cc(?:s)?|c\.c\.?|(?:fl\.?\s*)?oz|ounces?)\b/gi;
 
+function maskNamedMetadata(text: string): string {
+  return text.replace(/(?:^|[;|\t])\s*(?:formula(?:\s+name)?|brand|bottle\s+(?:id|label)|caregiver|fed\s+by|concentration)\s*:\s*[^;|\t\n]*/gi,
+    match => ' '.repeat(match.length));
+}
+
 function datesIn(text: string): DateMatch[] {
+  text = maskNamedMetadata(text);
   const dates: DateMatch[] = [];
   const volumeSpans = [...text.matchAll(volumePattern)].map(match => [match.index ?? 0, (match.index ?? 0) + match[0].length]);
   const pattern = /\b(?:\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[/.-]\d{1,2}(?:[/.-]\d{2,4})?)\b/g;
@@ -28,9 +34,17 @@ function datesIn(text: string): DateMatch[] {
 }
 
 function clocksIn(text: string, mode: OcrParseOptions['timeFormat']): Clock[] {
+  text = maskNamedMetadata(text);
   const clocks: Clock[] = [];
+  // A year inside a date or digits in a volume are not military clock times.
+  const excluded = [
+    ...text.matchAll(/\b(?:\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?)\b/g),
+    ...text.matchAll(volumePattern),
+  ].map(match => [match.index ?? 0, (match.index ?? 0) + match[0].length]);
+  const isExcluded = (index: number) => excluded.some(([start, end]) => index >= start && index < end);
   const pattern = /\b(?:(\d{1,2})[:.](\d{2})\s*([ap]\.?m\.?)?|(\d{1,2})\s*([ap]\.?m\.?)|noon|midnight)(?![\w:])/gi;
   for (const match of text.matchAll(pattern)) {
+    if (isExcluded(match.index ?? 0)) continue;
     const raw = match[0].trim();
     let value: string | null = null;
     if (/^noon$/i.test(raw)) value = '12:00';
@@ -52,6 +66,7 @@ function clocksIn(text: string, mode: OcrParseOptions['timeFormat']): Clock[] {
   if (mode === '24h') {
     const militaryPattern = /(?<![\d:])\b([01]\d|2[0-3])([0-5]\d)\b(?![\d:])/g;
     for (const match of text.matchAll(militaryPattern)) {
+      if (isExcluded(match.index ?? 0)) continue;
       const raw = match[0];
       if (!clocks.some(c => (match.index ?? 0) >= c.index && (match.index ?? 0) < c.index + c.raw.length)) {
         clocks.push({ raw, value: `${match[1]}:${match[2]}`, index: match.index ?? 0 });
@@ -74,7 +89,8 @@ function parseAmount(raw: string): number | null {
   return Number.isFinite(amount) && amount > 0 ? amount : null;
 }
 
-function volumesIn(text: string): { amount: number | null; unit: 'ML' | 'OZ'; raw: string }[] {
+function volumesIn(text: string): { amount: number | null; unit: 'ML' | 'OZ'; raw: string; index: number }[] {
+  text = maskNamedMetadata(text);
   const ranges = [...text.matchAll(volumeRangePattern)].map(match => ({
     amount: null,
     unit: /^(?:ml|milli|cc|c\.c)/i.test(match[3]) ? ('ML' as const) : ('OZ' as const),
@@ -89,7 +105,25 @@ function volumesIn(text: string): { amount: number | null; unit: 'ML' | 'OZ'; ra
       raw: match[0],
       index: match.index ?? 0,
     }));
-  return [...ranges, ...singles].sort((a, b) => a.index - b.index).map(({ amount, unit, raw }) => ({ amount, unit, raw }));
+  return [...ranges, ...singles].sort((a, b) => a.index - b.index);
+}
+
+
+function volumeRole(text: string, volume: { index: number; raw: string }): 'offered' | 'consumed' | null {
+  const before = text.slice(0, volume.index);
+  const after = text.slice(volume.index + volume.raw.length);
+  const label = before.match(/\b(offered|prepared|consumed|taken|drank|drunk)\s*[:=]?\s*$/i)?.[1]
+    || after.match(/^\s*(offered|prepared|consumed|taken|drank|drunk)(?=\s*(?:[,;|]|$))/i)?.[1];
+  return !label ? null : /offered|prepared/i.test(label) ? 'offered' : 'consumed';
+}
+
+/** Only isolated, explicitly labelled cells are names; surrounding prose is never guessed. */
+function labelledText(text: string, labels: string, max: number): { value: string | null; ambiguous: boolean } {
+  const matches = [...text.matchAll(new RegExp('(?:^|[;|\\t])\\s*(?:' + labels + ')\\s*:\\s*([^;|\\t\\n]*)', 'gi'))];
+  if (matches.length !== 1) return { value: null, ambiguous: matches.length > 1 };
+  const value = matches[0][1].trim();
+  const ambiguous = !value || value.length > max || /\?|~~|\b(?:illegible|unclear|crossed\s*out)\b/i.test(value);
+  return { value: ambiguous ? null : value, ambiguous };
 }
 
 function typesIn(text: string): OcrEventType[] {
@@ -106,6 +140,12 @@ function segmentsIn(text: string): string[] {
   for (const fragment of initial) {
     const trimmed = fragment.trim();
     if (!trimmed) continue;
+    // Labelled bottle cells belong to the preceding feeding, not separate events.
+    if (segments.length && typesIn(segments[segments.length - 1]).includes('feed')
+      && /^(?:offered|prepared|consumed|taken|drank|drunk|formula(?:\s+name)?|brand|bottle\s+(?:id|label)|caregiver|fed\s+by|concentration)\s*[:=]/i.test(trimmed)) {
+      segments[segments.length - 1] += `; ${trimmed}`;
+      continue;
+    }
     if (typesIn(trimmed).length > 1 && /[,/]/.test(trimmed)) {
       const parts = trimmed.split(/[,/]+/);
       let temp = '';
@@ -180,6 +220,11 @@ function makeCandidate(
   let sleepType: OcrCandidate['sleepType'] = null;
   let amount: number | null = null;
   let unit: OcrCandidate['unit'] = null;
+  let offeredAmount: number | null = null;
+  let formulaKcalOz: number | null = null;
+  let formulaName: string | null = null;
+  let bottleLabel: string | null = null;
+  let sourceCaregiverName: string | null = null;
 
   if (eventType === 'feed') {
     const bottle = /\b(?:bottle|btl)\b/i.test(segment);
@@ -190,13 +235,52 @@ function makeCandidate(
     bottleType = formula !== milk ? formula ? 'Formula' : 'Breast Milk' : null;
     if (formula && milk) warnings.push('Mixed formula and breast milk need a reviewer-selected designation and notes.');
     const volumes = volumesIn(segment);
-    if (volumes.length === 1) ({ amount, unit } = volumes[0]);
+    const offered = volumes.filter(volume => volumeRole(segment, volume) === 'offered');
+    const consumed = volumes.filter(volume => volumeRole(segment, volume) === 'consumed');
+    const hasVolumeLabels = /\b(?:offered|prepared|consumed|taken|drank|drunk)\b/i.test(segment);
+    if (hasVolumeLabels) {
+      if (consumed.length === 1) ({ amount, unit } = consumed[0]);
+      else {
+        fieldSources.amount = consumed.length ? 'ambiguous' : 'missing';
+        warnings.push('Confirm the consumed volume; offered or remaining volume is not consumption.');
+      }
+      if (offered.length === 1) {
+        unit ??= offered[0].unit;
+        if (offered[0].amount !== null) {
+          const ml = offered[0].amount * (offered[0].unit === 'OZ' ? 29.5735295625 : 1);
+          offeredAmount = Math.round(ml / (unit === 'OZ' ? 29.5735295625 : 1) * 1_000_000) / 1_000_000;
+        } else fieldSources.offeredAmount = 'ambiguous';
+      } else if (offered.length > 1) {
+        fieldSources.offeredAmount = 'ambiguous';
+        warnings.push('Multiple offered volumes need correction.');
+      }
+      if (consumed.length === 1 && amount === null) fieldSources.amount = 'ambiguous';
+      if (volumes.some(volume => volumeRole(segment, volume) === null)) {
+        warnings.push('An unlabelled quantity was not assigned to offered or consumed volume.');
+      }
+    } else if (volumes.length === 1) ({ amount, unit } = volumes[0]);
     else if (volumes.length > 1) {
       fieldSources.amount = 'ambiguous'; fieldSources.unit = 'ambiguous';
       warnings.push('Multiple quantities appear in this event; choose the recorded amount or split the event.');
     }
-    if (volumes.length === 1 && amount === null) {
+    if (volumes.length === 1 && amount === null && !hasVolumeLabels) {
       fieldSources.amount = 'ambiguous'; warnings.push('The quantity is ambiguous; compare the original and enter a number.');
+    }
+    const concentrations = [...segment.matchAll(/\b(\d+(?:\.\d+)?)\s*kcal\s*(?:\/|per)\s*(?:fl\.?\s*)?oz\b/gi)];
+    if (concentrations.length === 1) {
+      const match = concentrations[0];
+      const value = Number(match[1]);
+      if (value > 0 && value <= 60
+        && !/[-–—,]\s*$|\bto\s*$/i.test(segment.slice(0, match.index ?? 0))
+        && !/^\s*\?/.test(segment.slice((match.index ?? 0) + match[0].length))) formulaKcalOz = value;
+      else fieldSources.formulaKcalOz = 'ambiguous';
+    } else if (concentrations.length > 1) fieldSources.formulaKcalOz = 'ambiguous';
+    const formulaLabel = labelledText(segment, 'formula\\s+name|formula|brand', 120);
+    const bottleId = labelledText(segment, 'bottle\\s+(?:id|label)', 80);
+    const caregiver = labelledText(segment, 'caregiver|fed\\s+by', 120);
+    formulaName = formulaLabel.value && !/^\d+(?:\.\d+)?\s*kcal\s*(?:\/|per)\s*oz$/i.test(formulaLabel.value) ? formulaLabel.value : null; bottleLabel = bottleId.value; sourceCaregiverName = caregiver.value;
+    for (const [field, parsed] of [['formulaName', formulaLabel], ['bottleLabel', bottleId], ['sourceCaregiverName', caregiver]] as const) {
+      if (parsed.ambiguous) fieldSources[field] = 'ambiguous';
     }
     if (!feedType) warnings.push('Feeding method is not explicit; select it during review.');
   }
@@ -231,7 +315,7 @@ function makeCandidate(
   }
   if (conflictingText && eventType === 'feed') {
     feedType = null;
-    amount = null;
+    amount = null; offeredAmount = null; formulaKcalOz = null; formulaName = null; bottleLabel = null; sourceCaregiverName = null;
     warnings.push('Negated, uncertain or crossed-out feeding text needs explicit field corrections.');
   }
   if (page.confidence !== undefined && page.confidence !== null && page.confidence < 70) warnings.push('Low engine recognition score; manual transcription may be necessary.');
@@ -244,10 +328,14 @@ function makeCandidate(
   mark('feedType', feedType !== null); mark('bottleType', bottleType !== null);
   if (!fieldSources.amount) mark('amount', amount !== null);
   if (!fieldSources.unit) mark('unit', unit !== null);
+  for (const [field, value] of Object.entries({ offeredAmount, formulaKcalOz, formulaName, bottleLabel, sourceCaregiverName })) {
+    if (!fieldSources[field as OcrEditableField]) mark(field as OcrEditableField, value !== null);
+  }
   mark('diaperType', diaperType !== null); mark('sleepType', sleepType !== null); mark('notes', true);
   return {
     id: `p${page.page}-l${lineNumber}-${eventType}-${slot}`, eventType, localDate, localTime,
     endLocalDate, endLocalTime, feedType, bottleType, amount, unit, diaperType, sleepType,
+    offeredAmount, formulaKcalOz, formulaName, bottleLabel, sourceCaregiverName,
     notes: segment.trim().slice(0, OCR_MAX_NOTES), approved: false,
     source: {
       page: page.page, line: lineNumber, slot, rawText, engine: page.engine || OCR_PARSER_VERSION,

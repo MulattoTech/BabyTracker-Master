@@ -2996,5 +2996,19 @@
   "Your payment was processed, but we encountered an issue activating your account. Please contact support or try logging out and back in.": "Il tuo pagamento è stato elaborato, ma abbiamo riscontrato un problema durante l'attivazione del tuo account. Contatta il supporto o prova a disconnetterti e riconnetterti.",
   "Your Personal PIN (6-10 digits)": "Il tuo PIN personale (6-10 cifre)",
   "Your Personal Profile": "Il tuo profilo personale",
-  "Zero “did anyone change him?” texts sent today.": "Zero messaggi “gli ha cambiato il pannolino qualcuno?” inviati oggi."
+  "Zero “did anyone change him?” texts sent today.": "Zero messaggi “gli ha cambiato il pannolino qualcuno?” inviati oggi.",
+  "Volume offered (same unit)": "Volume offerto (stessa unità)",
+  "Formula concentration (kcal/oz)": "Concentrazione del latte artificiale (kcal/oz)",
+  "Formula name": "Nome del latte artificiale",
+  "Bottle identifier": "Identificativo del biberon",
+  "Source caregiver name": "Nome della persona nel documento",
+  "Feeding amount is consumed volume. Leave unrecorded details blank. Source caregiver is a label, not an account assignment.": "La quantità della poppata è il volume consumato. Lascia vuoti i dettagli non registrati. Il nome nel documento è un’etichetta, non un’assegnazione di account.",
+  "Invalid optional bottle metadata.": "Metadati facoltativi del biberon non validi.",
+  "Invalid optional bottle quantity or concentration.": "Quantità o concentrazione facoltativa del biberon non valida.",
+  "Offered volume requires the same explicit unit as consumed volume.": "Il volume offerto richiede la stessa unità esplicita del volume consumato.",
+  "Consumed volume cannot exceed offered volume.": "Il volume consumato non può superare il volume offerto.",
+  "Confirm the consumed volume; offered or remaining volume is not consumption.": "Conferma il volume consumato; il volume offerto o rimanente non equivale al consumo.",
+  "Multiple offered volumes need correction.": "È necessario correggere i diversi volumi offerti.",
+  "An unlabelled quantity was not assigned to offered or consumed volume.": "Una quantità senza etichetta non è stata assegnata al volume offerto né a quello consumato.",
+  "A rejected event cannot also be approved.": "Un evento rifiutato non può essere anche approvato."
 }

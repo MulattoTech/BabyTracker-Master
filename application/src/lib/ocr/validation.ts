@@ -6,6 +6,7 @@ import {
 const editableFields: readonly OcrEditableField[] = [
   'eventType', 'localDate', 'localTime', 'endLocalDate', 'endLocalTime',
   'feedType', 'bottleType', 'amount', 'unit', 'diaperType', 'sleepType', 'notes',
+  'offeredAmount', 'formulaKcalOz', 'formulaName', 'bottleLabel', 'sourceCaregiverName',
 ];
 const origins: readonly OcrFieldOrigin[] = ['source', 'context', 'missing', 'ambiguous', 'corrected'];
 
@@ -77,7 +78,31 @@ export function validateOcrCandidate(
   const diaperType = choice('diaperType', ['WET', 'DIRTY', 'BOTH', 'DRY'] as const);
   const sleepType = choice('sleepType', ['NAP', 'NIGHT_SLEEP'] as const);
   const notes = text('notes', OCR_MAX_NOTES);
+  const optionalText = (field: string, max: number): string | null | undefined => {
+    if (value[field] === undefined) return undefined;
+    if (value[field] === null || value[field] === '') return null;
+    if (typeof value[field] !== 'string' || (value[field] as string).length > max
+      || /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(value[field] as string)) {
+      errors.push('Invalid optional bottle metadata.'); return null;
+    }
+    return (value[field] as string).trim() || null;
+  };
+  const optionalNumber = (field: string, max: number, positive = false): number | null | undefined => {
+    if (value[field] === undefined) return undefined;
+    if (value[field] === null) return null;
+    if (typeof value[field] !== 'number' || !Number.isFinite(value[field])
+      || Number(value[field]) < 0 || Number(value[field]) > max || (positive && value[field] === 0)) {
+      errors.push('Invalid optional bottle quantity or concentration.'); return null;
+    }
+    return value[field] as number;
+  };
+  const offeredAmount = optionalNumber('offeredAmount', 100000);
+  const formulaKcalOz = optionalNumber('formulaKcalOz', 60, true);
+  const formulaName = optionalText('formulaName', 120);
+  const bottleLabel = optionalText('bottleLabel', 80);
+  const sourceCaregiverName = optionalText('sourceCaregiverName', 120);
   const rejected = typeof value.rejected === 'boolean' ? value.rejected : false;
+  if (rejected && value.approved === true) errors.push('A rejected event cannot also be approved.');
   const amount = value.amount;
   if (amount !== null && (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0 || amount > 100000)) {
     errors.push('Amount must be a finite positive number.');
@@ -90,6 +115,8 @@ export function validateOcrCandidate(
   if (endLocalDate !== null && !isOcrDate(endLocalDate)) errors.push('Enter a valid end date.');
   if (endLocalTime !== null && !isOcrTime(endLocalTime)) errors.push('Enter a valid end time.');
   if (eventType === 'feed') {
+    if (offeredAmount != null && unit === null && !options.allowIncomplete) errors.push('Offered volume requires the same explicit unit as consumed volume.');
+    if (offeredAmount != null && typeof amount === 'number' && amount > offeredAmount + 0.000001) errors.push('Consumed volume cannot exceed offered volume.');
     if (!feedType && !options.allowIncomplete) errors.push('Choose a feeding method.');
     if (feedType === 'BOTTLE' && (amount === null || unit === null) && !options.allowIncomplete) errors.push('Bottle feeds require an amount and unit.');
     if ((amount === null) !== (unit === null) && !options.allowIncomplete) errors.push('Amount and unit must be supplied together.');
@@ -149,7 +176,13 @@ export function validateOcrCandidate(
   const candidate: OcrCandidate = {
     id, eventType, localDate, localTime, endLocalDate, endLocalTime,
     feedType, bottleType, unit, diaperType, sleepType, amount: amount as number | null,
-    notes, approved: value.approved as boolean, rejected, source: {
+    notes,
+    ...(offeredAmount !== undefined ? { offeredAmount } : {}),
+    ...(formulaKcalOz !== undefined ? { formulaKcalOz } : {}),
+    ...(formulaName !== undefined ? { formulaName } : {}),
+    ...(bottleLabel !== undefined ? { bottleLabel } : {}),
+    ...(sourceCaregiverName !== undefined ? { sourceCaregiverName } : {}),
+    approved: value.approved as boolean, rejected, source: {
       page: source.page as number, line: source.line as number, slot: source.slot as number,
       rawText: source.rawText as string, engine: source.engine as string, confidence: source.confidence as number | null,
       ...(source.contextDate ? { contextDate: source.contextDate as string } : {}),
