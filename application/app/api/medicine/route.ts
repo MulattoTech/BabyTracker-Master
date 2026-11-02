@@ -104,9 +104,12 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
     }
 
     const medicineWithContacts = await prisma.$transaction(async tx => {
-      const existingMedicine = await tx.medicine.findFirst({ where: { id, familyId: userFamilyId } });
+      const existingMedicine = await tx.medicine.findFirst({
+        where: { id, familyId: userFamilyId },
+        include: { contacts: { select: { contactId: true } } },
+      });
       if (!existingMedicine) throw new CareWriteError('Medicine not found or access denied', 404);
-      await requireCareContacts(tx, contactIds, userFamilyId);
+      await requireCareContacts(tx, contactIds, userFamilyId, existingMedicine.contacts.map(link => link.contactId));
 
       await tx.medicine.update({ where: { id, familyId: userFamilyId }, data: updateData });
       // Omitted contacts preserve links; an explicit empty array clears them.

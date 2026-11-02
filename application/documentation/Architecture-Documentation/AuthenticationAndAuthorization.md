@@ -285,17 +285,23 @@ vaccine updates retain their existing immutable child/medicine identifiers:
 normal scalar echoes are validated and ignored. Nullable fields, zero values,
 false booleans and sleep end/undo partial updates remain supported.
 
-Medicine and vaccine `contactIds` must all refer to live contacts in the
-authenticated family. Duplicates are deduplicated. Omitting the field preserves
-links, while `[]` clears them. Parent changes and link replacement share a
-transaction so a later failure cannot leave a partial record or erase existing
-associations. Contact expansion on medicine, vaccine and dose responses is
-limited to the authenticated family, including for legacy associations.
+Medicine and vaccine `contactIds` must all refer to the authenticated family.
+New associations require live contacts; an already-linked same-family removed
+contact may be retained during an update. Duplicates are deduplicated. Omitting
+the field preserves links, while `[]` clears them. The medicine and vaccine
+editors omit unchanged contact selections so a notes-only edit cannot silently
+replace hidden legacy associations. Parent changes and link replacement share
+a transaction so a later failure cannot leave a partial record or erase
+existing associations. Contact expansion on medicine, vaccine, dose and
+timeline responses is limited to the authenticated family, including for
+legacy associations.
+
 Dose responses also omit foreign medicine, child or caregiver details and
-never expand caregiver login PINs. The owned dose itself remains visible;
-missing medicine details produce the existing active-dose error state instead
-of a reminder based on unavailable metadata. Historical records are not
-automatically reassigned or repaired.
+never expand caregiver login PINs. Timeline queries fetch only same-family
+caregiver badge fields and omit foreign medicine details. The owned care event
+itself remains visible; missing medicine details produce the existing
+active-dose error state instead of a reminder based on unavailable metadata.
+Historical records are not automatically reassigned or repaired.
 
 ## Key Files
 

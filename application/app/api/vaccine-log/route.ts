@@ -133,9 +133,12 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
     // readCareWrite validates its scalar shape before it is discarded here.
     const { contactIds, babyId: _ignoredBabyId, ...updateData } = body;
     const vaccineLog = await prisma.$transaction(async tx => {
-      const existingLog = await tx.vaccineLog.findFirst({ where: { id, familyId: userFamilyId } });
+      const existingLog = await tx.vaccineLog.findFirst({
+        where: { id, familyId: userFamilyId },
+        include: { contacts: { select: { contactId: true } } },
+      });
       if (!existingLog) throw new CareWriteError('Vaccine log not found or access denied', 404);
-      await requireCareContacts(tx, contactIds, userFamilyId);
+      await requireCareContacts(tx, contactIds, userFamilyId, existingLog.contacts.map(link => link.contactId));
 
       await tx.vaccineLog.update({
         where: { id, familyId: userFamilyId },

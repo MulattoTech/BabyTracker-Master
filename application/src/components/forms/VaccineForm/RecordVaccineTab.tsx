@@ -17,6 +17,7 @@ import { useTheme } from '@/src/context/theme';
 import { useToast } from '@/src/components/ui/toast';
 import { handleExpirationError } from '@/src/lib/expiration-error-handler';
 import { useLocalization } from '@/src/context/localization';
+import { hydrateContactSelection, omitUnchangedContactIds } from '@/src/utils/contactSelection';
 
 /**
  * RecordVaccineTab Component
@@ -62,7 +63,24 @@ const RecordVaccineTab: React.FC<RecordVaccineTabProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Contacts state
-  const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
+  const [contactSelection, setContactSelection] = useState(() =>
+    hydrateContactSelection(undefined, activity?.id, activity?.contacts?.map(c => c.contact.id))
+  );
+  const selectedContactIds = contactSelection.selectedIds;
+  const setSelectedContactIds = (update: React.SetStateAction<string[]>) => {
+    setContactSelection(current => ({
+      ...current,
+      selectedIds: typeof update === 'function' ? update(current.selectedIds) : update,
+    }));
+  };
+
+  // Hydrate arriving contacts with their baseline; a same-record refresh must
+  // preserve a selection the user has already changed.
+  useEffect(() => {
+    setContactSelection(current => hydrateContactSelection(
+      current, activity?.id, activity?.contacts?.map(c => c.contact.id)
+    ));
+  }, [activity?.id, activity?.contacts]);
 
   // Documents state
   const [documents, setDocuments] = useState<VaccineDocumentResponse[]>(
@@ -139,11 +157,6 @@ const RecordVaccineTab: React.FC<RecordVaccineTabProps> = ({
       const d = new Date(activity.time);
       if (!isNaN(d.getTime())) {
         setSelectedDateTime(d);
-      }
-
-      // Initialize selected contacts from activity
-      if (activity.contacts && Array.isArray(activity.contacts)) {
-        setSelectedContactIds(activity.contacts.map((c: any) => c.contact.id));
       }
 
       setIsInitialized(true);
@@ -401,14 +414,14 @@ const RecordVaccineTab: React.FC<RecordVaccineTabProps> = ({
       const authToken = localStorage.getItem('authToken');
       const utcTimeString = toUTCString(selectedDateTime);
 
-      const payload = {
+      const payload = omitUnchangedContactIds({
         babyId,
         time: utcTimeString,
         vaccineName: vaccineName.trim(),
         doseNumber: doseNumber || null,
         notes: notes || null,
         contactIds: selectedContactIds,
-      };
+      }, contactSelection.initialIds);
 
       const url = activity
         ? `/api/vaccine-log?id=${activity.id}`

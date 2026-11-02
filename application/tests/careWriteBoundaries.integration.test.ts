@@ -26,6 +26,7 @@ import { POST as postCatalog, PUT as putCatalog } from '../app/api/medicine/rout
 import { POST as postVaccine, PUT as putVaccine } from '../app/api/vaccine-log/route';
 import { POST as postBaby, PUT as putBaby } from '../app/api/baby/route';
 import { POST as postAdjustment, PUT as putAdjustment } from '../app/api/breast-milk-adjustment/route';
+import { GET as getTimeline } from '../app/api/timeline/route';
 
 const owner = 'care-write-family', foreign = 'care-write-foreign';
 const ownChild = 'care-write-child', foreignChild = 'care-write-foreign-child';
@@ -129,6 +130,39 @@ afterAll(async () => {
   await db?.$disconnect();
   if (directory) rmSync(directory, { recursive: true, force: true });
   if (previousSecret === undefined) delete process.env.JWT_SECRET; else process.env.JWT_SECRET = previousSecret;
+});
+
+describe('timeline preserves owned history while scoping expanded legacy relations', () => {
+  it('omits foreign medicine and caregiver details without deleting an owned dose or note', async () => {
+    await db.medicineLog.update({ where: { id: 'owned-dose' }, data: { medicineId: foreignMedicine, caretakerId: foreignCarer } });
+    await db.note.update({ where: { id: 'owned-note' }, data: { caretakerId: foreignCarer } });
+    const before = await snapshot();
+    const response = await getTimeline(new NextRequest(`http://localhost/api/timeline?babyId=${ownChild}&types=medicine,note`, {
+      headers: { Authorization: `Bearer ${token()}` },
+    }));
+    expect(response.status).toBe(200);
+    const entries = (await response.json()).data;
+    const dose = entries.find((entry: { id: string }) => entry.id === 'owned-dose');
+    const note = entries.find((entry: { id: string }) => entry.id === 'owned-note');
+    expect(dose).toMatchObject({ id: 'owned-dose', babyId: ownChild, medicineId: foreignMedicine, caretakerId: foreignCarer });
+    expect(dose.medicine).toBeUndefined(); expect(dose.caretakerName).toBeUndefined();
+    expect(note).toMatchObject({ id: 'owned-note', content: 'Synthetic note', caretakerId: foreignCarer });
+    expect(note.caretakerName).toBeUndefined();
+    expect(await snapshot()).toEqual(before);
+  });
+
+  it('keeps ordinary same-family medicine details and caregiver badges without caregiver credentials', async () => {
+    const before = await snapshot();
+    const response = await getTimeline(new NextRequest(`http://localhost/api/timeline?babyId=${ownChild}&types=medicine,note`, {
+      headers: { Authorization: `Bearer ${token()}` },
+    }));
+    expect(response.status).toBe(200);
+    const payload = await response.json();
+    const dose = payload.data.find((entry: { id: string }) => entry.id === 'owned-dose');
+    expect(dose).toMatchObject({ medicine: { id: ownMedicine, name: 'Synthetic medicine' }, caretakerName: 'Synthetic Caregiver' });
+    expect(JSON.stringify(payload)).not.toContain('securityPin');
+    expect(await snapshot()).toEqual(before);
+  });
 });
 
 describe('canonical care writes reject client-owned persistence instructions', () => {

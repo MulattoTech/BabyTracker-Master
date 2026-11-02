@@ -21,6 +21,7 @@ import { Contact } from '@/src/components/CalendarEvent/calendar-event.types';
 import ContactSelector from './ContactSelector';
 import { useLocalization } from '@/src/context/localization';
 import { useUnit } from '@/src/hooks/useUnit';
+import { omitUnchangedContactIds } from '@/src/utils/contactSelection';
 
 interface MedicineFormProps {
   isOpen: boolean;
@@ -122,6 +123,9 @@ const MedicineForm: React.FC<MedicineFormProps> = ({
   };
   
   // Initialize form data
+  const [initialContactIds, setInitialContactIds] = useState<string[] | undefined>(() =>
+    medicine ? medicine.contacts?.map((c: any) => c.contact.id) || [] : undefined
+  );
   const [formData, setFormData] = useState<MedicineFormData>(() => {
     if (medicine) {
       return {
@@ -163,6 +167,7 @@ const MedicineForm: React.FC<MedicineFormProps> = ({
         contactIds: medicine.contacts?.map((c: any) => c.contact.id) || [],
       };
       setFormData(medicineData);
+      setInitialContactIds(medicineData.contactIds);
       // Parse the existing doseMinTime for the time selector
       parseDoseMinTime(medicine.doseMinTime || '');
     } else {
@@ -176,6 +181,7 @@ const MedicineForm: React.FC<MedicineFormProps> = ({
         isSupplement,
         contactIds: [],
       });
+      setInitialContactIds(undefined);
       // Reset time selector for new medicine
       setDoseTimeValue('');
       setDoseTimeUnit('hours');
@@ -391,13 +397,11 @@ const MedicineForm: React.FC<MedicineFormProps> = ({
     setIsLoading(true);
     
     // Create a copy of the form data to ensure all fields are included
-    const dataToSubmit = {
+    const dataToSubmit = omitUnchangedContactIds({
       ...formData,
       // Explicitly include typicalDoseSize even if it's undefined
       typicalDoseSize: formData.typicalDoseSize,
-      // Ensure contactIds has no duplicates
-      contactIds: formData.contactIds ? Array.from(new Set(formData.contactIds)) : [],
-    };
+    }, initialContactIds);
     
     // Log the form data being sent
     console.log('Submitting medicine form data:', dataToSubmit);

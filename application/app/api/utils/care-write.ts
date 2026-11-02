@@ -89,9 +89,19 @@ export async function readCareWrite<T>(
 }
 
 /** Validate relationship destinations before creating/replacing any associations. */
-export async function requireCareContacts(db: Pick<Prisma.TransactionClient, 'contact'>, ids: readonly string[] | undefined, familyId: string) {
+export async function requireCareContacts(
+  db: Pick<Prisma.TransactionClient, 'contact'>,
+  ids: readonly string[] | undefined,
+  familyId: string,
+  retainedIds: readonly string[] = [],
+) {
   if (!ids?.length) return;
-  const count = await db.contact.count({ where: { id: { in: [...ids] }, familyId, deletedAt: null } });
+  // Existing same-family historical contacts may be retained. Only newly
+  // selected associations require a live contact; family scope always applies.
+  const availability = retainedIds.length
+    ? { OR: [{ deletedAt: null }, { id: { in: [...retainedIds] } }] }
+    : { deletedAt: null };
+  const count = await db.contact.count({ where: { id: { in: [...ids] }, familyId, ...availability } });
   if (count !== ids.length) throw new CareWriteError('Contacts not found in this family.', 404);
 }
 

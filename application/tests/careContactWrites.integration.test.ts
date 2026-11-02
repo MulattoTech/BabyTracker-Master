@@ -15,6 +15,7 @@ vi.mock('../app/api/utils/api-logger', () => ({ logApiCall: vi.fn(async () => {}
 vi.mock('../src/lib/notifications/activityHook', () => ({ notifyActivityCreated: vi.fn(async () => {}) }));
 import { GET as getMedicine, POST as postMedicine, PUT as putMedicine } from '../app/api/medicine/route';
 import { GET as getVaccine, POST as postVaccine, PUT as putVaccine } from '../app/api/vaccine-log/route';
+import { GET as getTimeline } from '../app/api/timeline/route';
 
 const familyId = 'contact-write-family', foreignFamilyId = 'contact-write-foreign';
 const babyId = 'contact-write-child', caretakerId = 'contact-write-carer';
@@ -142,6 +143,27 @@ describe('authorized medicine and vaccine form compatibility', () => {
     const cleared = await endpoint.put(request(endpoint.route, 'PUT', { contactIds: [] }, endpoint.id));
     expect(cleared.status).toBe(200); expect(await linkedIds(endpoint.route, endpoint.id)).toEqual([]);
   });
+
+  it.each(endpoints)('$route retains an already-linked removed contact through form echoes and new selections', async endpoint => {
+    if (endpoint.route === 'medicine') {
+      await db.contactMedicine.create({ data: { medicineId: endpoint.id, contactId: deletedContact } });
+    } else {
+      await db.contactVaccine.create({ data: { vaccineLogId: endpoint.id, contactId: deletedContact } });
+    }
+    for (const contactIds of [[oldContact, deletedContact], [oldContact, deletedContact, nextContact]]) {
+      const response = await endpoint.put(request(endpoint.route, 'PUT', {
+        ...endpoint.change, notes: 'Historical contact retained', contactIds,
+      }, endpoint.id));
+      expect(response.status).toBe(200);
+      expect((await response.json()).data.notes).toBe('Historical contact retained');
+      expect(await linkedIds(endpoint.route, endpoint.id)).toEqual([...contactIds].sort());
+    }
+    const cleared = await endpoint.put(request(endpoint.route, 'PUT', { contactIds: [] }, endpoint.id));
+    expect(cleared.status).toBe(200); expect(await linkedIds(endpoint.route, endpoint.id)).toEqual([]);
+    const before = await snapshot();
+    const reattached = await endpoint.put(request(endpoint.route, 'PUT', { contactIds: [deletedContact] }, endpoint.id));
+    expect(reattached.status).toBe(404); expect(await snapshot()).toEqual(before);
+  });
 });
 
 describe.each(endpoints)('$route rejects invalid contact writes without partial records', endpoint => {
@@ -254,6 +276,28 @@ describe.each(endpoints)('$route scopes legacy contact associations in responses
     expect(after.vaccineContacts).toEqual(before.vaccineContacts);
     expect(after.contacts).toEqual(before.contacts);
   });
+
+  it('does not allow an existing foreign association to pass an explicit replacement', async () => {
+    const before = await snapshot();
+    const response = await endpoint.put(request(endpoint.route, 'PUT', {
+      notes: 'Rejected foreign association', contactIds: [oldContact, foreignContact],
+    }, endpoint.id));
+    expect(response.status).toBe(404); expect(await snapshot()).toEqual(before);
+  });
+});
+
+it('timeline vaccine editing receives only own-family contacts, including retained removed contacts', async () => {
+  await db.contactVaccine.createMany({ data: [foreignContact, deletedContact].map(contactId => ({
+    vaccineLogId: endpoints[1].id, contactId,
+  })) });
+  const before = await snapshot();
+  const response = await getTimeline(getRequest('timeline', `?babyId=${babyId}&types=vaccine`));
+  expect(response.status).toBe(200);
+  const payload = await response.json();
+  const entry = payload.data.find((item: { id: string }) => item.id === endpoints[1].id);
+  expect(entry.contacts.map((link: { contactId: string }) => link.contactId).sort()).toEqual([oldContact, deletedContact].sort());
+  expect(JSON.stringify(payload)).not.toContain(foreignContact);
+  expect(await snapshot()).toEqual(before);
 });
 
 it('medicine contactId lookup requires both sides of a legacy association to belong to the family', async () => {
