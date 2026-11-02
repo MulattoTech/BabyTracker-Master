@@ -15,6 +15,7 @@ import { verifyMedicationImport } from './medication-import-browser.mjs';
 import { verifyFeedingImport } from './feeding-import-browser.mjs';
 import { verifyPumpingImport } from './pumping-import-browser.mjs';
 import { verifyPumpingConflicts } from './pumping-conflict-browser.mjs';
+import { verifyNurseryPumpRecovery } from './nursery-pump-browser.mjs';
 const require = createRequire(import.meta.url);
 const { PrismaClient } = require('@prisma/client');
 const { createPrismaAdapter } = require('../prisma/prisma-adapter.js');
@@ -328,6 +329,8 @@ try {
   report.pumpingImportChecksPassed = true;
   report.checks.push(...await verifyPumpingConflicts({ base, db, family, baby, caretaker, token, secret, context }));
   report.pumpingConflictChecksPassed = true;
+  report.checks.push(...await verifyNurseryPumpRecovery({ base, db, family, baby, caretaker, token, secret, context }));
+  report.nurseryPumpRecoveryChecksPassed = true;
   const userToken = jwt.sign({ id: caretaker.id, name: caretaker.name, role: 'USER', familyId: family.id, familySlug: family.slug }, secret, { expiresIn: '5m' });
   const denied = await fetch(`${base}/api/ocr/documents?babyId=${baby.id}`, { headers: { Authorization: `Bearer ${userToken}` }, signal: AbortSignal.timeout(5000) });
   assert.equal(denied.status, 403); await denied.body?.cancel();

@@ -34,6 +34,8 @@ export function NurseryModeContainer() {
   const params = useParams();
   const slug = params?.slug as string;
   const { selectedBaby, setSelectedBaby } = useBaby();
+  const selectedBabyRef = useRef(selectedBaby);
+  selectedBabyRef.current = selectedBaby;
   const { toUTCString, timeFormat } = useTimezone();
   const { t } = useLocalization();
   const wakeLock = useWakeLock();
@@ -120,7 +122,10 @@ export function NurseryModeContainer() {
           if (data.success) {
             const activeBabies = data.data.filter((b: Baby) => !b.inactive);
             setBabies(activeBabies);
-            if (!selectedBaby && activeBabies.length > 0) {
+            // BabyProvider may restore the last child while this request is in
+            // flight. The mount-time null closure must not replace that child
+            // and hide their saved activity drafts after a reload.
+            if (!selectedBabyRef.current && activeBabies.length > 0) {
               setSelectedBaby(activeBabies[0]);
             }
           }
