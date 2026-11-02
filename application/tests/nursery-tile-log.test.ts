@@ -6,6 +6,7 @@ const es: Record<string, string> = {
   Bottle: 'Biberón', Breast: 'Pecho', Left: 'Izquierdo', Right: 'Derecho', Both: 'Ambos',
   Wet: 'Mojado', Dirty: 'Sucio', Dry: 'Seco',
   Crib: 'Cuna', Sleep: 'Sueño', Stored: 'Almacenado', Food: 'Comida', Loved: 'Encantó',
+  'Needs review': 'Necesita revisión',
 };
 
 /** Mirrors the real `t`: translated value, else the key itself. */
@@ -52,6 +53,11 @@ describe('formatTileLogs', () => {
 });
 
 describe('formatTileEntryNote', () => {
+  it('localizes unresolved pumping status with its recorded amount', () => {
+    const entry: TileEntry = { kind: 'pump', at: now.toISOString(), pump: { totalAmount: 0, unitAbbr: 'ML', action: 'UNKNOWN' } };
+    expect(formatTileEntryNote(entry, t)).toBe('0ml — Necesita revisión');
+  });
+
   it('localizes a food try with its enjoyment label', () => {
     const entry: TileEntry = { kind: 'food', at: now.toISOString(), foodName: 'Banana', enjoyment: 'LOVED' };
     expect(formatTileEntryNote(entry, t)).toBe('Banana · Encantó');

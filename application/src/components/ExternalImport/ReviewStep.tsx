@@ -7,6 +7,7 @@ import {
   ExternalImportUiConfiguration,
 } from './external-import.types';
 import { findSharedChildDestinations } from './destination-utils';
+import { warningLabels } from './warning-labels';
 
 interface ReviewStepProps {
   readonly preview: ExternalImportPreviewResponse;
@@ -211,7 +212,7 @@ export default function ReviewStep({
               <li
                 key={`${warning.code}-${warning.entityType}`}
               >
-                {warning.code} ({warning.affectedRows})
+                {t(warningLabels[warning.code] || warning.code)} ({warning.affectedRows})
               </li>
             ))}
           </ul>

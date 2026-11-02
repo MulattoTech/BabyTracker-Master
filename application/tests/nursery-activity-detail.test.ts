@@ -7,7 +7,7 @@ const feedLabels: FeedNoteLabels = {
 };
 
 const pumpLabels: PumpNoteLabels = {
-  left: 'Left', right: 'Right', both: 'Both', stored: 'Stored', fed: 'Fed', discarded: 'Discarded',
+  left: 'Left', right: 'Right', both: 'Both', stored: 'Stored', fed: 'Fed', discarded: 'Discarded', unknown: 'Needs review',
 };
 
 describe('formatFeedNote', () => {
@@ -48,6 +48,11 @@ describe('formatFeedNote', () => {
 });
 
 describe('formatPumpNote', () => {
+  it('keeps unknown milk visible as needing review without claiming a destination', () => {
+    expect(formatPumpNote({ totalAmount: 100, unitAbbr: 'ML', action: 'UNKNOWN' }, pumpLabels))
+      .toBe('100ml — Needs review');
+  });
+
   it('formats both-side amounts with action', () => {
     expect(formatPumpNote({ leftAmount: 4, rightAmount: 3, unitAbbr: 'OZ', action: 'STORED' }, pumpLabels))
       .toBe('Left: 4oz / Right: 3oz — Stored');

@@ -155,7 +155,7 @@ export interface ExternalImportPumpRecord {
   readonly duration: number;
   readonly totalAmount: number;
   readonly unitAbbr: 'ML' | 'OZ';
-  readonly pumpAction: 'STORED';
+  readonly pumpAction: 'UNKNOWN';
   readonly notes?: string;
 }
 

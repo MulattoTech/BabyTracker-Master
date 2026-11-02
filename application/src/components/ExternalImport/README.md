@@ -12,6 +12,47 @@ The component currently supports Baby Buddy CSV exports and guides family admini
 
 External imports are additive. The importer does not use database restore endpoints and does not modify or delete existing Sprout Track records.
 
+## Pumping disposition and milk stock
+
+Baby Buddy's pumping model and CSV exporter do not record whether the milk was
+stored, fed, or discarded. New imports therefore use the canonical string
+`pumpAction: UNKNOWN`, displayed as **Needs review**, while retaining the pumped
+total, unit, timestamps, notes and source provenance. Side amounts stay absent.
+Neither notes, tags, nor unrecognized extra columns establish a disposition.
+The Configure and Review steps explain this before any records are written.
+
+An unresolved pump stays in pumping history but contributes no stored milk and
+creates no feeding entry. Open it from the timeline, choose an action and save:
+Stored adds its amount to stock; Fed follows the existing linked automatic-feed
+behavior when milk tracking is enabled; Discarded and Needs review add no stock.
+Saving an unrelated edit retains the unresolved action. Disposition-only edits
+preserve the original timestamps, duration, amount, notes and absent sides.
+Reverting a fed pump to Needs review removes only its linked automatic feed.
+The legacy note-matching fallback is limited to pumps previously marked Fed,
+so a newly imported session cannot adopt or delete another session's feed.
+
+Reuploading the same source returns the existing target and does not undo a
+caregiver's correction. Older imports already recorded as Stored remain
+unchanged and need explicit review if their historical disposition was unknown.
+The existing pumping timestamp conversion and rounded-minute duration are
+unchanged; this slice does not claim the feeding resolver's DST guarantees for
+pumping records.
+
+No schema or migration change is required: the database field is already a
+string. Earlier images can read UNKNOWN and their stock queries still exclude
+it, but show the raw label; their pump editor rejects an unchanged UNKNOWN save.
+Full unresolved-state editing requires the new image. The hooks API continues
+to read UNKNOWN but its accepted write actions remain unchanged; perform this
+review through the app or `/api/pump-log`, which synchronizes linked feeds.
+Hook feed-synchronization parity is separate work.
+
+Upstream contract checked at Baby Buddy commit
+[`2bd0461f5a7e407147bcfef363eb79dce6c9708d`](https://github.com/babybuddy/babybuddy/blob/2bd0461f5a7e407147bcfef363eb79dce6c9708d/core/models.py)
+(`Pumping`) and its
+[`core/admin.py` exporter](https://github.com/babybuddy/babybuddy/blob/2bd0461f5a7e407147bcfef363eb79dce6c9708d/core/admin.py).
+Migrated SQLite/API tests and the actual wizard/edit/stock browser gate cover
+the contract; source acceptance remains separate from deployment acceptance.
+
 ## Feeding timestamp fidelity
 
 Baby Buddy bottle, breast and solid-food imports retain both source endpoints.

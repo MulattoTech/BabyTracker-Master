@@ -90,7 +90,7 @@ export function mapBabyBuddyPumping(
   return {
     targetType: 'pump', source: source('pumping', row), sourceChildId,
     startTime, endTime, duration, totalAmount: numberValue(row, 'amount'),
-    unitAbbr, pumpAction: 'STORED', notes: row.notes?.trim() || undefined,
+    unitAbbr, pumpAction: 'UNKNOWN', notes: row.notes?.trim() || undefined,
   };
 }
 

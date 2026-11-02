@@ -17,6 +17,7 @@ import {
   ExternalImportUiConfiguration,
 } from './external-import.types';
 import { findSharedChildDestinations } from './destination-utils';
+import { warningLabels } from './warning-labels';
 
 interface ConfigureStepProps {
   readonly preview: ExternalImportPreviewResponse;
@@ -35,29 +36,6 @@ const unitLabels: Record<string, string> = {
   weight: 'Weight unit',
   'head-circumference': 'Head circumference unit',
   temperature: 'Temperature unit',
-};
-
-const warningLabels: Record<string, string> = {
-  'birth-time-unsupported':
-    'Birth time is not imported',
-  'tags-unsupported':
-    'Tags are not supported and will be skipped',
-  'bmi-unsupported':
-    'BMI records are not imported',
-  'both-breasts-without-side':
-    'Breast feeds without an individual side use available session data',
-  'wet-diaper-colour-unsupported':
-    'Colours on wet-only nappies are not imported',
-  'breast-feed-amount-unsupported':
-    'Amounts on direct breast feeds are not imported',
-  'diaper-amount-unsupported':
-    'Nappy amounts are not imported',
-  'pumping-defaults-to-stored':
-    'Pumping records are imported as stored milk',
-  'medication-dosage-missing':
-    'Medication entries without an amount are preserved as notes with an unknown dose',
-  'feeding-combination-unsupported':
-    'Feeds with an unrecognized method are skipped',
 };
 
 function childLabel(

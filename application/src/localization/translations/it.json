@@ -3160,5 +3160,9 @@
   "This feeding time is ambiguous because the clock repeats. Include the source UTC offset, such as -05:00 or -06:00, before importing.": "Questo orario di poppata è ambiguo perché l’orologio ripete l’ora. Includi l’offset UTC della fonte, come -05:00 o -06:00, prima di importare.",
   "Both feeding start and end timestamps are required to import a timed session.": "Per importare una poppata cronometrata servono sia la data di inizio sia quella di fine.",
   "Feeding duration must be a non-negative whole number of seconds. Check the source start and end timestamps.": "La durata della poppata deve essere un numero intero di secondi non negativo. Controlla le date di inizio e fine della fonte.",
-  "Feeding duration conflicts with the source start and end timestamps.": "La durata della poppata non corrisponde alle date di inizio e fine della fonte."
+  "Feeding duration conflicts with the source start and end timestamps.": "La durata della poppata non corrisponde alle date di inizio e fine della fonte.",
+  "Needs review": "Da verificare",
+  "Baby Buddy does not record what happened to pumped milk. Imported sessions need review and do not add to stored milk. Open a pumping session to choose Stored, Fed or Discarded when known.": "Baby Buddy non registra cosa è successo al latte estratto. Le sessioni importate richiedono una verifica e non aumentano il latte conservato. Apri una sessione di estrazione e scegli Conservato, Nutrito o Scartato quando lo sai.",
+  "This pumping session needs review. It adds no milk to your stock and creates no feeding entry. Choose Stored, Fed or Discarded only when you know what happened.": "Questa sessione di estrazione richiede una verifica. Non aggiunge latte alle scorte e non crea una poppata. Scegli Conservato, Nutrito o Scartato solo se sai cosa è successo.",
+  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "Azione di estrazione non valida. Deve essere STORED, FED, DISCARDED o UNKNOWN."
 }

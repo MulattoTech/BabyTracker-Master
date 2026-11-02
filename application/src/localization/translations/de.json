@@ -3160,5 +3160,9 @@
   "This feeding time is ambiguous because the clock repeats. Include the source UTC offset, such as -05:00 or -06:00, before importing.": "Diese Fütterungszeit ist wegen einer Zeitumstellung mehrdeutig. Ergänzen Sie vor dem Import den UTC-Offset der Quelle, etwa -05:00 oder -06:00.",
   "Both feeding start and end timestamps are required to import a timed session.": "Zum Import einer zeitlich erfassten Fütterung sind Start- und Endzeit erforderlich.",
   "Feeding duration must be a non-negative whole number of seconds. Check the source start and end timestamps.": "Die Fütterungsdauer muss eine nicht negative ganze Zahl von Sekunden sein. Prüfen Sie Start- und Endzeit der Quelle.",
-  "Feeding duration conflicts with the source start and end timestamps.": "Die Fütterungsdauer stimmt nicht mit Start- und Endzeit der Quelle überein."
+  "Feeding duration conflicts with the source start and end timestamps.": "Die Fütterungsdauer stimmt nicht mit Start- und Endzeit der Quelle überein.",
+  "Needs review": "Überprüfung nötig",
+  "Baby Buddy does not record what happened to pumped milk. Imported sessions need review and do not add to stored milk. Open a pumping session to choose Stored, Fed or Discarded when known.": "Baby Buddy erfasst nicht, was mit abgepumpter Milch geschehen ist. Importierte Vorgänge müssen überprüft werden und erhöhen den Milchvorrat nicht. Öffnen Sie einen Abpumpvorgang und wählen Sie Gespeichert, Gefüttert oder Verworfen, wenn dies bekannt ist.",
+  "This pumping session needs review. It adds no milk to your stock and creates no feeding entry. Choose Stored, Fed or Discarded only when you know what happened.": "Dieser Abpumpvorgang muss überprüft werden. Er erhöht Ihren Milchvorrat nicht und erstellt keinen Fütterungseintrag. Wählen Sie Gespeichert, Gefüttert oder Verworfen nur, wenn Sie wissen, was geschehen ist.",
+  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "Ungültige Abpumpaktion. Zulässig sind STORED, FED, DISCARDED oder UNKNOWN."
 }

@@ -138,3 +138,11 @@ This component is designed with cross-platform compatibility in mind:
 - Implements touch-friendly input controls with appropriately sized buttons
 - Separates styling concerns with CSS files for easier platform-specific styling
 - Uses a modular approach that can be adapted to different platforms
+# Unresolved imported milk
+
+Baby Buddy pumping imports use `UNKNOWN` because the export has no disposition.
+The form displays **Needs review** and explains its effect on milk stock. The
+existing Stored, Fed and Discarded choices explicitly resolve it; leaving Needs
+review selected preserves the uncertainty. It remains available for imported
+unknown sessions even when breast-milk tracking is off. Changed-field updates
+preserve untouched source timestamps, duration, notes and nullable amounts.

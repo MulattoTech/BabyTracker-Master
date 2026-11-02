@@ -115,6 +115,19 @@ describe('Baby Buddy import preview', () => {
 });
 
 describe('Baby Buddy import warnings', () => {
+  it('requires disposition review for every pumping row, without inferring from notes', () => {
+    const warnings = collectBabyBuddyWarnings([
+      { name: 'Pumping.csv', content: [
+        'id,child_id,start,end,amount,notes',
+        '1,7,2026-10-20 08:00:10,2026-10-20 08:20:20,100,Stored in the freezer',
+        '2,7,2026-10-20 09:00:10,2026-10-20 09:20:20,0,',
+      ].join('\n') },
+    ]);
+    expect(warnings).toEqual([
+      { code: 'pumping-disposition-unknown', entityType: 'pumping', affectedRows: 2 },
+    ]);
+  });
+
   it('does not warn about sleep or diaper notes (they are imported now)', () => {
     const warnings = collectBabyBuddyWarnings([
       {
