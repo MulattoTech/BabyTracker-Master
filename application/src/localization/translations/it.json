@@ -3121,5 +3121,9 @@
   "Confirm the consumed volume; offered or remaining volume is not consumption.": "Conferma il volume consumato; il volume offerto o rimanente non equivale al consumo.",
   "Multiple offered volumes need correction.": "È necessario correggere i diversi volumi offerti.",
   "An unlabelled quantity was not assigned to offered or consumed volume.": "Una quantità senza etichetta non è stata assegnata al volume offerto né a quello consumato.",
-  "A rejected event cannot also be approved.": "Un evento rifiutato non può essere anche approvato."
+  "A rejected event cannot also be approved.": "Un evento rifiutato non può essere anche approvato.",
+  "Feeding duration (minutes)": "Durata della poppata (minuti)",
+  "Feeding duration exceeds two hours; compare it with the source before approving.": "La durata della poppata supera le due ore; confrontala con la fonte prima di approvare.",
+  "Feeding duration is unclear; enter an explicit elapsed duration or leave it unrecorded.": "La durata della poppata non è chiara; indica il tempo trascorso o lascia il campo vuoto.",
+  "Feeding duration must be a whole number of seconds between 1 and 86400, or left blank.": "La durata della poppata deve essere un numero intero di secondi tra 1 e 86400, oppure lasciata vuota."
 }

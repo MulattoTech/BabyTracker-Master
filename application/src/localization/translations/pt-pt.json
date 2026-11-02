@@ -3121,5 +3121,9 @@
   "Confirm the consumed volume; offered or remaining volume is not consumption.": "",
   "Multiple offered volumes need correction.": "",
   "An unlabelled quantity was not assigned to offered or consumed volume.": "",
-  "A rejected event cannot also be approved.": ""
+  "A rejected event cannot also be approved.": "",
+  "Feeding duration (minutes)": "Duração da mamada (minutos)",
+  "Feeding duration exceeds two hours; compare it with the source before approving.": "A duração da mamada excede duas horas; compare com a fonte antes de aprovar.",
+  "Feeding duration is unclear; enter an explicit elapsed duration or leave it unrecorded.": "A duração da mamada não é clara; indique o tempo decorrido ou deixe por registar.",
+  "Feeding duration must be a whole number of seconds between 1 and 86400, or left blank.": "A duração da mamada deve ser um número inteiro de segundos entre 1 e 86400 ou ficar em branco."
 }

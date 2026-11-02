@@ -25,7 +25,7 @@ vi.mock('@/src/lib/ocr/intake', async (importOriginal) => {
       const image = await actual.applyImageTransform(bytes, { rotation: options.rotation, crop: options.crop });
       return [{
         page: 1,
-        text: '08:15 bottle formula 90 mL\n09:30 wet diaper',
+        text: '08:15 bottle formula 90 mL; duration: 20 min\n09:30 wet diaper',
         confidence: 95,
         engine: 'synthetic-windows-test-engine',
         image,
@@ -86,7 +86,7 @@ afterAll(async () => {
 
 describe('OCR → review → canonical Sprout import on a real SQLite database', () => {
   it('recognizes a real image, persists encrypted sources, corrects a field and saves exact approved events', async () => {
-    const image = await sharp(Buffer.from('<svg width="1700" height="700" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="white"/><g font-family="DejaVu Sans" font-size="48"><text x="60" y="130">08:15 bottle formula 90 mL</text><text x="60" y="280">09:30 wet diaper</text></g></svg>')).png().toBuffer();
+    const image = await sharp(Buffer.from('<svg width="1700" height="700" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="white"/><g font-family="DejaVu Sans" font-size="48"><text x="60" y="130">08:15 bottle formula 90 mL; duration: 20 min</text><text x="60" y="280">09:30 wet diaper</text></g></svg>')).png().toBuffer();
     const document = await createOcrDocument(db, actor, { bytes: image, name: 'synthetic-sheet.png', babyId: 'ocr-child-a', timeZone: 'America/Chicago', defaultDate: '2026-10-20', timeFormat: '24h', rotation: 0, retentionDays: 30 });
     sources.push(document.id);
     expect(document.rows.filter(row => ['feed', 'diaper'].includes(row.eventType))).toHaveLength(2);
@@ -105,6 +105,7 @@ describe('OCR → review → canonical Sprout import on a real SQLite database',
     expect(committed.result?.created).toBe(2);
     const feed = await db.feedLog.findFirstOrThrow();
     expect({ amount: feed.amount, unit: feed.unitAbbr, bottle: feed.bottleType, time: feed.time.toISOString() }).toEqual({ amount: 95, unit: 'ML', bottle: 'Formula', time: '2026-10-20T13:15:00.000Z' });
+    expect(feed.feedDuration).toBe(1200);
     expect(await db.diaperLog.count()).toBe(1);
     expect(await db.externalImportRecord.count()).toBe(2);
     expect(await db.ocrAudit.count({ where: { documentId: document.id, action: 'commit' } })).toBe(1);

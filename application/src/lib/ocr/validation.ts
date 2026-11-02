@@ -2,11 +2,12 @@ import {
   OCR_MAX_NOTES, OCR_MAX_SOURCE_LINE, OcrCandidate, OcrCrop, OcrEditableField,
   OcrFieldOrigin, OcrTimeResolution, OcrValidationResult,
 } from './types';
+import { OCR_MAX_FEED_DURATION_SECONDS } from './duration';
 
 const editableFields: readonly OcrEditableField[] = [
   'eventType', 'localDate', 'localTime', 'endLocalDate', 'endLocalTime',
   'feedType', 'bottleType', 'amount', 'unit', 'diaperType', 'sleepType', 'notes',
-  'offeredAmount', 'formulaKcalOz', 'formulaName', 'bottleLabel', 'sourceCaregiverName',
+  'feedDuration', 'offeredAmount', 'formulaKcalOz', 'formulaName', 'bottleLabel', 'sourceCaregiverName',
 ];
 const origins: readonly OcrFieldOrigin[] = ['source', 'context', 'missing', 'ambiguous', 'corrected'];
 
@@ -96,6 +97,15 @@ export function validateOcrCandidate(
     }
     return value[field] as number;
   };
+  const feedDuration = value.feedDuration;
+  if (feedDuration !== undefined && feedDuration !== null
+    && (typeof feedDuration !== 'number' || !Number.isInteger(feedDuration)
+      || feedDuration < 1 || feedDuration > OCR_MAX_FEED_DURATION_SECONDS)) {
+    errors.push('Feeding duration must be a whole number of seconds between 1 and 86400, or left blank.');
+  }
+  if (eventType === 'feed' && typeof feedDuration === 'number' && feedDuration > 2 * 60 * 60) {
+    warnings.push('Feeding duration exceeds two hours; compare it with the source before approving.');
+  }
   const offeredAmount = optionalNumber('offeredAmount', 100000);
   const formulaKcalOz = optionalNumber('formulaKcalOz', 60, true);
   const formulaName = optionalText('formulaName', 120);
@@ -177,6 +187,7 @@ export function validateOcrCandidate(
     id, eventType, localDate, localTime, endLocalDate, endLocalTime,
     feedType, bottleType, unit, diaperType, sleepType, amount: amount as number | null,
     notes,
+    ...(feedDuration !== undefined ? { feedDuration: feedDuration as number | null } : {}),
     ...(offeredAmount !== undefined ? { offeredAmount } : {}),
     ...(formulaKcalOz !== undefined ? { formulaKcalOz } : {}),
     ...(formulaName !== undefined ? { formulaName } : {}),

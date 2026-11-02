@@ -3121,5 +3121,9 @@
   "Confirm the consumed volume; offered or remaining volume is not consumption.": "Confirm the consumed volume; offered or remaining volume is not consumption.",
   "Multiple offered volumes need correction.": "Multiple offered volumes need correction.",
   "An unlabelled quantity was not assigned to offered or consumed volume.": "An unlabelled quantity was not assigned to offered or consumed volume.",
-  "A rejected event cannot also be approved.": "A rejected event cannot also be approved."
+  "A rejected event cannot also be approved.": "A rejected event cannot also be approved.",
+  "Feeding duration (minutes)": "Feeding duration (minutes)",
+  "Feeding duration exceeds two hours; compare it with the source before approving.": "Feeding duration exceeds two hours; compare it with the source before approving.",
+  "Feeding duration is unclear; enter an explicit elapsed duration or leave it unrecorded.": "Feeding duration is unclear; enter an explicit elapsed duration or leave it unrecorded.",
+  "Feeding duration must be a whole number of seconds between 1 and 86400, or left blank.": "Feeding duration must be a whole number of seconds between 1 and 86400, or left blank."
 }

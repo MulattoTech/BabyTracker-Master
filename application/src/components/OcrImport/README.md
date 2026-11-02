@@ -32,3 +32,5 @@ and audit history. No drafts or source images are persisted to browser storage b
 
 The English printed-text baseline is stated explicitly. Engine scores are not field correctness probabilities.
 Translation keys for the feature are collected in `translation-keys.json` for integration with the existing localization files.
+
+Feeding duration is optional. Explicit elapsed durations are extracted in whole seconds, displayed and edited in minutes (rounded to the nearest second), and written to the existing canonical `FeedLog.feedDuration` only after confirmation. Missing or ambiguous durations remain blank; duration edits clear approval.

@@ -8,7 +8,7 @@ import { resolveOcrLocalDateTime, validateOcrCandidate } from './validation';
 import { OCR_LIMITS } from './intake';
 import { OcrError } from './errors';
 
-const fields: OcrEditableField[] = ['eventType', 'localDate', 'localTime', 'endLocalDate', 'endLocalTime', 'feedType', 'bottleType', 'amount', 'unit', 'diaperType', 'sleepType', 'notes', 'offeredAmount', 'formulaKcalOz', 'formulaName', 'bottleLabel', 'sourceCaregiverName'];
+const fields: OcrEditableField[] = ['eventType', 'localDate', 'localTime', 'endLocalDate', 'endLocalTime', 'feedType', 'bottleType', 'amount', 'unit', 'diaperType', 'sleepType', 'notes', 'feedDuration', 'offeredAmount', 'formulaKcalOz', 'formulaName', 'bottleLabel', 'sourceCaregiverName'];
 export const ocrScope = (document: Pick<OcrDocument, 'id' | 'familyId'>) => `${document.familyId}:${document.id}`;
 export interface OriginalOcrState { rows: OcrCandidate[]; pages: { page: number; text: string; engine: string; confidence: number | null }[] }
 
@@ -335,6 +335,7 @@ export function toSproutRecords(document: OcrDocument, review: OcrReviewRequest)
     if (row.eventType === 'feed' && row.feedType) return {
       ...base, targetType: 'feed', time, type: row.feedType, amount: row.amount ?? undefined,
       unitAbbr: row.unit ?? undefined, bottleType: row.bottleType ?? undefined,
+      feedDuration: row.feedDuration ?? undefined,
       offeredAmount: row.offeredAmount ?? undefined, formulaKcalOz: row.formulaKcalOz ?? undefined,
       formulaName: row.formulaName ?? undefined, bottleLabel: row.bottleLabel ?? undefined,
       sourceCaregiverName: row.sourceCaregiverName ?? undefined,

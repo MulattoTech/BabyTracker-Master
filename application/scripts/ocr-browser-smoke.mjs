@@ -123,7 +123,7 @@ try {
   await page.goto(`${base}/${family.slug}/ocr-import?babyId=${baby.id}`, { waitUntil: 'networkidle' });
   await page.getByRole('heading', { name: 'Document import', exact: true }).waitFor();
   await page.getByLabel('Photo or document', { exact: true }).waitFor();
-  const image = await sharp(Buffer.from('<svg width="1700" height="700" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="white"/><g font-family="DejaVu Sans" font-size="48"><text x="60" y="130">08:15 bottle formula 90 mL</text><text x="60" y="280">09:30 wet diaper</text></g></svg>')).png().toBuffer();
+  const image = await sharp(Buffer.from('<svg width="1700" height="700" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="white"/><g font-family="DejaVu Sans" font-size="48"><text x="60" y="130">08:15 bottle formula 90 mL; duration: 20 min</text><text x="60" y="280">09:30 wet diaper</text></g></svg>')).png().toBuffer();
   await page.getByLabel('Photo or document', { exact: true }).setInputFiles({ name: 'synthetic-care-log.png', mimeType: 'image/png', buffer: image });
   await page.getByLabel('Date for rows without a date', { exact: true }).fill('2026-10-20');
   await page.getByLabel('Source time zone', { exact: true }).fill('America/Chicago');
@@ -135,7 +135,9 @@ try {
   assert.equal(await db.diaperLog.count(), 0);
   report.checks.push('Image upload creates only encrypted review draft');
   await page.getByLabel('Feeding amount', { exact: true }).fill('95');
-  const richBottle = { offeredAmount: 120, formulaKcalOz: 22, formulaName: 'Synthetic Formula', bottleLabel: 'A1', sourceCaregiverName: 'TestParent' };
+  assert.equal(await page.getByLabel('Feeding duration (minutes)', { exact: true }).inputValue(), '20');
+  await page.getByLabel('Feeding duration (minutes)', { exact: true }).fill('22.5');
+  const richBottle = { feedDuration: 1350, offeredAmount: 120, formulaKcalOz: 22, formulaName: 'Synthetic Formula', bottleLabel: 'A1', sourceCaregiverName: 'TestParent' };
   await page.getByLabel('Volume offered (same unit)', { exact: true }).fill(String(richBottle.offeredAmount));
   await page.getByLabel('Formula concentration (kcal/oz)', { exact: true }).fill(String(richBottle.formulaKcalOz));
   await page.getByLabel('Formula name', { exact: true }).fill(richBottle.formulaName);
@@ -172,7 +174,7 @@ try {
   assert.equal(canonicalFeedBody.data.id, feed.id);
   assert.equal(canonicalFeedBody.data.amount, 95); assert.equal(canonicalFeedBody.data.unitAbbr, 'ML');
   for (const [field, expected] of Object.entries(richBottle)) assert.equal(canonicalFeedBody.data[field], expected, `Canonical feed API lost corrected ${field}`);
-  report.checks.push('Five corrected OCR bottle fields persist in the same canonical feed and feed API');
+  report.checks.push('Corrected OCR feeding duration and bottle fields persist in the same canonical feed and feed API');
   assert.equal(await db.diaperLog.count(), 1);
   const timeline = await fetch(`${base}/api/timeline?babyId=${baby.id}&startDate=2026-10-20T00:00:00Z&endDate=2026-10-21T00:00:00Z`, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(5000) });
   assert.equal(timeline.status, 200);

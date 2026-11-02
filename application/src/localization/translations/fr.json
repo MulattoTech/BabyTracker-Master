@@ -3121,5 +3121,9 @@
   "Confirm the consumed volume; offered or remaining volume is not consumption.": "Confirmez le volume consommé ; le volume proposé ou restant ne correspond pas à la consommation.",
   "Multiple offered volumes need correction.": "Les différents volumes proposés doivent être corrigés.",
   "An unlabelled quantity was not assigned to offered or consumed volume.": "Une quantité sans étiquette n’a été attribuée ni au volume proposé ni au volume consommé.",
-  "A rejected event cannot also be approved.": "Un événement rejeté ne peut pas aussi être approuvé."
+  "A rejected event cannot also be approved.": "Un événement rejeté ne peut pas aussi être approuvé.",
+  "Feeding duration (minutes)": "Durée de la tétée ou du biberon (minutes)",
+  "Feeding duration exceeds two hours; compare it with the source before approving.": "La durée dépasse deux heures ; vérifiez la source avant de valider.",
+  "Feeding duration is unclear; enter an explicit elapsed duration or leave it unrecorded.": "La durée est incertaine ; indiquez la durée écoulée ou laissez-la non renseignée.",
+  "Feeding duration must be a whole number of seconds between 1 and 86400, or left blank.": "La durée doit être un nombre entier de secondes entre 1 et 86400, ou rester vide."
 }

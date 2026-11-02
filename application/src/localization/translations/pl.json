@@ -3125,5 +3125,9 @@
   "Confirm the consumed volume; offered or remaining volume is not consumption.": "",
   "Multiple offered volumes need correction.": "",
   "An unlabelled quantity was not assigned to offered or consumed volume.": "",
-  "A rejected event cannot also be approved.": ""
+  "A rejected event cannot also be approved.": "",
+  "Feeding duration (minutes)": "Czas karmienia (minuty)",
+  "Feeding duration exceeds two hours; compare it with the source before approving.": "Czas karmienia przekracza dwie godziny; porównaj ze źródłem przed zatwierdzeniem.",
+  "Feeding duration is unclear; enter an explicit elapsed duration or leave it unrecorded.": "Czas karmienia jest niejasny; wpisz czas trwania lub pozostaw pole puste.",
+  "Feeding duration must be a whole number of seconds between 1 and 86400, or left blank.": "Czas karmienia musi być całkowitą liczbą sekund od 1 do 86400 lub pozostać pusty."
 }
