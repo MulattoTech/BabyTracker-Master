@@ -15,6 +15,7 @@ import { verifyMedicationImport } from './medication-import-browser.mjs';
 import { verifyFeedingImport } from './feeding-import-browser.mjs';
 import { verifyPumpingImport } from './pumping-import-browser.mjs';
 import { verifyPumpingConflicts } from './pumping-conflict-browser.mjs';
+import { verifyCareContactEditors } from './care-contact-editor-browser.mjs';
 import { verifyNurseryPumpRecovery } from './nursery-pump-browser.mjs';
 import { verifyNurseryBottle } from './nursery-bottle-browser.mjs';
 import { verifyBreastfeedingRecovery } from './breastfeeding-recovery-browser.mjs';
@@ -336,6 +337,8 @@ try {
   report.pumpingImportChecksPassed = true;
   report.checks.push(...await verifyPumpingConflicts({ base, db, family, baby, caretaker, token, secret, context }));
   report.pumpingConflictChecksPassed = true;
+  report.checks.push(...await verifyCareContactEditors({ base, db, family, baby, caretaker, context }));
+  report.careContactEditorChecksPassed = true;
   report.checks.push(...await verifyNurseryPumpRecovery({ base, db, family, baby, caretaker, token, secret, context }));
   report.nurseryPumpRecoveryChecksPassed = true;
   report.checks.push(...await verifyNurseryBottle({ base, db, family, baby, caretaker, token, secret, context }));

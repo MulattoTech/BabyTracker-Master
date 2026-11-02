@@ -4,7 +4,28 @@ import { ApiResponse, MedicineLogCreate, MedicineLogResponse } from '../types';
 import { withAuthContext, AuthResult } from '../utils/auth';
 import { toUTC, formatForResponse } from '../utils/timezone';
 import { checkWritePermission } from '../utils/writeProtection';
+import { careFields, readCareWrite, CareWriteError } from '../utils/care-write';
 import { notifyActivityCreated, resetTimerNotificationState } from '@/src/lib/notifications/activityHook';
+
+// Keep the owned dose visible when a legacy relationship needs review, without
+// returning another family's related records or any caregiver login PIN.
+function scopeMedicineLogRelations<T extends {
+  medicine: { familyId: string | null };
+  baby: { familyId: string | null };
+  caretaker: { familyId: string | null; securityPin: string } | null;
+}>(log: T, familyId: string) {
+  let caretaker;
+  if (log.caretaker?.familyId === familyId) {
+    const { securityPin: _securityPin, ...publicCaretaker } = log.caretaker;
+    caretaker = publicCaretaker;
+  }
+  return {
+    ...log,
+    medicine: log.medicine.familyId === familyId ? log.medicine : undefined,
+    baby: log.baby.familyId === familyId ? log.baby : undefined,
+    caretaker,
+  };
+}
 
 /**
  * Handle POST request to create a new medicine log entry
@@ -22,11 +43,11 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'User is not associated with a family.' }, { status: 403 });
     }
 
-    const body: MedicineLogCreate = await req.json();
+    const body = await readCareWrite<MedicineLogCreate>(req, careFields.medicineLog, ['babyId', 'medicineId', 'time', 'doseAmount']);
 
     const [baby, medicine] = await Promise.all([
-      prisma.baby.findFirst({ where: { id: body.babyId, familyId: userFamilyId } }),
-      prisma.medicine.findFirst({ where: { id: body.medicineId, familyId: userFamilyId } })
+      prisma.baby.findFirst({ where: { id: body.babyId, familyId: userFamilyId, deletedAt: null } }),
+      prisma.medicine.findFirst({ where: { id: body.medicineId, familyId: userFamilyId, deletedAt: null } })
     ]);
 
     if (!baby) {
@@ -67,6 +88,7 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
     console.error('Error creating medicine log:', error);
     return NextResponse.json<ApiResponse<MedicineLogResponse>>(
       {
@@ -96,7 +118,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    const body: Partial<MedicineLogCreate> = await req.json();
+    const body = await readCareWrite<Partial<MedicineLogCreate>>(req, careFields.medicineLog);
 
     if (!id) {
       return NextResponse.json<ApiResponse<MedicineLogResponse>>(
@@ -126,13 +148,11 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
     if (body.time) {
       data.time = toUTC(body.time);
     }
-    delete data.familyId;
     delete data.babyId;
     delete data.medicineId;
-    delete data.caretakerId;
 
     const medicineLog = await prisma.medicineLog.update({
-      where: { id },
+      where: { id, familyId: userFamilyId },
       data,
     });
 
@@ -150,6 +170,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
     console.error('Error updating medicine log:', error);
     return NextResponse.json<ApiResponse<MedicineLogResponse>>(
       {
@@ -203,6 +224,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           medicine: {
             include: {
               contacts: {
+                where: { contact: { familyId: userFamilyId } },
                 include: {
                   contact: true
                 }
@@ -227,7 +249,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
 
       // Format dates for response
       const response: MedicineLogResponse = {
-        ...medicineLog,
+        ...scopeMedicineLogRelations(medicineLog, userFamilyId),
         time: formatForResponse(medicineLog.time) || '',
         createdAt: formatForResponse(medicineLog.createdAt) || '',
         updatedAt: formatForResponse(medicineLog.updatedAt) || '',
@@ -247,6 +269,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
         medicine: {
           include: {
             contacts: {
+              where: { contact: { familyId: userFamilyId } },
               include: {
                 contact: true
               }
@@ -263,7 +286,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
 
     // Format dates for response
     const response = medicineLogs.map(log => ({
-      ...log,
+      ...scopeMedicineLogRelations(log, userFamilyId),
       time: formatForResponse(log.time) || '',
       createdAt: formatForResponse(log.createdAt) || '',
       updatedAt: formatForResponse(log.updatedAt) || '',

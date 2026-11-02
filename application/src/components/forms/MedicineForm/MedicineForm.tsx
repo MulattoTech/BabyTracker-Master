@@ -21,6 +21,7 @@ import { Contact } from '@/src/components/CalendarEvent/calendar-event.types';
 import ContactSelector from './ContactSelector';
 import { useLocalization } from '@/src/context/localization';
 import { useUnit } from '@/src/hooks/useUnit';
+import { omitUnchangedContactIds } from '@/src/utils/contactSelection';
 
 interface MedicineFormProps {
   isOpen: boolean;
@@ -51,6 +52,8 @@ const MedicineForm: React.FC<MedicineFormProps> = ({
   const { t } = useLocalization();
   const { unitName, unitSymbol } = useUnit();
   const errorId = useId();
+  const formId = `${errorId}-medicine-form`;
+  const controlId = (field: string) => `${errorId}-${field}-control`;
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   
@@ -122,6 +125,9 @@ const MedicineForm: React.FC<MedicineFormProps> = ({
   };
   
   // Initialize form data
+  const [initialContactIds, setInitialContactIds] = useState<string[] | undefined>(() =>
+    medicine ? medicine.contacts?.map((c: any) => c.contact.id) || [] : undefined
+  );
   const [formData, setFormData] = useState<MedicineFormData>(() => {
     if (medicine) {
       return {
@@ -163,6 +169,7 @@ const MedicineForm: React.FC<MedicineFormProps> = ({
         contactIds: medicine.contacts?.map((c: any) => c.contact.id) || [],
       };
       setFormData(medicineData);
+      setInitialContactIds(medicineData.contactIds);
       // Parse the existing doseMinTime for the time selector
       parseDoseMinTime(medicine.doseMinTime || '');
     } else {
@@ -176,6 +183,7 @@ const MedicineForm: React.FC<MedicineFormProps> = ({
         isSupplement,
         contactIds: [],
       });
+      setInitialContactIds(undefined);
       // Reset time selector for new medicine
       setDoseTimeValue('');
       setDoseTimeUnit('hours');
@@ -391,13 +399,11 @@ const MedicineForm: React.FC<MedicineFormProps> = ({
     setIsLoading(true);
     
     // Create a copy of the form data to ensure all fields are included
-    const dataToSubmit = {
+    const dataToSubmit = omitUnchangedContactIds({
       ...formData,
       // Explicitly include typicalDoseSize even if it's undefined
       typicalDoseSize: formData.typicalDoseSize,
-      // Ensure contactIds has no duplicates
-      contactIds: formData.contactIds ? Array.from(new Set(formData.contactIds)) : [],
-    };
+    }, initialContactIds);
     
     // Log the form data being sent
     console.log('Submitting medicine form data:', dataToSubmit);
@@ -421,16 +427,17 @@ const MedicineForm: React.FC<MedicineFormProps> = ({
       description={medicine ? (isSupplement ? t('Update supplement details') : t('Update medicine details')) : (isSupplement ? t('Add a new supplement to track') : t('Add a new medicine to track'))}
     >
       <FormPageContent>
-        <form id="medicine-form" onSubmit={handleSubmit}>
+        <form id={formId} onSubmit={handleSubmit}>
           <div className="space-y-4">
             {/* Medicine Name */}
             <div className={styles.formGroup}>
-              <Label htmlFor="name">
+              <Label htmlFor={controlId('name')}>
                 {isSupplement ? t('Supplement Name') : t('Medicine Name')}
                 <span className="text-red-500 ml-1">*</span>
               </Label>
               <div className="relative">
                 <Input
+                  id={controlId('name')}
                   type="text"
                   name="name"
                   value={formData.name}
@@ -453,10 +460,11 @@ const MedicineForm: React.FC<MedicineFormProps> = ({
             {/* Typical Dose Size and Unit */}
             <div className="grid grid-cols-2 gap-4">
               <div className={styles.formGroup}>
-                <Label htmlFor="typicalDoseSize">
+                <Label htmlFor={controlId('typicalDoseSize')}>
                   {t('Typical Dose Size')}
                 </Label>
                 <Input
+                  id={controlId('typicalDoseSize')}
                   type="text"
                   inputMode="decimal"
                   name="typicalDoseSize"
@@ -476,7 +484,7 @@ const MedicineForm: React.FC<MedicineFormProps> = ({
               </div>
               
               <div className={styles.formGroup}>
-                <Label htmlFor="unitAbbr">
+                <Label htmlFor={controlId('unitAbbr')}>
                   {t('Unit')}
                 </Label>
                 <Select
@@ -484,6 +492,7 @@ const MedicineForm: React.FC<MedicineFormProps> = ({
                   onValueChange={handleUnitChange}
                 >
                   <SelectTrigger
+                    id={controlId('unitAbbr')}
                     className={errors.unitAbbr ? 'border-red-500' : ''}
                     aria-invalid={errors.unitAbbr ? true : undefined}
                     aria-describedby={errors.unitAbbr ? `${errorId}-unitAbbr` : undefined}
@@ -509,7 +518,7 @@ const MedicineForm: React.FC<MedicineFormProps> = ({
             
             {/* Minimum Time Between Doses - hidden for supplements */}
             {!isSupplement && <div className={styles.formGroup}>
-              <Label htmlFor="doseMinTime">
+              <Label htmlFor={controlId('doseMinTime')}>
                 {t('Minimum Time Between Doses')}
               </Label>
               <div className="space-y-3">
@@ -517,6 +526,7 @@ const MedicineForm: React.FC<MedicineFormProps> = ({
                 <div className="flex items-center space-x-3">
                   <div className="relative flex-1">
                     <Input
+                      id={controlId('doseMinTime')}
                       type="text"
                       inputMode="decimal"
                       value={doseTimeValue}
@@ -531,16 +541,16 @@ const MedicineForm: React.FC<MedicineFormProps> = ({
                   
                   {/* Unit Toggle */}
                   <div className="flex items-center space-x-2">
-                    <Label htmlFor="dose-time-unit" className="text-sm font-medium">
+                    <Label htmlFor={controlId('dose-time-unit')} className="text-sm font-medium">
                       {t('Hours')}
                     </Label>
                     <Switch
-                      id="dose-time-unit"
+                      id={controlId('dose-time-unit')}
                       checked={doseTimeUnit === 'days'}
                       onCheckedChange={handleDoseTimeUnitToggle}
                       variant="green"
                     />
-                    <Label htmlFor="dose-time-unit" className="text-sm font-medium">
+                    <Label htmlFor={controlId('dose-time-unit')} className="text-sm font-medium">
                       {t('Days')}
                     </Label>
                   </div>
@@ -568,10 +578,10 @@ const MedicineForm: React.FC<MedicineFormProps> = ({
               <Switch
                 checked={formData.active}
                 onCheckedChange={handleActiveToggle}
-                id="active-status"
+                id={controlId('active-status')}
               />
               <Label
-                htmlFor="active-status"
+                htmlFor={controlId('active-status')}
                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
               >
                 {isSupplement ? t('Active Supplement') : t('Active Medicine')}
@@ -580,12 +590,12 @@ const MedicineForm: React.FC<MedicineFormProps> = ({
             
             {/* Notes */}
             <div className={styles.formGroup}>
-              <Label htmlFor="notes">
+              <Label htmlFor={controlId('notes')}>
                 {t('Notes')}
               </Label>
               <div className="relative">
                 <Textarea
-                  id="notes"
+                  id={controlId('notes')}
                   name="notes"
                   value={formData.notes || ''}
                   onChange={handleChange}
@@ -597,8 +607,8 @@ const MedicineForm: React.FC<MedicineFormProps> = ({
             </div>
             
             {/* Associated Contacts */}
-            <div className={styles.formGroup}>
-              <Label htmlFor="contacts">
+            <div className={styles.formGroup} role="group" aria-labelledby={`${errorId}-contacts-label`}>
+              <Label id={`${errorId}-contacts-label`}>
                 {t('Associated Contacts')}
               </Label>
               <ContactSelector
@@ -626,7 +636,7 @@ const MedicineForm: React.FC<MedicineFormProps> = ({
           </Button>
           
           <Button 
-            form="medicine-form"
+            form={formId}
             type="submit" 
             disabled={isLoading}
           >

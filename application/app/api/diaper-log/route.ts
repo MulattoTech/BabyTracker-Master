@@ -4,6 +4,7 @@ import { ApiResponse, DiaperLogCreate, DiaperLogResponse } from '../types';
 import { withAuthContext, AuthResult } from '../utils/auth';
 import { toUTC, formatForResponse } from '../utils/timezone';
 import { checkWritePermission } from '../utils/writeProtection';
+import { careFields, readCareWrite, CareWriteError } from '../utils/care-write';
 import { notifyActivityCreated, resetTimerNotificationState } from '@/src/lib/notifications/activityHook';
 
 async function handlePost(req: NextRequest, authContext: AuthResult) {
@@ -19,10 +20,10 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'User is not associated with a family.' }, { status: 403 });
     }
 
-    const body: DiaperLogCreate = await req.json();
+    const body = await readCareWrite<DiaperLogCreate>(req, careFields.diaper, ['babyId', 'time', 'type']);
 
     const baby = await prisma.baby.findFirst({
-      where: { id: body.babyId, familyId: userFamilyId },
+      where: { id: body.babyId, familyId: userFamilyId, deletedAt: null },
     });
 
     if (!baby) {
@@ -58,6 +59,7 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
     console.error('Error creating diaper log:', error);
     return NextResponse.json<ApiResponse<DiaperLogResponse>>(
       {
@@ -84,7 +86,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    const body: Partial<DiaperLogCreate> = await req.json();
+    const body = await readCareWrite<Partial<DiaperLogCreate>>(req, careFields.diaper);
 
     if (!id) {
       return NextResponse.json<ApiResponse<DiaperLogResponse>>(
@@ -116,11 +118,9 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       data.time = toUTC(body.time);
     }
     delete data.babyId;
-    delete data.familyId;
-    delete data.caretakerId;
 
     const diaperLog = await prisma.diaperLog.update({
-      where: { id },
+      where: { id, familyId: userFamilyId },
       data,
     });
 
@@ -138,6 +138,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
     console.error('Error updating diaper log:', error);
     return NextResponse.json<ApiResponse<DiaperLogResponse>>(
       {

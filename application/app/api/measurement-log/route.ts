@@ -4,6 +4,7 @@ import { ApiResponse, MeasurementCreate, MeasurementResponse } from '../types';
 import { withAuthContext, AuthResult } from '../utils/auth';
 import { toUTC, formatForResponse } from '../utils/timezone';
 import { checkWritePermission } from '../utils/writeProtection';
+import { careFields, readCareWrite, CareWriteError, requireCareBaby } from '../utils/care-write';
 
 async function handlePost(req: NextRequest, authContext: AuthResult) {
   // Check write permissions for expired accounts
@@ -18,10 +19,10 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'User is not associated with a family.' }, { status: 403 });
     }
 
-    const body: MeasurementCreate = await req.json();
+    const body = await readCareWrite<MeasurementCreate>(req, careFields.measurement, ['babyId', 'date', 'type', 'value', 'unit']);
 
     const baby = await prisma.baby.findFirst({
-      where: { id: body.babyId, familyId: userFamilyId },
+      where: { id: body.babyId, familyId: userFamilyId, deletedAt: null },
     });
 
     if (!baby) {
@@ -54,6 +55,7 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
     console.error('Error creating measurement:', error);
     return NextResponse.json<ApiResponse<MeasurementResponse>>(
       {
@@ -80,7 +82,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    const body: Partial<MeasurementCreate> = await req.json();
+    const body = await readCareWrite<Partial<MeasurementCreate>>(req, careFields.measurement);
 
     if (!id) {
       return NextResponse.json<ApiResponse<MeasurementResponse>>(
@@ -107,16 +109,18 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       );
     }
 
+    if (body.babyId !== undefined && body.babyId !== existingMeasurement.babyId) {
+      await requireCareBaby(prisma, body.babyId, userFamilyId);
+    }
+
     // Prepare update data, converting date to UTC if present
     const updateData: any = { ...body };
     if (body.date) {
       updateData.date = toUTC(body.date);
     }
-    // Ensure familyId cannot be changed
-    delete updateData.familyId;
 
     const measurement = await prisma.measurement.update({
-      where: { id },
+      where: { id, familyId: userFamilyId },
       data: updateData,
     });
 
@@ -134,6 +138,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
     console.error('Error updating measurement:', error);
     return NextResponse.json<ApiResponse<MeasurementResponse>>(
       {

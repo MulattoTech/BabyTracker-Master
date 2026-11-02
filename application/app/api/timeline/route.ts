@@ -165,6 +165,12 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
     }
 
     const familyId = baby.familyId; // Use the verified family ID for all queries
+    // Legacy records may contain an inconsistent relation. Keep the care event,
+    // but fetch only badge fields from a caretaker in this verified family.
+    const scopedCaretaker = {
+      where: { familyId },
+      select: { name: true, loginId: true, badgeColor: true },
+    } as const;
 
     // Get the full URL to debug
     // const fullUrl = req.url;
@@ -254,7 +260,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           familyId, // Filter by the verified family ID
         },
         include: {
-          caretaker: true
+          caretaker: scopedCaretaker
         },
         orderBy: { startTime: 'desc' }
       }) : emptyPromise,
@@ -270,7 +276,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           familyId, // Filter by the verified family ID
         },
         include: {
-          caretaker: true
+          caretaker: scopedCaretaker
         },
         orderBy: { time: 'desc' }
       }) : emptyPromise,
@@ -286,7 +292,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           familyId, // Filter by the verified family ID
         },
         include: {
-          caretaker: true
+          caretaker: scopedCaretaker
         },
         orderBy: { time: 'desc' }
       }) : emptyPromise,
@@ -302,7 +308,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           familyId, // Filter by the verified family ID
         },
         include: {
-          caretaker: true
+          caretaker: scopedCaretaker
         },
         orderBy: { time: 'desc' }
       }) : emptyPromise,
@@ -318,7 +324,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           familyId, // Filter by the verified family ID
         },
         include: {
-          caretaker: true
+          caretaker: scopedCaretaker
         },
         orderBy: { time: 'desc' }
       }) : emptyPromise,
@@ -334,7 +340,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           familyId, // Filter by the verified family ID
         },
         include: {
-          caretaker: true
+          caretaker: scopedCaretaker
         },
         orderBy: { startTime: 'desc' }
       }) : emptyPromise,
@@ -350,7 +356,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           familyId,
         },
         include: {
-          caretaker: true
+          caretaker: scopedCaretaker
         },
         orderBy: { startTime: 'desc' }
       }) : emptyPromise,
@@ -366,7 +372,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           familyId, // Filter by the verified family ID
         },
         include: {
-          caretaker: true
+          caretaker: scopedCaretaker
         },
         orderBy: { date: 'desc' }
       }) : emptyPromise,
@@ -382,7 +388,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           familyId, // Filter by the verified family ID
         },
         include: {
-          caretaker: true
+          caretaker: scopedCaretaker
         },
         orderBy: { date: 'desc' }
       }) : emptyPromise,
@@ -398,7 +404,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           familyId, // Filter by the verified family ID
         },
         include: {
-          caretaker: true,
+          caretaker: scopedCaretaker,
           medicine: true
         },
         orderBy: { time: 'desc' }
@@ -416,7 +422,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           familyId, // Filter by the verified family ID
         },
         include: {
-          caretaker: true
+          caretaker: scopedCaretaker
         },
         orderBy: { time: 'desc' }
       }) : emptyPromise,
@@ -432,9 +438,10 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           familyId, // Filter by the verified family ID
         },
         include: {
-          caretaker: true,
+          caretaker: scopedCaretaker,
           documents: true,
           contacts: {
+            where: { contact: { familyId } },
             include: {
               contact: true
             }
@@ -455,7 +462,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           familyId, // Filter by the verified family ID
         },
         include: {
-          caretaker: true,
+          caretaker: scopedCaretaker,
           food: {
             select: { id: true, name: true, commonAllergen: true }
           }
@@ -475,7 +482,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           deletedAt: null,
         },
         include: {
-          caretaker: true
+          caretaker: scopedCaretaker
         },
         orderBy: { time: 'desc' }
       }) : emptyPromise
@@ -648,7 +655,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           deletedAt: formatForResponse(log.deletedAt),
           caretakerId: log.caretakerId,
           ...caretakerBadgeFields(caretaker),
-          medicine: medicine ? {
+          medicine: medicine?.familyId === familyId ? {
             ...medicine,
             createdAt: formatForResponse(medicine.createdAt) || '',
             updatedAt: formatForResponse(medicine.updatedAt) || '',

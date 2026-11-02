@@ -4,6 +4,7 @@ import { ApiResponse, BreastMilkAdjustmentCreate, BreastMilkAdjustmentResponse }
 import { withAuthContext, AuthResult } from '../utils/auth';
 import { toUTC, formatForResponse } from '../utils/timezone';
 import { checkWritePermission } from '../utils/writeProtection';
+import { careFields, readCareWrite, CareWriteError, requireCareBaby } from '../utils/care-write';
 
 function formatAdjustmentResponse(adj: any): BreastMilkAdjustmentResponse {
   return {
@@ -25,10 +26,10 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'User is not associated with a family.' }, { status: 403 });
     }
 
-    const body: BreastMilkAdjustmentCreate = await req.json();
+    const body = await readCareWrite<BreastMilkAdjustmentCreate>(req, careFields.adjustment, ['babyId', 'time', 'amount']);
 
     const baby = await prisma.baby.findFirst({
-      where: { id: body.babyId, familyId: userFamilyId },
+      where: { id: body.babyId, familyId: userFamilyId, deletedAt: null },
     });
 
     if (!baby) {
@@ -55,6 +56,7 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       data: formatAdjustmentResponse(adjustment),
     });
   } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
     console.error('Error creating breast milk adjustment:', error);
     return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Failed to create breast milk adjustment' }, { status: 500 });
   }
@@ -117,7 +119,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    const body: Partial<BreastMilkAdjustmentCreate> = await req.json();
+    const body = await readCareWrite<Partial<BreastMilkAdjustmentCreate>>(req, careFields.adjustment);
 
     if (!id) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Adjustment ID is required' }, { status: 400 });
@@ -131,6 +133,10 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Adjustment not found or access denied' }, { status: 404 });
     }
 
+    if (body.babyId !== undefined && body.babyId !== existing.babyId) {
+      await requireCareBaby(prisma, body.babyId, userFamilyId);
+    }
+
     const data: any = {};
     if (body.time) data.time = toUTC(body.time);
     if (body.amount !== undefined) data.amount = body.amount;
@@ -140,7 +146,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
     if (body.babyId !== undefined) data.babyId = body.babyId;
 
     const adjustment = await prisma.breastMilkAdjustment.update({
-      where: { id },
+      where: { id, familyId: userFamilyId },
       data,
     });
 
@@ -149,6 +155,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       data: formatAdjustmentResponse(adjustment),
     });
   } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
     console.error('Error updating breast milk adjustment:', error);
     return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Failed to update adjustment' }, { status: 500 });
   }

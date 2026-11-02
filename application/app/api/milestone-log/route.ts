@@ -4,6 +4,7 @@ import { ApiResponse, MilestoneCreate, MilestoneResponse } from '../types';
 import { withAuthContext, AuthResult } from '../utils/auth';
 import { toUTC, formatForResponse } from '../utils/timezone';
 import { checkWritePermission } from '../utils/writeProtection';
+import { careFields, readCareWrite, CareWriteError, requireCareBaby } from '../utils/care-write';
 
 async function handlePost(req: NextRequest, authContext: AuthResult) {
   // Check write permissions for expired accounts
@@ -18,10 +19,10 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'User is not associated with a family.' }, { status: 403 });
     }
 
-    const body: MilestoneCreate = await req.json();
+    const body = await readCareWrite<MilestoneCreate>(req, careFields.milestone, ['babyId', 'date', 'title', 'category']);
 
     const baby = await prisma.baby.findFirst({
-      where: { id: body.babyId, familyId: userFamilyId },
+      where: { id: body.babyId, familyId: userFamilyId, deletedAt: null },
     });
 
     if (!baby) {
@@ -54,6 +55,7 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
     console.error('Error creating milestone:', error);
     return NextResponse.json<ApiResponse<MilestoneResponse>>(
       {
@@ -80,7 +82,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    const body: Partial<MilestoneCreate> = await req.json();
+    const body = await readCareWrite<Partial<MilestoneCreate>>(req, careFields.milestone);
 
     if (!id) {
       return NextResponse.json<ApiResponse<MilestoneResponse>>(
@@ -109,15 +111,17 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       );
     }
 
+    if (body.babyId !== undefined && body.babyId !== existingMilestone.babyId) {
+      await requireCareBaby(prisma, body.babyId, userFamilyId);
+    }
+
     // Convert date to UTC if provided
     const data = body.date
       ? { ...body, date: toUTC(body.date) }
       : body;
 
     const milestone = await prisma.milestone.update({
-      where: { 
-        id
-      },
+      where: { id, familyId: userFamilyId },
       data,
     });
 
@@ -135,6 +139,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
     console.error('Error updating milestone:', error);
     return NextResponse.json<ApiResponse<MilestoneResponse>>(
       {

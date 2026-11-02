@@ -4,6 +4,7 @@ import { ApiResponse, SleepLogCreate, SleepLogResponse } from '../types';
 import { withAuthContext, AuthResult } from '../utils/auth';
 import { toUTC, formatForResponse, calculateDurationMinutes } from '../utils/timezone';
 import { checkWritePermission } from '../utils/writeProtection';
+import { careFields, readCareWrite, CareWriteError, requireCareBaby } from '../utils/care-write';
 import { notifyActivityCreated } from '@/src/lib/notifications/activityHook';
 import { DEFAULT_SLEEP_LOCATIONS } from '@/src/constants/sleepLocations';
 
@@ -20,10 +21,10 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'User is not associated with a family.' }, { status: 403 });
     }
 
-    const body: SleepLogCreate = await req.json();
+    const body = await readCareWrite<SleepLogCreate>(req, careFields.sleep, ['babyId', 'startTime', 'type']);
 
     const baby = await prisma.baby.findFirst({
-      where: { id: body.babyId, familyId: userFamilyId },
+      where: { id: body.babyId, familyId: userFamilyId, deletedAt: null },
     });
 
     if (!baby) {
@@ -66,6 +67,7 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
     console.error('Error creating sleep log:', error);
     return NextResponse.json<ApiResponse<SleepLogResponse>>(
       {
@@ -92,7 +94,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    const body: Partial<SleepLogCreate> = await req.json();
+    const body = await readCareWrite<Partial<SleepLogCreate>>(req, careFields.sleep);
 
     if (!id) {
       return NextResponse.json<ApiResponse<SleepLogResponse>>(
@@ -118,6 +120,10 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       );
     }
 
+    if (body.babyId !== undefined && body.babyId !== existingSleepLog.babyId) {
+      await requireCareBaby(prisma, body.babyId, userFamilyId);
+    }
+
     // Convert times to UTC for storage
     const startTimeUTC = body.startTime ? toUTC(body.startTime) : undefined;
     const endTimeUTC = body.endTime ? toUTC(body.endTime) : undefined;
@@ -128,7 +134,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       : undefined;
 
     const sleepLog = await prisma.sleepLog.update({
-      where: { id },
+      where: { id, familyId: userFamilyId },
       data: {
         ...body,
         ...(startTimeUTC && { startTime: startTimeUTC }),
@@ -157,6 +163,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
     console.error('Error updating sleep log:', error);
     return NextResponse.json<ApiResponse<SleepLogResponse>>(
       {

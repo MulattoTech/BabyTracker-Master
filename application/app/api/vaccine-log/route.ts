@@ -4,6 +4,7 @@ import { ApiResponse, VaccineLogCreate, VaccineLogResponse } from '../types';
 import { withAuthContext, AuthResult } from '../utils/auth';
 import { toUTC, formatForResponse } from '../utils/timezone';
 import { checkWritePermission } from '../utils/writeProtection';
+import { careFields, CareWriteError, readCareWrite, requireCareBaby, requireCareContacts } from '../utils/care-write';
 import { notifyActivityCreated } from '@/src/lib/notifications/activityHook';
 import { deleteEncryptedFile } from '@/src/lib/file-encryption';
 
@@ -51,39 +52,29 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'User is not associated with a family.' }, { status: 403 });
     }
 
-    const body: VaccineLogCreate = await req.json();
-
-    const baby = await prisma.baby.findFirst({
-      where: { id: body.babyId, familyId: userFamilyId },
-    });
-
-    if (!baby) {
-      return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Baby not found in this family.' }, { status: 404 });
-    }
+    const body = await readCareWrite<VaccineLogCreate>(req, careFields.vaccine, ['babyId', 'time', 'vaccineName']);
 
     const timeUTC = toUTC(body.time);
     const { contactIds, ...vaccineData } = body;
 
-    const vaccineLog = await prisma.vaccineLog.create({
-      data: {
-        ...vaccineData,
-        time: timeUTC,
-        caretakerId: caretakerId,
-        familyId: userFamilyId,
-        ...(contactIds && contactIds.length > 0 && {
-          contacts: {
-            create: contactIds.map(contactId => ({ contactId })),
-          },
-        }),
-      },
-      include: {
-        documents: true,
-        contacts: {
-          include: {
-            contact: true,
-          },
+    const vaccineLog = await prisma.$transaction(async tx => {
+      await requireCareBaby(tx, body.babyId, userFamilyId);
+      await requireCareContacts(tx, contactIds, userFamilyId);
+      const created = await tx.vaccineLog.create({
+        data: { ...vaccineData, time: timeUTC, caretakerId, familyId: userFamilyId },
+      });
+      if (contactIds?.length) {
+        await tx.contactVaccine.createMany({
+          data: contactIds.map(contactId => ({ contactId, vaccineLogId: created.id })),
+        });
+      }
+      return tx.vaccineLog.findUniqueOrThrow({
+        where: { id: created.id },
+        include: {
+          documents: true,
+          contacts: { where: { contact: { familyId: userFamilyId } }, include: { contact: true } },
         },
-      },
+      });
     });
 
     const response = formatVaccineLog(vaccineLog);
@@ -96,6 +87,7 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
     console.error('Error creating vaccine log:', error);
     return NextResponse.json<ApiResponse<VaccineLogResponse>>(
       {
@@ -125,7 +117,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    const body: Partial<VaccineLogCreate> = await req.json();
+    const body = await readCareWrite<Partial<VaccineLogCreate>>(req, careFields.vaccine);
 
     if (!id) {
       return NextResponse.json<ApiResponse<VaccineLogResponse>>(
@@ -137,55 +129,34 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       );
     }
 
-    const existingLog = await prisma.vaccineLog.findFirst({
-      where: { id, familyId: userFamilyId },
-    });
-
-    if (!existingLog) {
-      return NextResponse.json<ApiResponse<VaccineLogResponse>>(
-        {
-          success: false,
-          error: 'Vaccine log not found or access denied',
-        },
-        { status: 404 }
-      );
-    }
-
-    const { contactIds, ...updateData } = body;
-    const data: any = { ...updateData };
-    if (body.time) {
-      data.time = toUTC(body.time);
-    }
-    delete data.familyId;
-    delete data.babyId;
-    delete data.caretakerId;
-
-    // Update contact links if contactIds provided
-    if (contactIds !== undefined) {
-      // Delete existing contact links
-      await prisma.contactVaccine.deleteMany({
-        where: { vaccineLogId: id },
+    // Existing forms echo the child; this endpoint has never reassigned it.
+    // readCareWrite validates its scalar shape before it is discarded here.
+    const { contactIds, babyId: _ignoredBabyId, ...updateData } = body;
+    const vaccineLog = await prisma.$transaction(async tx => {
+      const existingLog = await tx.vaccineLog.findFirst({
+        where: { id, familyId: userFamilyId },
+        include: { contacts: { select: { contactId: true } } },
       });
+      if (!existingLog) throw new CareWriteError('Vaccine log not found or access denied', 404);
+      await requireCareContacts(tx, contactIds, userFamilyId, existingLog.contacts.map(link => link.contactId));
 
-      // Create new contact links
-      if (contactIds.length > 0) {
-        data.contacts = {
-          create: contactIds.map((contactId: string) => ({ contactId })),
-        };
+      await tx.vaccineLog.update({
+        where: { id, familyId: userFamilyId },
+        data: { ...updateData, ...(body.time !== undefined && { time: toUTC(body.time) }) },
+      });
+      if (contactIds !== undefined) {
+        await tx.contactVaccine.deleteMany({ where: { vaccineLogId: id } });
+        if (contactIds.length) {
+          await tx.contactVaccine.createMany({ data: contactIds.map(contactId => ({ contactId, vaccineLogId: id })) });
+        }
       }
-    }
-
-    const vaccineLog = await prisma.vaccineLog.update({
-      where: { id },
-      data,
-      include: {
-        documents: true,
-        contacts: {
-          include: {
-            contact: true,
-          },
+      return tx.vaccineLog.findUniqueOrThrow({
+        where: { id },
+        include: {
+          documents: true,
+          contacts: { where: { contact: { familyId: userFamilyId } }, include: { contact: true } },
         },
-      },
+      });
     });
 
     const response = formatVaccineLog(vaccineLog);
@@ -195,6 +166,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
     console.error('Error updating vaccine log:', error);
     return NextResponse.json<ApiResponse<VaccineLogResponse>>(
       {
@@ -268,6 +240,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
         include: {
           documents: true,
           contacts: {
+            where: { contact: { familyId: userFamilyId } },
             include: {
               contact: true,
             },
@@ -299,6 +272,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
       include: {
         documents: true,
         contacts: {
+          where: { contact: { familyId: userFamilyId } },
           include: {
             contact: true,
           },

@@ -7,6 +7,7 @@ import { withAuthContext, AuthResult } from '../utils/auth';
 import { checkWritePermission } from '../utils/writeProtection';
 import { isValidFeedTimerTypes } from '@/src/utils/feedTimerConfig';
 import { resolveFamilyScope } from '../utils/family-scope';
+import { careFields, careIdentifier, readCareWrite, CareWriteError } from '../utils/care-write';
 
 async function handlePost(req: NextRequest, authContext: AuthResult) {
   // Check write permissions for expired accounts
@@ -16,7 +17,8 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
   }
 
   try {
-    const requestBody = await req.json();
+    const requestBody = await readCareWrite<BabyCreate & { familyId?: string }>(req,
+      { ...careFields.baby, familyId: careIdentifier }, ['firstName', 'lastName', 'birthDate']);
     const { familyId: bodyFamilyId, ...babyData } = requestBody;
     const body: BabyCreate = babyData;
 
@@ -67,6 +69,7 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
     console.error('Error creating baby:', error);
     return NextResponse.json<ApiResponse<BabyResponse>>(
       {
@@ -86,7 +89,8 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
   }
 
   try {
-    const requestBody = await req.json();
+    const requestBody = await readCareWrite<BabyUpdate & { familyId?: string }>(req,
+      { ...careFields.baby, id: careIdentifier, familyId: careIdentifier }, ['id']);
     const { id, familyId: bodyFamilyId, ...updateData } = requestBody;
     const body: BabyUpdate = { id, ...updateData };
 
@@ -121,7 +125,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
     }
 
     const baby = await prisma.baby.update({
-      where: { id },
+      where: { id, familyId: targetFamilyId },
       data: {
         ...updateData,
         birthDate: updateData.birthDate ? toUTC(updateData.birthDate) : existingBaby.birthDate,
@@ -142,6 +146,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
     console.error('Error updating baby:', error);
     return NextResponse.json<ApiResponse<BabyResponse>>(
       {

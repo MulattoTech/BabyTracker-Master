@@ -313,11 +313,15 @@ const ActiveDosesTab: React.FC<ActiveDosesTabProps> = ({ babyId, refreshData, on
       // Check if data is in the expected format
       const logsData = data.data || data;
       const allLogs = Array.isArray(logsData) ? logsData : [];
+      // Inconsistent legacy relationships remain in care history, but cannot
+      // supply trustworthy medicine details for these reminders.
+      if (allLogs.some(log => !log.medicine)) throw new Error('Medicine details unavailable');
       const processedDoses = createActiveDoses(allLogs);
       const processedSupplements = createTodaySupplements(allLogs);
 
       setActiveDoses(processedDoses);
       setTodaySupplements(processedSupplements);
+      setError(null);
     } catch (error) {
       console.error('Error fetching active doses:', error);
       setError(t('Failed to load active doses'));
