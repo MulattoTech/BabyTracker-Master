@@ -104,6 +104,8 @@ export interface BabyUpdate extends Partial<BabyCreate> {
 
 // Sleep log types
 export type SleepLogResponse = Omit<SleepLog, 'startTime' | 'endTime' | 'createdAt' | 'updatedAt' | 'deletedAt'> & {
+  /** Opaque full-content precondition supplied by the canonical sleep API. */
+  revision?: string;
   startTime: string;
   endTime: string | null;
   createdAt: string;
