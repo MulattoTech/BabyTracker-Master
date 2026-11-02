@@ -321,6 +321,11 @@ try {
   await page.getByTestId('journal-daily-total').filter({ hasText: /^283\.7 mL$/ }).waitFor();
   report.checks.push('Quick entry uses current time; response-loss retry preserves one exact bottle');
   report.journalChecksPassed = true;
+  // Playwright clocks belong to the context, including its background pages.
+  // A later clock jump must not make this completed page's idle checker log
+  // out and invalidate the shared synthetic token during another scenario.
+  await bounded(page.close(), 5000, 'Completed journal page closure');
+  assert.equal(context.pages().length, 0, 'Completed journal checks must leave no active pages in the shared context');
   report.checks.push(...await verifyJournalOutbox({ base, db, family, baby, caretaker, token, secret, scratch }));
   report.journalOutboxChecksPassed = true;
   report.checks.push(...await verifyMedicationImport({ base, db, family, baby, caretaker, token, secret, context }));
