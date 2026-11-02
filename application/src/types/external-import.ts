@@ -152,7 +152,8 @@ export interface ExternalImportPumpRecord {
   readonly sourceChildId: string;
   readonly startTime: string;
   readonly endTime: string;
-  readonly duration: number;
+  /** Optional declared whole minutes; endpoints remain authoritative. */
+  readonly duration?: number;
   readonly totalAmount: number;
   readonly unitAbbr: 'ML' | 'OZ';
   readonly pumpAction: 'UNKNOWN';

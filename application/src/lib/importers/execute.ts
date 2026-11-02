@@ -19,6 +19,7 @@ import {
   createExternalImportExecutionPlan,
 } from './plan';
 import { resolveExternalImportFeedTiming } from './feeding-time';
+import { resolveExternalImportPumpTiming } from './pumping-time';
 
 export interface ExternalImportExecutionInput {
   readonly familyId: string;
@@ -287,20 +288,13 @@ async function createActivityRecord(
     }
 
     case 'pump': {
+      const timing = resolveExternalImportPumpTiming(record, sourceTimezone);
       const created = await tx.pumpLog.create({
         data: {
           familyId,
           caretakerId,
           babyId,
-          startTime: externalImportLocalTimeToUtc(
-            record.startTime,
-            sourceTimezone,
-          ),
-          endTime: externalImportLocalTimeToUtc(
-            record.endTime,
-            sourceTimezone,
-          ),
-          duration: record.duration,
+          ...timing,
           totalAmount: record.totalAmount,
           unitAbbr: record.unitAbbr,
           pumpAction: record.pumpAction,

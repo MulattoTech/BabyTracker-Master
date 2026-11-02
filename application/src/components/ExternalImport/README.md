@@ -34,9 +34,14 @@ so a newly imported session cannot adopt or delete another session's feed.
 Reuploading the same source returns the existing target and does not undo a
 caregiver's correction. Older imports already recorded as Stored remain
 unchanged and need explicit review if their historical disposition was unknown.
-The existing pumping timestamp conversion and rounded-minute duration are
-unchanged; this slice does not claim the feeding resolver's DST guarantees for
-pumping records.
+New pumping imports use the same strict timestamp resolver as feeding: naive
+times use the selected source timezone, explicit offsets retain their instant,
+and ambiguous or nonexistent local times require source correction. Exact
+endpoints are preserved; duration remains whole minutes rounded from actual
+elapsed time after resolving both endpoints. Reversed endpoints are rejected
+before rounding. Replay and unrelated edits preserve previously imported rows,
+including their historical duration and disposition. See the
+[pumping timing contract](../../../../docs/baby-buddy-pumping-import.md).
 
 No schema or migration change is required: the database field is already a
 string. Earlier images can read UNKNOWN and their stock queries still exclude
@@ -73,7 +78,7 @@ back if a later record is invalid, including its source-provenance entries.
 Reimporting a source ID returns its existing target unchanged. This repair does
 not rewrite previously imported bottles with absent duration or historical
 breastfeeding durations; those need explicit source reconciliation. Both-breast
-and fortified-milk semantics, nonfeeding timestamp adapters and generic import
+and fortified-milk semantics, other timestamp adapters and generic import
 undo remain separate acceptance work. Unit tests, migrated SQLite transaction
 tests, and the disposable browser/API gate cover this bounded feeding contract;
 production-image and physical-device acceptance remain separate release gates.
