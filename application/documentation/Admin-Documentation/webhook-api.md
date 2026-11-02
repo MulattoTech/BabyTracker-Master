@@ -503,9 +503,15 @@ Pump uses the same start/end/log pattern as sleep:
 
 Optional fields: `leftAmount`, `rightAmount`, `totalAmount`, `unitAbbr`, `pumpAction` (`STORED`, `FED`, or `DISCARDED`; case-insensitive, default `STORED`; an unrecognized value returns `400 INVALID_PUMP_ACTION`)
 
-`totalAmount` is a writable field, not just a derived one: send it alone (without `leftAmount`/`rightAmount`) to record a total without attributing it to either side. If `totalAmount` and one or both sides are sent together, the explicit `totalAmount` wins over the sum of the sides. If only `leftAmount`/`rightAmount` are sent, `totalAmount` is derived as their sum. Explicit `0` on `leftAmount`/`rightAmount`/`totalAmount` is stored as `0` (a genuine empty pump), distinct from omitting the field entirely (stored as `null`, unknown).
+`totalAmount` is a writable field, not just a derived one: send it alone (without `leftAmount`/`rightAmount`) to record a total without attributing it to either side. If `totalAmount` and one or both sides are sent together, a non-null explicit `totalAmount` wins over the sum of the sides. If only `leftAmount`/`rightAmount` are sent, `totalAmount` is derived as their sum. Explicit `0` on `leftAmount`/`rightAmount`/`totalAmount` is stored as `0` (a genuine empty pump), distinct from omitting the field entirely (stored as `null`, unknown).
 
-`unitAbbr` is matched case-insensitively against your family's configured units and stored using that table's exact casing. An unrecognized value returns `400 INVALID_UNIT` listing the units actually configured.
+For pumping, `unitAbbr` must be a configured volume unit (`OZ` or `ML`). It is matched case-insensitively and stored using the table's exact casing. Other configured units, such as `KG`, are not valid pumping units and return `400 INVALID_UNIT`.
+
+Pumping amounts accept numbers or numeric strings. Values must be finite, non-negative, and small enough for safe inventory conversion and rounding in both `OZ` and `ML`; invalid amounts return `400 INVALID_AMOUNT`. A supplied `duration` must be a non-negative whole number of minutes within the database integer range (0–2,147,483,647); numeric strings are accepted, and invalid values return `400 INVALID_DURATION`. Explicit `0` remains zero, and omitted or null duration remains unknown on `log`. Invalid supplied amounts or duration are rejected even on `start`, which only starts the timer and does not record those optional measurements.
+
+Omitting `time` uses the current time. A supplied pumping time must be a valid ISO timestamp; impossible calendar dates, empty values, and non-string values return `400 INVALID_TIME`. Explicit offsets are respected; timestamps without an offset use UTC. Ending a timer requires a time at or after its start and records elapsed whole minutes, including across daylight-saving offset changes.
+
+When ending an existing timer, omitted amounts, unit, and disposition retain their recorded values. An imported `UNKNOWN` disposition remains unresolved unless explicitly corrected; ending a timer alone does not turn it into stored milk. If sides are supplied without a non-null total, the total is calculated from those sides and any retained other side. A non-null explicit total, including zero, remains authoritative.
 
 #### Bath
 
@@ -594,6 +600,8 @@ Edit an existing activity record through API-key auth.
 The same enum-like field validation and normalization described under `POST /activities` above applies here: `condition`, `color`, `quality`, `bottleType`, `side`, and `unitAbbr` are validated and normalized to their canonical casing on update too, with the same error codes.
 
 For `sleep`, sending `endTime` without `duration` recomputes `duration` (whole minutes) from the effective start time (the `startTime` in the same request, or the record's existing `startTime` otherwise); an `endTime` before that start returns `400`, and an explicit `duration` in the request always takes precedence over the recompute.
+
+For `pump`, partial updates change only supplied fields: a side correction does not automatically recalculate `totalAmount`, and a time correction does not automatically recalculate `duration`. Send those fields too when they need correction. The same pumping numeric and timestamp validation applies, including checking a corrected endpoint against the retained other endpoint. `time` aliases `startTime` only when `startTime` is absent. Explicit null amounts or duration clear that field; timestamps must be valid strings. Unrelated notes edits retain historical amounts, duration, and unresolved `UNKNOWN` disposition. Invalid updates return `400 INVALID_UPDATE` without changing the care record.
 
 For `medicine`/`supplement`, an explicit `null` for `amount` or `doseAmount` returns `400` rather than silently recording a zero dose (the underlying `doseAmount` column cannot be null).
 
@@ -716,7 +724,7 @@ curl -s \
 }
 ```
 
-`sleepLocations` is deduplicated ignoring case and underscore/space differences, preferring the display-cased variant (e.g. a legacy `CAR_SEAT` value logged before validation existed collapses onto `Car Seat` rather than appearing as a separate duplicate entry). `units` lists every unit configured in the `Unit` table and is the same set `unitAbbr` is validated against on POST/PUT.
+`sleepLocations` is deduplicated ignoring case and underscore/space differences, preferring the display-cased variant (e.g. a legacy `CAR_SEAT` value logged before validation existed collapses onto `Car Seat` rather than appearing as a separate duplicate entry). `units` lists every unit configured in the `Unit` table; POST/PUT require a configured unit, and pumping additionally restricts this list to volume units (`OZ` and `ML`).
 
 ---
 

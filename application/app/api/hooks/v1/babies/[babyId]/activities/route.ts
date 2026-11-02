@@ -6,6 +6,8 @@ import { hookSuccess, hookError } from '../../../response';
 import { notifyActivityCreated, resetTimerNotificationState } from '@/src/lib/notifications/activityHook';
 import { startBreastfeedSession, updateBreastfeedSession, endBreastfeedSession } from '../../../../../utils/activeBreastFeed';
 import { BATH_TYPES, BOTTLE_TYPES, DIAPER_COLORS, DIAPER_CONDITIONS, FEED_SIDES, PUMP_ACTIONS, SLEEP_QUALITIES, normalizeEnumValue } from '../../../field-values';
+import { prepareHookPumpFields } from '../../../pump-validation';
+import { parsePumpTimestamp, validPumpDuration } from '@/src/utils/pump-validation';
 
 const VALID_TYPES = ['sleep', 'feed', 'diaper', 'note', 'pump', 'play', 'bath', 'measurement', 'medicine', 'supplement'] as const;
 type ActivityType = typeof VALID_TYPES[number];
@@ -57,34 +59,6 @@ function requireStringIfPresent(value: unknown, field: string): { error?: string
   if (value === undefined || value === null) return {};
   if (typeof value !== 'string') return { error: `${field} must be a string` };
   return {};
-}
-
-// Pump sides + total: totalAmount is a writable input (not just derived),
-// an explicit value for it always wins over the sum of sides, and an
-// explicit 0 on either side is stored as 0 rather than erased to null.
-function computePumpAmounts(
-  leftAmount: unknown,
-  rightAmount: unknown,
-  totalAmount: unknown
-): { left: number | null; right: number | null; total: number | null; error?: string } {
-  const leftParsed = parseAmount(leftAmount, 'leftAmount');
-  if (leftParsed.error) return { left: null, right: null, total: null, error: leftParsed.error };
-  const rightParsed = parseAmount(rightAmount, 'rightAmount');
-  if (rightParsed.error) return { left: null, right: null, total: null, error: rightParsed.error };
-  const totalParsed = parseAmount(totalAmount, 'totalAmount');
-  if (totalParsed.error) return { left: null, right: null, total: null, error: totalParsed.error };
-
-  const left = leftParsed.value ?? null;
-  const right = rightParsed.value ?? null;
-  let total: number | null;
-  if (totalParsed.value !== null && totalParsed.value !== undefined) {
-    total = totalParsed.value;
-  } else if (left !== null || right !== null) {
-    total = (left || 0) + (right || 0);
-  } else {
-    total = null;
-  }
-  return { left, right, total };
 }
 
 // ── Helper: normalize an optional enum-like field, case-insensitively, to its
@@ -373,6 +347,9 @@ async function handlePost(req: NextRequest, ctx: ApiKeyContext, routeContext: an
   } catch {
     return hookError('INVALID_JSON', 'Request body must be valid JSON', 400, rl.headers);
   }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return hookError('INVALID_JSON', 'Request body must be a JSON object', 400, rl.headers);
+  }
 
   const { type, time: timeStr, caretakerName } = body;
   if (!type || !VALID_TYPES.includes(type)) {
@@ -384,8 +361,10 @@ async function handlePost(req: NextRequest, ctx: ApiKeyContext, routeContext: an
     return hookError('INVALID_FIELD', fieldError, 400, rl.headers);
   }
 
-  const time = timeStr ? new Date(timeStr) : new Date();
-  if (isNaN(time.getTime())) {
+  const time = type === 'pump'
+    ? timeStr === undefined ? new Date() : parsePumpTimestamp(timeStr)
+    : timeStr ? new Date(timeStr) : new Date();
+  if (!time || isNaN(time.getTime())) {
     return hookError('INVALID_TIME', 'Invalid time format. Use ISO 8601.', 400, rl.headers);
   }
 
@@ -626,7 +605,7 @@ async function handlePost(req: NextRequest, ctx: ApiKeyContext, routeContext: an
       }
 
       case 'pump': {
-        const { action, duration: pumpDuration, leftAmount, rightAmount, totalAmount, pumpAction } = body;
+        const { action, pumpAction } = body;
         let { unitAbbr } = body;
         if (!action || !['start', 'end', 'log'].includes(action)) {
           return hookError('INVALID_ACTION', 'action must be start, end, or log', 400, rl.headers);
@@ -636,9 +615,16 @@ async function handlePost(req: NextRequest, ctx: ApiKeyContext, routeContext: an
         unitAbbr = pumpUnitResult.value;
         const pumpActionResult = normalizeRequiredEnumIfPresent(pumpAction, 'pumpAction', PUMP_ACTIONS);
         if (pumpActionResult.error) return hookError('INVALID_PUMP_ACTION', pumpActionResult.error, 400, rl.headers);
-        const resolvedPumpAction = pumpActionResult.value ?? 'STORED';
+        // Omitted values on an existing timer must retain its quantities,
+        // unit and disposition, including an imported UNKNOWN disposition.
+        const pumpInput = { ...body,
+          unitAbbr: body.unitAbbr === undefined ? undefined : unitAbbr,
+          pumpAction: pumpActionResult.value ?? undefined,
+        };
 
         if (action === 'start') {
+          const prepared = prepareHookPumpFields(pumpInput, undefined, true);
+          if ('error' in prepared) return hookError(prepared.code, prepared.error, 400, rl.headers);
           result = await prisma.pumpLog.create({
             data: { startTime: time, babyId, caretakerId, familyId },
           });
@@ -647,36 +633,39 @@ async function handlePost(req: NextRequest, ctx: ApiKeyContext, routeContext: an
 
         if (action === 'end') {
           const activePump = await prisma.pumpLog.findFirst({
-            where: { babyId, endTime: null, deletedAt: null },
+            where: { babyId, familyId, endTime: null, deletedAt: null },
             orderBy: { startTime: 'desc' },
           });
           if (!activePump) {
             return hookError('NO_ACTIVE_PUMP', 'No active pump session found to end', 400, rl.headers);
           }
+          const prepared = prepareHookPumpFields({ ...pumpInput, endTime: time.toISOString() }, activePump, true);
+          if ('error' in prepared) return hookError(prepared.code, prepared.error, 400, rl.headers);
           const dur = Math.round((time.getTime() - activePump.startTime.getTime()) / 60000);
-          const endAmounts = computePumpAmounts(leftAmount, rightAmount, totalAmount);
-          if (endAmounts.error) {
-            return hookError('INVALID_AMOUNT', endAmounts.error, 400, rl.headers);
-          }
+          if (!validPumpDuration(dur)) return hookError('INVALID_DURATION', 'The pumping interval exceeds the supported duration range.', 400, rl.headers);
           result = await prisma.pumpLog.update({
             where: { id: activePump.id },
-            data: { endTime: time, duration: dur, leftAmount: endAmounts.left, rightAmount: endAmounts.right, totalAmount: endAmounts.total, unitAbbr: unitAbbr || null, pumpAction: resolvedPumpAction },
+            data: { ...prepared.data, endTime: time, duration: dur,
+              ...(body.unitAbbr === undefined ? {} : { unitAbbr }),
+              ...(pumpActionResult.value === null ? {} : { pumpAction: pumpActionResult.value }),
+            },
           });
-          notifyActivityCreated(babyId, 'pump', { caretakerId }, { totalAmount: endAmounts.total, unitAbbr }).catch(console.error);
+          notifyActivityCreated(babyId, 'pump', { caretakerId }, { totalAmount: result.totalAmount, unitAbbr: result.unitAbbr }).catch(console.error);
           return hookSuccess({ activityType: 'pump', id: result.id, time: result.startTime.toISOString(), details: { action: 'end', duration: dur, isActive: false } }, { familyId, babyId }, rl.headers);
         }
 
         // action === 'log'
-        const logAmounts = computePumpAmounts(leftAmount, rightAmount, totalAmount);
-        if (logAmounts.error) {
-          return hookError('INVALID_AMOUNT', logAmounts.error, 400, rl.headers);
-        }
-        const endTime = pumpDuration ? new Date(time.getTime() + pumpDuration * 60000) : time;
+        const prepared = prepareHookPumpFields(pumpInput, undefined, true);
+        if ('error' in prepared) return hookError(prepared.code, prepared.error, 400, rl.headers);
+        const pump = prepared.data;
+        const endTime = new Date(time.getTime() + (pump.duration ?? 0) * 60000);
         result = await prisma.pumpLog.create({
-          data: { startTime: time, endTime, duration: pumpDuration || null, leftAmount: logAmounts.left, rightAmount: logAmounts.right, totalAmount: logAmounts.total, unitAbbr: unitAbbr || null, pumpAction: resolvedPumpAction, babyId, caretakerId, familyId },
+          data: { startTime: time, endTime, duration: pump.duration ?? null,
+            leftAmount: pump.leftAmount ?? null, rightAmount: pump.rightAmount ?? null, totalAmount: pump.totalAmount ?? null,
+            unitAbbr, pumpAction: pumpActionResult.value ?? 'STORED', babyId, caretakerId, familyId },
         });
-        notifyActivityCreated(babyId, 'pump', { caretakerId }, { totalAmount: logAmounts.total, unitAbbr }).catch(console.error);
-        return hookSuccess({ activityType: 'pump', id: result.id, time: result.startTime.toISOString(), details: { action: 'log', duration: pumpDuration } }, { familyId, babyId }, rl.headers);
+        notifyActivityCreated(babyId, 'pump', { caretakerId }, { totalAmount: pump.totalAmount ?? null, unitAbbr }).catch(console.error);
+        return hookSuccess({ activityType: 'pump', id: result.id, time: result.startTime.toISOString(), details: { action: 'log', duration: pump.duration } }, { familyId, babyId }, rl.headers);
       }
 
       case 'bath': {
