@@ -7,6 +7,26 @@ import { checkWritePermission } from '../utils/writeProtection';
 import { careFields, readCareWrite, CareWriteError } from '../utils/care-write';
 import { notifyActivityCreated, resetTimerNotificationState } from '@/src/lib/notifications/activityHook';
 
+// Keep the owned dose visible when a legacy relationship needs review, without
+// returning another family's related records or any caregiver login PIN.
+function scopeMedicineLogRelations<T extends {
+  medicine: { familyId: string | null };
+  baby: { familyId: string | null };
+  caretaker: { familyId: string | null; securityPin: string } | null;
+}>(log: T, familyId: string) {
+  let caretaker;
+  if (log.caretaker?.familyId === familyId) {
+    const { securityPin: _securityPin, ...publicCaretaker } = log.caretaker;
+    caretaker = publicCaretaker;
+  }
+  return {
+    ...log,
+    medicine: log.medicine.familyId === familyId ? log.medicine : undefined,
+    baby: log.baby.familyId === familyId ? log.baby : undefined,
+    caretaker,
+  };
+}
+
 /**
  * Handle POST request to create a new medicine log entry
  */
@@ -229,7 +249,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
 
       // Format dates for response
       const response: MedicineLogResponse = {
-        ...medicineLog,
+        ...scopeMedicineLogRelations(medicineLog, userFamilyId),
         time: formatForResponse(medicineLog.time) || '',
         createdAt: formatForResponse(medicineLog.createdAt) || '',
         updatedAt: formatForResponse(medicineLog.updatedAt) || '',
@@ -266,7 +286,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
 
     // Format dates for response
     const response = medicineLogs.map(log => ({
-      ...log,
+      ...scopeMedicineLogRelations(log, userFamilyId),
       time: formatForResponse(log.time) || '',
       createdAt: formatForResponse(log.createdAt) || '',
       updatedAt: formatForResponse(log.updatedAt) || '',

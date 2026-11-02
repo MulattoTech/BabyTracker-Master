@@ -347,4 +347,33 @@ describe('canonical care writes reject client-owned persistence instructions', (
     }
     expect(await snapshot()).toEqual(before);
   });
+
+  it.each([
+    ['medicineId', foreignMedicine, 'medicine'],
+    ['babyId', foreignChild, 'baby'],
+    ['caretakerId', foreignCarer, 'caretaker'],
+  ] as const)('retains an owned dose but omits a legacy foreign %s relation', async (field, value, relation) => {
+    await db.medicineLog.update({ where: { id: 'owned-dose' }, data: { [field]: value } });
+    const before = await snapshot();
+    for (const query of ['?id=owned-dose', '']) {
+      const response = await getMedicineLog(new NextRequest(`http://localhost/api/medicine-log${query}`, { headers: { Authorization: `Bearer ${token()}` } }));
+      expect(response.status).toBe(200);
+      const result = await response.json();
+      const rows = Array.isArray(result.data) ? result.data : [result.data];
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ id: 'owned-dose', familyId: owner, doseAmount: 1, [field]: value });
+      expect(rows[0][relation]).toBeUndefined();
+    }
+    expect(await snapshot()).toEqual(before);
+  });
+
+  it('returns authorized dose details without exposing caregiver login credentials', async () => {
+    const response = await getMedicineLog(new NextRequest('http://localhost/api/medicine-log?id=owned-dose', { headers: { Authorization: `Bearer ${token()}` } }));
+    expect(response.status).toBe(200);
+    const { data } = await response.json();
+    expect(data.medicine).toMatchObject({ id: ownMedicine, familyId: owner, name: 'Synthetic medicine' });
+    expect(data.baby).toMatchObject({ id: ownChild, familyId: owner, firstName: 'Synthetic' });
+    expect(data.caretaker).toMatchObject({ id: ownCarer, familyId: owner, name: 'Synthetic Caregiver' });
+    expect(data.caretaker).not.toHaveProperty('securityPin');
+  });
 });

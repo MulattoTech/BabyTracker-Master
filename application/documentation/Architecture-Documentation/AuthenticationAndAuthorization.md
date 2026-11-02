@@ -291,7 +291,11 @@ links, while `[]` clears them. Parent changes and link replacement share a
 transaction so a later failure cannot leave a partial record or erase existing
 associations. Contact expansion on medicine, vaccine and dose responses is
 limited to the authenticated family, including for legacy associations.
-Historical records are not automatically reassigned or repaired.
+Dose responses also omit foreign medicine, child or caregiver details and
+never expand caregiver login PINs. The owned dose itself remains visible;
+missing medicine details produce the existing active-dose error state instead
+of a reminder based on unavailable metadata. Historical records are not
+automatically reassigned or repaired.
 
 ## Key Files
 
