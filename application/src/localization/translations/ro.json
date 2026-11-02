@@ -3164,5 +3164,14 @@
   "Needs review": "Necesită verificare",
   "Baby Buddy does not record what happened to pumped milk. Imported sessions need review and do not add to stored milk. Open a pumping session to choose Stored, Fed or Discarded when known.": "Baby Buddy nu înregistrează ce s-a întâmplat cu laptele extras. Sesiunile importate necesită verificare și nu măresc stocul de lapte. Deschideți o sesiune de pompare și alegeți Stocat, Hrănit sau Aruncat când știți ce s-a întâmplat.",
   "This pumping session needs review. It adds no milk to your stock and creates no feeding entry. Choose Stored, Fed or Discarded only when you know what happened.": "Această sesiune de pompare necesită verificare. Nu adaugă lapte în stoc și nu creează o înregistrare de hrănire. Alegeți Stocat, Hrănit sau Aruncat numai când știți ce s-a întâmplat.",
-  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "Acțiune de pompare nevalidă. Trebuie să fie STORED, FED, DISCARDED sau UNKNOWN."
+  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "Acțiune de pompare nevalidă. Trebuie să fie STORED, FED, DISCARDED sau UNKNOWN.",
+  "Pumping correction conflict": "Conflict la corectarea mulsului",
+  "This pumping record changed. Your changes were not saved.": "Această înregistrare de muls s-a schimbat. Modificările tale nu au fost salvate.",
+  "Your unsaved input is still below. Loading the latest record does not change it.": "Datele tale nesalvate sunt încă mai jos. Încărcarea celei mai recente înregistrări nu le schimbă.",
+  "Load latest record": "Încarcă cea mai recentă înregistrare",
+  "Latest saved values": "Ultimele valori salvate",
+  "Replacing your draft discards its unsaved values. You can then enter your correction using the latest record.": "Înlocuirea ciornei elimină valorile ei nesalvate. Apoi poți introduce corectura folosind cea mai recentă înregistrare.",
+  "Replace draft with latest values": "Înlocuiește ciorna cu ultimele valori",
+  "Could not load the latest record. Your unsaved input is unchanged. Check your connection and sign-in, then try again.": "Nu s-a putut încărca cea mai recentă înregistrare. Datele tale nesalvate nu s-au schimbat. Verifică conexiunea și autentificarea, apoi încearcă din nou.",
+  "This pumping record is no longer available for this child. Close this form and reopen it from the correct history.": "Această înregistrare de muls nu mai este disponibilă pentru acest copil. Închide formularul și redeschide-l din istoricul corect."
 }

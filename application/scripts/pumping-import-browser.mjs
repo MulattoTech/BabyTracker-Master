@@ -107,13 +107,16 @@ export async function verifyPumpingImport({ base, db, family, baby, caretaker, t
       return editor;
     };
     const save = async editor => {
+      const openedRevision = (await db.pumpLog.findUniqueOrThrow({ where: { id: pumps[0].id } })).updatedAt.toISOString();
       const [response] = await Promise.all([
         page.waitForResponse(value => value.url() === `${base}/api/pump-log?id=${pumps[0].id}` && value.request().method() === 'PUT'),
         editor.getByRole('button', { name: 'Update', exact: true }).click(),
       ]);
       assert.equal(response.status(), 200);
       await editor.waitFor({ state: 'hidden' });
-      return response.request().postDataJSON();
+      const { expectedUpdatedAt, ...changes } = response.request().postDataJSON();
+      assert.equal(expectedUpdatedAt, openedRevision, 'The editor must send the revision it opened');
+      return changes;
     };
     await db.settings.updateMany({ where: { familyId: family.id }, data: { enableBreastMilkTracking: false } });
     assert.deepEqual(await save(await openPump()), {});

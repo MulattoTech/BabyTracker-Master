@@ -3164,5 +3164,14 @@
   "Needs review": "À vérifier",
   "Baby Buddy does not record what happened to pumped milk. Imported sessions need review and do not add to stored milk. Open a pumping session to choose Stored, Fed or Discarded when known.": "Baby Buddy ne précise pas ce qu’est devenu le lait tiré. Les séances importées doivent être vérifiées et n’ajoutent pas de lait au stock. Ouvrez une séance pour choisir Stocké, Nourri ou Jeté lorsque vous le savez.",
   "This pumping session needs review. It adds no milk to your stock and creates no feeding entry. Choose Stored, Fed or Discarded only when you know what happened.": "Cette séance de tirage doit être vérifiée. Elle n’ajoute pas de lait à votre stock et ne crée pas de repas. Choisissez Stocké, Nourri ou Jeté uniquement si vous savez ce qui s’est passé.",
-  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "Action de tirage non valide. Les valeurs autorisées sont STORED, FED, DISCARDED ou UNKNOWN."
+  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "Action de tirage non valide. Les valeurs autorisées sont STORED, FED, DISCARDED ou UNKNOWN.",
+  "Pumping correction conflict": "Conflit de correction du tirage",
+  "This pumping record changed. Your changes were not saved.": "Cet enregistrement de tirage a changé. Vos modifications n’ont pas été enregistrées.",
+  "Your unsaved input is still below. Loading the latest record does not change it.": "Vos données non enregistrées sont toujours ci-dessous. Charger l’enregistrement le plus récent ne les modifie pas.",
+  "Load latest record": "Charger le dernier enregistrement",
+  "Latest saved values": "Dernières valeurs enregistrées",
+  "Replacing your draft discards its unsaved values. You can then enter your correction using the latest record.": "Remplacer votre brouillon supprime ses valeurs non enregistrées. Vous pourrez ensuite saisir votre correction à partir du dernier enregistrement.",
+  "Replace draft with latest values": "Remplacer le brouillon par les dernières valeurs",
+  "Could not load the latest record. Your unsaved input is unchanged. Check your connection and sign-in, then try again.": "Impossible de charger le dernier enregistrement. Vos données non enregistrées sont inchangées. Vérifiez votre connexion et votre session, puis réessayez.",
+  "This pumping record is no longer available for this child. Close this form and reopen it from the correct history.": "Cet enregistrement de tirage n’est plus disponible pour cet enfant. Fermez ce formulaire et rouvrez-le depuis le bon historique."
 }

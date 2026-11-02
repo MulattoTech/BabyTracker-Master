@@ -3164,5 +3164,14 @@
   "Needs review": "Må gjennomgås",
   "Baby Buddy does not record what happened to pumped milk. Imported sessions need review and do not add to stored milk. Open a pumping session to choose Stored, Fed or Discarded when known.": "Baby Buddy registrerer ikke hva som skjedde med utpumpet melk. Importerte økter må gjennomgås og øker ikke melkelageret. Åpne en pumpeøkt og velg Lagret, Matet eller Kastet når dette er kjent.",
   "This pumping session needs review. It adds no milk to your stock and creates no feeding entry. Choose Stored, Fed or Discarded only when you know what happened.": "Denne pumpeøkten må gjennomgås. Den legger ikke melk til lageret og oppretter ingen mating. Velg Lagret, Matet eller Kastet bare når du vet hva som skjedde.",
-  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "Ugyldig pumpehandling. Må være STORED, FED, DISCARDED eller UNKNOWN."
+  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "Ugyldig pumpehandling. Må være STORED, FED, DISCARDED eller UNKNOWN.",
+  "Pumping correction conflict": "Konflikt ved korrigering av pumping",
+  "This pumping record changed. Your changes were not saved.": "Denne pumpeoppføringen er endret. Endringene dine ble ikke lagret.",
+  "Your unsaved input is still below. Loading the latest record does not change it.": "Det du har skrevet uten å lagre, står fortsatt nedenfor. Det endres ikke når du laster inn den nyeste oppføringen.",
+  "Load latest record": "Last inn nyeste oppføring",
+  "Latest saved values": "Sist lagrede verdier",
+  "Replacing your draft discards its unsaved values. You can then enter your correction using the latest record.": "Når du erstatter utkastet, forkastes verdiene som ikke er lagret. Deretter kan du korrigere den nyeste oppføringen.",
+  "Replace draft with latest values": "Erstatt utkastet med de nyeste verdiene",
+  "Could not load the latest record. Your unsaved input is unchanged. Check your connection and sign-in, then try again.": "Kunne ikke laste inn den nyeste oppføringen. Det du ikke har lagret, er uendret. Kontroller tilkoblingen og innloggingen, og prøv igjen.",
+  "This pumping record is no longer available for this child. Close this form and reopen it from the correct history.": "Denne pumpeoppføringen er ikke lenger tilgjengelig for dette barnet. Lukk skjemaet og åpne det igjen fra riktig historikk."
 }

@@ -3164,5 +3164,14 @@
   "Needs review": "Überprüfung nötig",
   "Baby Buddy does not record what happened to pumped milk. Imported sessions need review and do not add to stored milk. Open a pumping session to choose Stored, Fed or Discarded when known.": "Baby Buddy erfasst nicht, was mit abgepumpter Milch geschehen ist. Importierte Vorgänge müssen überprüft werden und erhöhen den Milchvorrat nicht. Öffnen Sie einen Abpumpvorgang und wählen Sie Gespeichert, Gefüttert oder Verworfen, wenn dies bekannt ist.",
   "This pumping session needs review. It adds no milk to your stock and creates no feeding entry. Choose Stored, Fed or Discarded only when you know what happened.": "Dieser Abpumpvorgang muss überprüft werden. Er erhöht Ihren Milchvorrat nicht und erstellt keinen Fütterungseintrag. Wählen Sie Gespeichert, Gefüttert oder Verworfen nur, wenn Sie wissen, was geschehen ist.",
-  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "Ungültige Abpumpaktion. Zulässig sind STORED, FED, DISCARDED oder UNKNOWN."
+  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "Ungültige Abpumpaktion. Zulässig sind STORED, FED, DISCARDED oder UNKNOWN.",
+  "Pumping correction conflict": "Konflikt bei der Korrektur des Abpumpens",
+  "This pumping record changed. Your changes were not saved.": "Dieser Abpumpeintrag wurde geändert. Deine Änderungen wurden nicht gespeichert.",
+  "Your unsaved input is still below. Loading the latest record does not change it.": "Deine ungespeicherten Eingaben stehen weiterhin unten. Das Laden des neuesten Eintrags verändert sie nicht.",
+  "Load latest record": "Neuesten Eintrag laden",
+  "Latest saved values": "Zuletzt gespeicherte Werte",
+  "Replacing your draft discards its unsaved values. You can then enter your correction using the latest record.": "Wenn du deinen Entwurf ersetzt, werden seine ungespeicherten Werte verworfen. Danach kannst du deine Korrektur anhand des neuesten Eintrags eingeben.",
+  "Replace draft with latest values": "Entwurf durch neueste Werte ersetzen",
+  "Could not load the latest record. Your unsaved input is unchanged. Check your connection and sign-in, then try again.": "Der neueste Eintrag konnte nicht geladen werden. Deine ungespeicherten Eingaben bleiben unverändert. Prüfe deine Verbindung und Anmeldung und versuche es erneut.",
+  "This pumping record is no longer available for this child. Close this form and reopen it from the correct history.": "Dieser Abpumpeintrag ist für dieses Kind nicht mehr verfügbar. Schließe dieses Formular und öffne ihn erneut im richtigen Verlauf."
 }

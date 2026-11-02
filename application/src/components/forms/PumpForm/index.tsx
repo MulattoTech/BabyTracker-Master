@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PumpLogCreate, PumpLogResponse } from '@/app/api/types';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
@@ -23,6 +23,8 @@ import { useUnit } from '@/src/hooks/useUnit';
 import { cacheDefaultBottleUnit, readCachedDefaultBottleUnit } from '@/src/utils/defaultBottleUnit';
 import { isPumpAction, PUMP_ACTIONS, PumpAction, pumpActionLabel } from '@/src/utils/pumpAction';
 import { changedPumpFields } from '@/src/utils/pumpFormUpdate';
+import { isPumpRevision } from '@/src/utils/pumpRevision';
+import { PumpConflictReview } from './PumpConflictReview';
 
 import './pump-form.css';
 
@@ -110,6 +112,68 @@ export default function PumpForm({
   const [isInitialized, setIsInitialized] = useState(false);
   const [initializedTime, setInitializedTime] = useState<string | null>(null);
   const [breastMilkTrackingEnabled, setBreastMilkTrackingEnabled] = useState(true);
+  const [editBaseline, setEditBaseline] = useState<PumpLogResponse | null>(null);
+  const [hasConflict, setHasConflict] = useState(false);
+  const [latestPump, setLatestPump] = useState<PumpLogResponse | null>(null);
+  const [loadingLatest, setLoadingLatest] = useState(false);
+  const [latestError, setLatestError] = useState('');
+  const editEpoch = useRef(0);
+  useEffect(() => () => { editEpoch.current += 1; }, []);
+
+  const populatePumpFields = (record: PumpLogResponse) => {
+    // Set pump action from activity
+    setPumpAction(isPumpAction(record.pumpAction) ? record.pumpAction : 'UNKNOWN');
+    // Editing mode - populate with activity data
+    try {
+      // Set the start date time
+      const startDate = new Date(record.startTime);
+      if (!isNaN(startDate.getTime())) {
+        setSelectedStartDateTime(startDate);
+      }
+
+      // Set the end date time if it exists
+      if (record.endTime) {
+        const endDate = new Date(record.endTime);
+        if (!isNaN(endDate.getTime())) {
+          setSelectedEndDateTime(endDate);
+        }
+      }
+    } catch (error) {
+      console.error('Error parsing activity times:', error);
+    }
+
+    // Format the start date for the time property
+    const startDate = new Date(record.startTime);
+    const startYear = startDate.getFullYear();
+    const startMonth = String(startDate.getMonth() + 1).padStart(2, '0');
+    const startDay = String(startDate.getDate()).padStart(2, '0');
+    const startHours = String(startDate.getHours()).padStart(2, '0');
+    const startMinutes = String(startDate.getMinutes()).padStart(2, '0');
+    const formattedStartTime = `${startYear}-${startMonth}-${startDay}T${startHours}:${startMinutes}`;
+
+    // Format the end date for the time property if it exists
+    let formattedEndTime = '';
+    if (record.endTime) {
+      const endDate = new Date(record.endTime);
+      const endYear = endDate.getFullYear();
+      const endMonth = String(endDate.getMonth() + 1).padStart(2, '0');
+      const endDay = String(endDate.getDate()).padStart(2, '0');
+      const endHours = String(endDate.getHours()).padStart(2, '0');
+      const endMinutes = String(endDate.getMinutes()).padStart(2, '0');
+      formattedEndTime = `${endYear}-${endMonth}-${endDay}T${endHours}:${endMinutes}`;
+    }
+
+    setFormData({
+      startTime: formattedStartTime,
+      endTime: formattedEndTime,
+      leftAmount: record.leftAmount?.toString() || '',
+      rightAmount: record.rightAmount?.toString() || '',
+      totalAmount: record.totalAmount?.toString() || '',
+      unitAbbr: record.unitAbbr || readCachedDefaultBottleUnit(),
+      notes: record.notes || '',
+    });
+    setEditedTimes({ start: false, end: false });
+  };
 
   // Handle start date/time change
   const handleStartDateTimeChange = (date: Date) => {
@@ -160,58 +224,10 @@ export default function PumpForm({
 
   useEffect(() => {
     if (isOpen && !isInitialized) {
+      editEpoch.current += 1;
       if (activity) {
-        // Set pump action from activity
-        setPumpAction(isPumpAction(activity.pumpAction) ? activity.pumpAction : 'UNKNOWN');
-        // Editing mode - populate with activity data
-        try {
-          // Set the start date time
-          const startDate = new Date(activity.startTime);
-          if (!isNaN(startDate.getTime())) {
-            setSelectedStartDateTime(startDate);
-          }
-          
-          // Set the end date time if it exists
-          if (activity.endTime) {
-            const endDate = new Date(activity.endTime);
-            if (!isNaN(endDate.getTime())) {
-              setSelectedEndDateTime(endDate);
-            }
-          }
-        } catch (error) {
-          console.error('Error parsing activity times:', error);
-        }
-        
-        // Format the start date for the time property
-        const startDate = new Date(activity.startTime);
-        const startYear = startDate.getFullYear();
-        const startMonth = String(startDate.getMonth() + 1).padStart(2, '0');
-        const startDay = String(startDate.getDate()).padStart(2, '0');
-        const startHours = String(startDate.getHours()).padStart(2, '0');
-        const startMinutes = String(startDate.getMinutes()).padStart(2, '0');
-        const formattedStartTime = `${startYear}-${startMonth}-${startDay}T${startHours}:${startMinutes}`;
-        
-        // Format the end date for the time property if it exists
-        let formattedEndTime = '';
-        if (activity.endTime) {
-          const endDate = new Date(activity.endTime);
-          const endYear = endDate.getFullYear();
-          const endMonth = String(endDate.getMonth() + 1).padStart(2, '0');
-          const endDay = String(endDate.getDate()).padStart(2, '0');
-          const endHours = String(endDate.getHours()).padStart(2, '0');
-          const endMinutes = String(endDate.getMinutes()).padStart(2, '0');
-          formattedEndTime = `${endYear}-${endMonth}-${endDay}T${endHours}:${endMinutes}`;
-        }
-        
-        setFormData({
-          startTime: formattedStartTime,
-          endTime: formattedEndTime,
-          leftAmount: activity.leftAmount?.toString() || '',
-          rightAmount: activity.rightAmount?.toString() || '',
-          totalAmount: activity.totalAmount?.toString() || '',
-          unitAbbr: activity.unitAbbr || readCachedDefaultBottleUnit(),
-          notes: activity.notes || '',
-        });
+        setEditBaseline({ ...activity });
+        populatePumpFields(activity);
       } else {
         // New entry mode - fetch default unit from settings
         const fetchDefaultUnit = async () => {
@@ -287,7 +303,14 @@ export default function PumpForm({
       // Mark as initialized
       setIsInitialized(true);
     } else if (!isOpen) {
-      // Reset all form state when form closes
+      // Reset all form state when form closes; ignore any old reload response.
+      editEpoch.current += 1;
+      setEditBaseline(null);
+      setHasConflict(false);
+      setLatestPump(null);
+      setLatestError('');
+      setLoadingLatest(false);
+      setLoading(false);
       setIsInitialized(false);
       setInitializedTime(null);
       setFormData({
@@ -437,13 +460,60 @@ export default function PumpForm({
     }
   };
 
+  const loadLatestPump = async () => {
+    if (!editBaseline || loadingLatest) return;
+    const epoch = editEpoch.current;
+    setLoadingLatest(true);
+    setLatestError('');
+    setLatestPump(null);
+    try {
+      const authToken = localStorage.getItem('authToken');
+      const response = await fetch(`/api/pump-log?id=${encodeURIComponent(editBaseline.id)}`, {
+        cache: 'no-store',
+        headers: { Authorization: authToken ? `Bearer ${authToken}` : '' },
+        signal: AbortSignal.timeout(20_000),
+      });
+      const result = await response.json();
+      if (epoch !== editEpoch.current) return;
+      if (!response.ok || !result.success || !result.data) {
+        setLatestError(response.status === 404
+          ? 'This pumping record is no longer available for this child. Close this form and reopen it from the correct history.'
+          : 'Could not load the latest record. Your unsaved input is unchanged. Check your connection and sign-in, then try again.');
+        return;
+      }
+      const latest: PumpLogResponse = result.data;
+      if (latest.id !== editBaseline.id || latest.babyId !== editBaseline.babyId
+          || latest.familyId !== editBaseline.familyId || latest.deletedAt || !isPumpRevision(latest.updatedAt)) {
+        setLatestError('This pumping record is no longer available for this child. Close this form and reopen it from the correct history.');
+        return;
+      }
+      setLatestPump(latest);
+    } catch {
+      if (epoch === editEpoch.current) setLatestError('Could not load the latest record. Your unsaved input is unchanged. Check your connection and sign-in, then try again.');
+    } finally {
+      if (epoch === editEpoch.current) setLoadingLatest(false);
+    }
+  };
+
+  const replaceDraftWithLatest = () => {
+    if (!latestPump || loadingLatest) return;
+    populatePumpFields(latestPump);
+    setEditBaseline({ ...latestPump });
+    setHasConflict(false);
+    setLatestPump(null);
+    setLatestError('');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!babyId) {
+    if (loading || hasConflict || (activity && !editBaseline)) return;
+    const targetBabyId = editBaseline?.babyId ?? babyId;
+    if (!targetBabyId) {
       console.error('No baby selected');
       return;
     }
+    const epoch = editEpoch.current;
     
     setLoading(true);
     
@@ -465,7 +535,7 @@ export default function PumpForm({
       console.log('Converted end time (UTC):', utcEndTime);
       
       const payload: PumpLogCreate = {
-        babyId,
+        babyId: targetBabyId,
         startTime: utcStartTime,
         endTime: utcEndTime,
         duration,
@@ -478,8 +548,12 @@ export default function PumpForm({
       };
       
       // Determine if we're creating a new record or updating an existing one
-      const url = activity ? `/api/pump-log?id=${activity.id}` : '/api/pump-log';
-      const method = activity ? 'PUT' : 'POST';
+      if (editBaseline && !isPumpRevision(editBaseline.updatedAt)) {
+        setHasConflict(true);
+        return;
+      }
+      const url = editBaseline ? `/api/pump-log?id=${editBaseline.id}` : '/api/pump-log';
+      const method = editBaseline ? 'PUT' : 'POST';
       
       // Get auth token from localStorage
       const authToken = localStorage.getItem('authToken');
@@ -490,10 +564,20 @@ export default function PumpForm({
           'Content-Type': 'application/json',
           'Authorization': authToken ? `Bearer ${authToken}` : '',
         },
-        body: JSON.stringify(activity ? changedPumpFields(activity, payload, editedTimes) : payload),
+        body: JSON.stringify(editBaseline ? {
+          ...changedPumpFields(editBaseline, payload, editedTimes),
+          expectedUpdatedAt: editBaseline.updatedAt,
+        } : payload),
       });
+      if (epoch !== editEpoch.current) return;
       
       if (!response.ok) {
+        if (response.status === 409 && editBaseline) {
+          setHasConflict(true);
+          setLatestPump(null);
+          setLatestError('');
+          return;
+        }
         // Check if this is an account expiration error
         if (response.status === 403) {
           const { isExpirationError } = await handleExpirationError(
@@ -519,6 +603,7 @@ export default function PumpForm({
       }
       
       const data = await response.json();
+      if (epoch !== editEpoch.current) return;
       
       if (data.success) {
         // Close the form and trigger the success callback
@@ -533,6 +618,7 @@ export default function PumpForm({
         });
       }
     } catch (error) {
+      if (epoch !== editEpoch.current) return;
       console.error('Error saving pump log:', error);
       showToast({
         variant: 'error',
@@ -541,7 +627,7 @@ export default function PumpForm({
         duration: 5000,
       });
     } finally {
-      setLoading(false);
+      if (epoch === editEpoch.current) setLoading(false);
     }
   };
 
@@ -584,6 +670,10 @@ export default function PumpForm({
       description={getDescription()}
     >
         <FormPageContent>
+          {hasConflict && !isAdjustMode && (
+            <PumpConflictReview latest={latestPump} loading={loadingLatest} error={latestError}
+              onLoad={loadLatestPump} onReplace={replaceDraftWithLatest} />
+          )}
           {/* Mode Switch - only show when not editing and breast milk tracking is enabled */}
           {breastMilkTrackingEnabled && !activity && !adjustmentActivity && (
             <div className="flex items-center gap-3 px-1 py-3 mb-4">
@@ -775,7 +865,7 @@ export default function PumpForm({
             </Button>
             <Button
               onClick={isAdjustMode ? handleAdjustmentSubmit : handleSubmit}
-              disabled={loading}
+              disabled={loading || (!isAdjustMode && (hasConflict || Boolean(activity && !editBaseline)))}
             >
               {loading ? t('Saving...') : ((activity || adjustmentActivity) ? t('Update') : t('Save'))}
             </Button>

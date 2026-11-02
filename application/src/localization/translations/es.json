@@ -3164,5 +3164,14 @@
   "Needs review": "Necesita revisión",
   "Baby Buddy does not record what happened to pumped milk. Imported sessions need review and do not add to stored milk. Open a pumping session to choose Stored, Fed or Discarded when known.": "Baby Buddy no registra qué pasó con la leche extraída. Las sesiones importadas necesitan revisión y no aumentan la leche almacenada. Abra una sesión de extracción para elegir Almacenado, Alimentado o Descartado cuando lo sepa.",
   "This pumping session needs review. It adds no milk to your stock and creates no feeding entry. Choose Stored, Fed or Discarded only when you know what happened.": "Esta sesión de extracción necesita revisión. No añade leche a sus reservas ni crea una toma. Elija Almacenado, Alimentado o Descartado solo cuando sepa qué ocurrió.",
-  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "Acción de extracción no válida. Debe ser STORED, FED, DISCARDED o UNKNOWN."
+  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "Acción de extracción no válida. Debe ser STORED, FED, DISCARDED o UNKNOWN.",
+  "Pumping correction conflict": "Conflicto al corregir la extracción",
+  "This pumping record changed. Your changes were not saved.": "Este registro de extracción cambió. Tus cambios no se guardaron.",
+  "Your unsaved input is still below. Loading the latest record does not change it.": "Tus datos sin guardar siguen abajo. Cargar el registro más reciente no los cambia.",
+  "Load latest record": "Cargar el registro más reciente",
+  "Latest saved values": "Últimos valores guardados",
+  "Replacing your draft discards its unsaved values. You can then enter your correction using the latest record.": "Al reemplazar el borrador se descartan sus valores sin guardar. Después puedes introducir tu corrección usando el registro más reciente.",
+  "Replace draft with latest values": "Reemplazar el borrador con los valores más recientes",
+  "Could not load the latest record. Your unsaved input is unchanged. Check your connection and sign-in, then try again.": "No se pudo cargar el registro más reciente. Tus datos sin guardar no han cambiado. Comprueba la conexión y el inicio de sesión e inténtalo de nuevo.",
+  "This pumping record is no longer available for this child. Close this form and reopen it from the correct history.": "Este registro de extracción ya no está disponible para este niño. Cierra este formulario y vuelve a abrirlo desde el historial correcto."
 }

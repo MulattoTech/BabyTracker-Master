@@ -192,6 +192,61 @@ afterAll(async () => {
 });
 
 describe('canonical partial-PUT conflicts on migrated SQLite', () => {
+  it.each(['STORED', 'FED'] as const)('rejects a sequentially stale %s form without changing the completed correction', async pumpAction => {
+    const opened = await seed(pumpAction);
+    const revision = opened.updatedAt.toISOString();
+    const first = await PUT(request('PUT', { leftAmount: 40, expectedUpdatedAt: revision }, opened.id, 'a'));
+    expect(first.status).toBe(200);
+    const winner = await actual.pumpLog.findUniqueOrThrow({ where: { id: opened.id } });
+    const winningFeeds = await actual.feedLog.findMany({ orderBy: { id: 'asc' } });
+    // The second request does not start until the first has fully completed.
+    const stale = await PUT(request('PUT', { rightAmount: 50, expectedUpdatedAt: revision }, opened.id, 'b'));
+    expect(stale.status).toBe(409);
+    expect(await stale.json()).toMatchObject({ success: false, error: expect.stringMatching(/changed.*review/i) });
+    expect(await actual.pumpLog.findUniqueOrThrow({ where: { id: opened.id } })).toEqual(winner);
+    expect(await actual.feedLog.findMany({ orderBy: { id: 'asc' } })).toEqual(winningFeeds);
+    const balance = await GET_BALANCE(new NextRequest(`http://localhost/api/breast-milk-balance?babyId=${babyId}&unit=ML`, {
+      headers: { 'x-synthetic-caregiver': 'pump-race-caregiver-a' },
+    }));
+    expect((await balance.json()).data.balance).toBe(pumpAction === 'STORED' ? 60 : 0);
+    const reviewed = await PUT(request('PUT', { rightAmount: 50, expectedUpdatedAt: winner.updatedAt.toISOString() }, opened.id, 'b'));
+    expect(reviewed.status).toBe(200);
+    expect(await actual.pumpLog.findUniqueOrThrow({ where: { id: opened.id } })).toMatchObject({ leftAmount: 40, rightAmount: 50, totalAmount: 90 });
+  });
+
+  it('keeps the client revision check and overlapping-request claim independent', async () => {
+    const opened = await seed('FED');
+    const expectedUpdatedAt = opened.updatedAt.toISOString();
+    const result = await controlledRace(opened, { leftAmount: 40, expectedUpdatedAt }, { rightAmount: 50, expectedUpdatedAt });
+    expect(result.statuses).toEqual([200, 409]);
+    expect(result.afterSecond).toEqual(result.afterFirst);
+    expect(result.feedsAfterSecond).toEqual(result.feedsAfterFirst);
+  });
+
+  it('rejects malformed present revisions without mutation and retains legacy omitted-revision compatibility', async () => {
+    const pump = await seed('FED');
+    const feeds = await actual.feedLog.findMany({ orderBy: { id: 'asc' } });
+    for (const expectedUpdatedAt of [null, '', 1, [], {}, 'not-a-date', '2026-02-30T00:00:00.000Z', pump.updatedAt.toISOString().replace('Z', '+00:00')]) {
+      const response = await PUT(request('PUT', { totalAmount: 80, expectedUpdatedAt }, pump.id));
+      expect(response.status, JSON.stringify(expectedUpdatedAt)).toBe(400);
+      expect(await actual.pumpLog.findUniqueOrThrow({ where: { id: pump.id } })).toEqual(pump);
+      expect(await actual.feedLog.findMany({ orderBy: { id: 'asc' } })).toEqual(feeds);
+    }
+    expect((await PUT(request('PUT', { notes: 'Legacy caller' }, pump.id))).status).toBe(200);
+  });
+
+  it('does not disclose revision conflicts across families', async () => {
+    const pump = await seed('UNKNOWN');
+    const originalFamily = state.familyId;
+    try {
+      state.familyId = 'different-synthetic-family';
+      const response = await PUT(request('PUT', { totalAmount: 99, expectedUpdatedAt: 'invalid' }, pump.id));
+      expect(response.status).toBe(404);
+      expect(await response.json()).not.toHaveProperty('data');
+      expect(await actual.pumpLog.findUniqueOrThrow({ where: { id: pump.id } })).toEqual(pump);
+    } finally { state.familyId = originalFamily; }
+  });
+
   it.each([false, true])('rejects a stale endpoint correction without changing the winner or feed (same timestamp: %s)', async sameTimestamp => {
     const result = await controlledRace(await seed('FED'),
       { startTime: '2026-10-20T13:50:00Z' }, { endTime: '2026-10-20T13:10:00Z' }, sameTimestamp);

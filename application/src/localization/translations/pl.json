@@ -3168,5 +3168,14 @@
   "Needs review": "Wymaga sprawdzenia",
   "Baby Buddy does not record what happened to pumped milk. Imported sessions need review and do not add to stored milk. Open a pumping session to choose Stored, Fed or Discarded when known.": "Baby Buddy nie zapisuje, co stało się z odciągniętym mlekiem. Zaimportowane sesje wymagają sprawdzenia i nie zwiększają zapasu mleka. Otwórz sesję odciągania i wybierz Zapas, Nakarmiono lub Wyrzucone, gdy wiesz, co się stało.",
   "This pumping session needs review. It adds no milk to your stock and creates no feeding entry. Choose Stored, Fed or Discarded only when you know what happened.": "Ta sesja odciągania wymaga sprawdzenia. Nie zwiększa zapasu mleka ani nie tworzy wpisu karmienia. Wybierz Zapas, Nakarmiono lub Wyrzucone tylko wtedy, gdy wiesz, co się stało.",
-  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "Nieprawidłowe działanie dotyczące odciągania. Wymagana wartość to STORED, FED, DISCARDED lub UNKNOWN."
+  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "Nieprawidłowe działanie dotyczące odciągania. Wymagana wartość to STORED, FED, DISCARDED lub UNKNOWN.",
+  "Pumping correction conflict": "Konflikt podczas poprawiania odciągania",
+  "This pumping record changed. Your changes were not saved.": "Ten wpis dotyczący odciągania został zmieniony. Twoje zmiany nie zostały zapisane.",
+  "Your unsaved input is still below. Loading the latest record does not change it.": "Twoje niezapisane dane nadal są poniżej. Wczytanie najnowszego wpisu ich nie zmienia.",
+  "Load latest record": "Wczytaj najnowszy wpis",
+  "Latest saved values": "Ostatnio zapisane wartości",
+  "Replacing your draft discards its unsaved values. You can then enter your correction using the latest record.": "Zastąpienie wersji roboczej usuwa jej niezapisane wartości. Następnie możesz wprowadzić poprawkę na podstawie najnowszego wpisu.",
+  "Replace draft with latest values": "Zastąp wersję roboczą najnowszymi wartościami",
+  "Could not load the latest record. Your unsaved input is unchanged. Check your connection and sign-in, then try again.": "Nie udało się wczytać najnowszego wpisu. Twoje niezapisane dane pozostały bez zmian. Sprawdź połączenie i logowanie, a następnie spróbuj ponownie.",
+  "This pumping record is no longer available for this child. Close this form and reopen it from the correct history.": "Ten wpis dotyczący odciągania nie jest już dostępny dla tego dziecka. Zamknij formularz i otwórz go ponownie we właściwej historii."
 }

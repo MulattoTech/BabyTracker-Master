@@ -3164,5 +3164,14 @@
   "Needs review": "Da verificare",
   "Baby Buddy does not record what happened to pumped milk. Imported sessions need review and do not add to stored milk. Open a pumping session to choose Stored, Fed or Discarded when known.": "Baby Buddy non registra cosa è successo al latte estratto. Le sessioni importate richiedono una verifica e non aumentano il latte conservato. Apri una sessione di estrazione e scegli Conservato, Nutrito o Scartato quando lo sai.",
   "This pumping session needs review. It adds no milk to your stock and creates no feeding entry. Choose Stored, Fed or Discarded only when you know what happened.": "Questa sessione di estrazione richiede una verifica. Non aggiunge latte alle scorte e non crea una poppata. Scegli Conservato, Nutrito o Scartato solo se sai cosa è successo.",
-  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "Azione di estrazione non valida. Deve essere STORED, FED, DISCARDED o UNKNOWN."
+  "Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.": "Azione di estrazione non valida. Deve essere STORED, FED, DISCARDED o UNKNOWN.",
+  "Pumping correction conflict": "Conflitto nella correzione dell’estrazione",
+  "This pumping record changed. Your changes were not saved.": "Questa registrazione dell’estrazione è cambiata. Le tue modifiche non sono state salvate.",
+  "Your unsaved input is still below. Loading the latest record does not change it.": "I tuoi dati non salvati sono ancora qui sotto. Caricare la registrazione più recente non li modifica.",
+  "Load latest record": "Carica la registrazione più recente",
+  "Latest saved values": "Ultimi valori salvati",
+  "Replacing your draft discards its unsaved values. You can then enter your correction using the latest record.": "Sostituire la bozza elimina i suoi valori non salvati. Potrai quindi inserire la correzione usando la registrazione più recente.",
+  "Replace draft with latest values": "Sostituisci la bozza con gli ultimi valori",
+  "Could not load the latest record. Your unsaved input is unchanged. Check your connection and sign-in, then try again.": "Impossibile caricare la registrazione più recente. I tuoi dati non salvati sono invariati. Controlla la connessione e l’accesso, poi riprova.",
+  "This pumping record is no longer available for this child. Close this form and reopen it from the correct history.": "Questa registrazione dell’estrazione non è più disponibile per questo bambino. Chiudi il modulo e riaprilo dalla cronologia corretta."
 }
