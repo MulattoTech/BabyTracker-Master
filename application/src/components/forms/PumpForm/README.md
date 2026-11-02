@@ -117,17 +117,23 @@ The form submits data to the `/api/pump-log` endpoint, using:
 
 The form includes the authentication token in the request headers for secure API access.
 
+Overlapping PUT requests use an atomic conditional update against the record
+read for validation. If another writer has changed that record, the losing
+request returns `409` without changing the winning pump or its owned feed. The
+form displays the server's error and remains open; reopen the record, review its
+latest values, then submit the intended correction. The client does not silently
+retry a conflict. Empty and same-value corrections remain valid and preserve
+care fields while advancing the update timestamp.
+
+This protects overlapping server read/validate/write operations. The API does
+not carry a client revision token, so it does not detect a stale form submitted
+after another save has already completed.
+
 ### Multi-Family Support
 
-The component supports multi-family functionality by:
-- Accepting a `familyId` prop to associate the pump record with a specific family
-- Including the family ID in the API request payload
-- The API endpoint also extracts the family ID from request headers as a fallback
-
-When using this component in a multi-family context, you should:
-1. Import and use the family context to get the current family ID
-2. Pass the family ID to the PumpForm component
-3. The component will handle sending this ID to the API
+The API obtains the family from the authenticated context. Record lookup and the
+conditional update both enforce that family, and a requested baby reassignment
+must remain within it. Client-supplied family identifiers are not authoritative.
 
 ## Cross-Platform Considerations
 
