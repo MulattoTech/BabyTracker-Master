@@ -64,7 +64,7 @@ jobs:
           import json, os
           value={'schemaVersion':1,'repository':os.environ['GITHUB_REPOSITORY'],'revision':os.environ['SOURCE_SHA'],
                  'image':'ghcr.io/mulattotech/babytracker-master@'+os.environ['IMAGE_DIGEST'],
-                 'productionAutomaticallyChanged':False,'promotionCommand':'pwsh -File scripts/promote-release.ps1 -Image <pinned-image> -Apply'}
+                 'productionAutomaticallyChanged':False,'promotionCommand':'pwsh -File scripts/promote-release.ps1 -Image <pinned-image> -Apply -VerifyDataPreservation'}
           open('release-candidate.json','w').write(json.dumps(value,indent=2)+'\n')
           PY
       - uses: actions/upload-artifact@v4

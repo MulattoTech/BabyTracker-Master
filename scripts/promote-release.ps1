@@ -1,7 +1,10 @@
-<# Owner-invoked promotion. No mutation without -Apply. Exact-main CI -> pinned image -> synthetic preview -> verified backup -> production health. #>
+<# Owner-invoked promotion. Apply requires record preservation. Exact-main CI -> pinned image -> synthetic preview -> verified backup -> preserved production records. #>
 [CmdletBinding()]
 param([switch]$Apply,[switch]$Build,[string]$Image,[switch]$VerifyDataPreservation)
 $ErrorActionPreference='Stop'
+if ($Apply -and -not $VerifyDataPreservation) {
+  throw 'Production promotion requires -VerifyDataPreservation; no inspection or mutation was performed'
+}
 $root=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $repo='MulattoTech/BabyTracker-Master'
 $expectedVolumes=@('babytracker-sprout-db','babytracker-sprout-env','babytracker-sprout-files')
