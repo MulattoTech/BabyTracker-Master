@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '../db';
 import { ApiResponse, PumpLogCreate, PumpLogResponse } from '../types';
 import { withAuthContext, AuthResult } from '../utils/auth';
-import { toUTC, formatForResponse, calculateDurationMinutes } from '../utils/timezone';
+import { toUTC, formatForResponse } from '../utils/timezone';
 import { checkWritePermission } from '../utils/writeProtection';
 import { notifyActivityCreated } from '@/src/lib/notifications/activityHook';
 import {
@@ -13,6 +13,7 @@ import {
 } from '@/src/utils/breastMilkInventory';
 import { normalizeVolumeUnit } from '@/src/utils/unit-conversion';
 import { isPumpAction } from '@/src/utils/pumpAction';
+import { preparePumpFields } from './fields';
 
 async function handlePost(req: NextRequest, authContext: AuthResult) {
   // Check write permissions for expired accounts
@@ -27,7 +28,11 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'User is not associated with a family.' }, { status: 403 });
     }
 
-    const body: PumpLogCreate = await req.json();
+    const body: PumpLogCreate = await req.json().catch(() => null);
+    const prepared = preparePumpFields(body);
+    if ('error' in prepared) {
+      return NextResponse.json<ApiResponse<null>>({ success: false, error: prepared.error }, { status: 400 });
+    }
 
     const baby = await prisma.baby.findFirst({
       where: { id: body.babyId, familyId: userFamilyId },
@@ -37,24 +42,10 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Baby not found in this family.' }, { status: 404 });
     }
     
-    // Convert times to UTC for storage
-    const startTimeUTC = toUTC(body.startTime);
-    const endTimeUTC = body.endTime ? toUTC(body.endTime) : undefined;
-    
-    // Calculate duration if not provided but start and end times are available
-    let duration = body.duration;
-    if (!duration && startTimeUTC && endTimeUTC) {
-      duration = calculateDurationMinutes(startTimeUTC, endTimeUTC);
-    }
-    
-    // Calculate total amount if not provided but left and right amounts are
-    let totalAmount = body.totalAmount;
-    if (totalAmount === undefined && (body.leftAmount !== undefined || body.rightAmount !== undefined)) {
-      totalAmount = (body.leftAmount || 0) + (body.rightAmount || 0);
-    }
+    const { startTime: startTimeUTC, totalAmount } = prepared;
     
     // Validate pumpAction
-    const pumpAction = body.pumpAction || 'STORED';
+    const pumpAction = body.pumpAction === undefined ? 'STORED' : body.pumpAction;
     if (!isPumpAction(pumpAction)) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Invalid pump action. Must be STORED, FED, DISCARDED, or UNKNOWN.' }, { status: 400 });
     }
@@ -79,13 +70,9 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
     const pumpLog = await prisma.$transaction(async (tx) => {
       const createdPumpLog = await tx.pumpLog.create({
         data: {
+          ...prepared.data,
           babyId: body.babyId,
           startTime: startTimeUTC,
-          endTime: endTimeUTC,
-          duration,
-          leftAmount: body.leftAmount,
-          rightAmount: body.rightAmount,
-          totalAmount,
           unitAbbr,
           pumpAction,
           notes: body.notes,
@@ -160,7 +147,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    const body: Partial<PumpLogCreate> = await req.json();
+    const body: Partial<PumpLogCreate> = await req.json().catch(() => null);
 
     if (!id) {
       return NextResponse.json<ApiResponse<PumpLogResponse>>(
@@ -185,6 +172,10 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
         { status: 404 }
       );
     }
+    const prepared = preparePumpFields(body, existingPumpLog);
+    if ('error' in prepared) {
+      return NextResponse.json<ApiResponse<null>>({ success: false, error: prepared.error }, { status: 400 });
+    }
 
     // If the caller is reassigning the pump to a baby, that baby must belong to
     // their family — never trust a client-sent babyId across families.
@@ -206,41 +197,9 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       body.unitAbbr = normalizedUnit;
     }
 
-    // Process date fields and prepare data for update
-    const data: any = {};
-    
-    if (body.startTime) {
-      data.startTime = toUTC(body.startTime);
-    }
-    
-    if (body.endTime) {
-      data.endTime = toUTC(body.endTime);
-    }
-    
-    // Calculate duration if not provided but start and end times are available
-    if (body.duration !== undefined) {
-      data.duration = body.duration;
-    } else if ((body.startTime || body.endTime) && (body.startTime || existingPumpLog.startTime) &&
-              (body.endTime || existingPumpLog.endTime)) {
-      const start = body.startTime ? toUTC(body.startTime) : existingPumpLog.startTime;
-      const end = body.endTime ? toUTC(body.endTime) : existingPumpLog.endTime;
-      if (start && end) {
-        data.duration = calculateDurationMinutes(start, end);
-      }
-    }
-    
-    // Calculate total amount if left or right amounts are updated
-    if (body.totalAmount !== undefined) {
-      data.totalAmount = body.totalAmount;
-    } else if (body.leftAmount !== undefined || body.rightAmount !== undefined) {
-      const leftAmount = body.leftAmount !== undefined ? body.leftAmount : existingPumpLog.leftAmount || 0;
-      const rightAmount = body.rightAmount !== undefined ? body.rightAmount : existingPumpLog.rightAmount || 0;
-      data.totalAmount = leftAmount + rightAmount;
-    }
+    const data: any = { ...prepared.data };
     
     // Add other fields
-    if (body.leftAmount !== undefined) data.leftAmount = body.leftAmount;
-    if (body.rightAmount !== undefined) data.rightAmount = body.rightAmount;
     if (body.unitAbbr !== undefined) data.unitAbbr = body.unitAbbr;
     if (body.notes !== undefined) data.notes = body.notes;
     if (body.babyId !== undefined) data.babyId = body.babyId;
@@ -251,13 +210,8 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       data.pumpAction = body.pumpAction;
     }
 
-    const finalStartTime = body.startTime ? toUTC(body.startTime) : existingPumpLog.startTime;
-    const finalTotalAmount = body.totalAmount !== undefined
-      ? body.totalAmount
-      : (body.leftAmount !== undefined || body.rightAmount !== undefined)
-        ? (body.leftAmount !== undefined ? body.leftAmount : existingPumpLog.leftAmount || 0) +
-          (body.rightAmount !== undefined ? body.rightAmount : existingPumpLog.rightAmount || 0)
-        : existingPumpLog.totalAmount;
+    const finalStartTime = prepared.startTime;
+    const finalTotalAmount = prepared.totalAmount;
     const finalPumpAction = body.pumpAction ?? existingPumpLog.pumpAction;
     const finalUnitAbbr = body.unitAbbr !== undefined ? body.unitAbbr : existingPumpLog.unitAbbr;
     const finalNotes = body.notes !== undefined ? body.notes : existingPumpLog.notes;
