@@ -3,10 +3,14 @@
 The canonical machine-readable inventory is [sat-tracker-acceptance-ledger.json](sat-tracker-acceptance-ledger.json).
 The issue-by-issue audit is [sat-tracker-issue-dispositions-2026-11-02.json](sat-tracker-issue-dispositions-2026-11-02.json).
 
-This is an initial **evidence acceptance baseline**, anchored to released revision
+This is a **provisional evidence acceptance inventory**, independently reconciled
+against merged source `a07289755b9a142e300f5367eba48ede8b999f1d`. The five accepted
+release controls remain anchored to released revision
 64c69c4b35df1161b2846c4f4e663e44e70d74a5 and release
 [sat-tracker-2026-11-02](https://github.com/MulattoTech/BabyTracker-Master/releases/tag/sat-tracker-2026-11-02).
-It is not a claim that only a small percentage of the source exists.
+It is not a claim that only a small percentage of the source exists. Audited main
+source is not automatically the deployed source; a new promotion needs its own
+exact-image runtime receipts.
 
 ## Scope and counting
 
@@ -17,18 +21,26 @@ legacy history, real synchronization/devices, packaging disposition, setup,
 modules/updater, camera, upstream maintenance, release controls, issue governance,
 continuation and reusable form templates.
 
-There are **100 inventoried required contracts** and one Desired contract.
-The required-contract baseline has 5 VERIFIED PASS, 74 IN PROGRESS,
-6 BLOCKED and 15 NOT IMPLEMENTED.
+The [continuation scope audit](sat-tracker-scope-audit-2026-11-02.md) adds three
+distinct required capabilities that were not explicitly contracted: the #22
+caregiver handoff summary, #27 cross-domain data-quality resolution, and #28
+prospective model evaluation/version governance. It expands detailed criteria
+within existing rows for overlapping behavior instead of counting each test or
+implementation slice as another accepted feature.
+
+There are **103 inventoried required contracts** and one Desired contract.
+Scope version `2026-11-02-v2` has 5 VERIFIED PASS, 76 IN PROGRESS,
+6 BLOCKED and 16 NOT IMPLEMENTED. No existing status becomes PASS in this audit.
 
 **The final whole-product denominator is not yet certified.** The scopeComplete
 field therefore remains false and the validator deliberately returns a null
-acceptance percentage. A further independent review must map every detailed
-issue and specification criterion, resolve duplicates and package commitments,
-and record the resulting scope version before publishing a whole-product
-percentage. Never treat 100 inventoried contracts as evidence that all possible
-scope is known, or interpret the five release-control contracts as five percent
-of implemented application code.
+acceptance percentage. The current audit maps the detailed mission and live-issue
+criteria, including closed residual scope. Pinned upstream field-level parity,
+package commitments and preserved private recovery proposals still require
+reconciliation, followed by an independent final counterexample audit. Record
+the resulting scope version before publishing a whole-product percentage. Never
+treat 103 inventoried contracts as evidence that all possible scope is known, or
+interpret the five release-control contracts as a percentage of implemented code.
 
 When the scope is certified, completion is:
 
@@ -37,6 +49,22 @@ When the scope is certified, completion is:
 Blocked and unimplemented requirements remain in that denominator. Desired
 items are shown separately. Source presence, passing unit tests, a merged PR,
 or a closed issue cannot independently establish full contract acceptance.
+
+## Merged continuation source
+
+PRs [#66](https://github.com/MulattoTech/BabyTracker-Master/pull/66) through
+[#70](https://github.com/MulattoTech/BabyTracker-Master/pull/70) add structured OCR
+duration, a durable new-bottle outbox, private image-qualification infrastructure,
+the initial ledger and unknown-medication-dose preservation. Acceptance,
+operations, Compose and image-build workflows passed on `a072897`. Their narrow
+synthetic evidence is attached to the affected open contracts. It does not accept
+physical devices, real handwriting, actual historical migration or broad parity.
+
+The outbox covers new bottles in a loaded Journal; cold offline startup,
+background delivery while closed, historical edits and other care types remain
+open. The handwriting harness is implemented; representative human-paper input
+and reviewed ground truth are still missing. Unknown-dose imports now retain an
+unresolved Note, while complete medication semantics remain unaccepted.
 
 ## Status and evidence
 
@@ -104,7 +132,7 @@ An invalid file cannot emit an accepted count or a 100% acceptance result.
 
 ## Open issue and PR disposition
 
-The baseline has 33 open issues, of which 32 belong to the app mission, and
+The source audit rechecked 33 open issues, of which 32 belong to the app mission, and
 one preserved draft PR (#35). Existing labels use an older P1-P5 scale; the
 issue audit records suggested P0-P3 mission priorities separately and does not
 rewrite labels.
