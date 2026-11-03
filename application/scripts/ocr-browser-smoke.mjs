@@ -347,7 +347,7 @@ try {
   report.nurseryBottleChecksPassed = true;
   report.checks.push(...await verifyBreastfeedingRecovery({ base, db, family, baby, caretaker, token, secret, context }));
   report.breastfeedingRecoveryChecksPassed = true;
-  report.checks.push(...await verifyNurserySleepRecovery({ base, db, secret, context, scratch }));
+  report.checks.push(...await verifyNurserySleepRecovery({ base, db, secret, context, scratch, browserExecutable: browserServer.process().spawnfile }));
   report.nurserySleepRecoveryChecksPassed = true;
   report.checks.push(...await verifyMedicineDoseRecovery({ base, db, scratch, reportDir }));
   report.medicineDoseRecoveryChecksPassed = true;
