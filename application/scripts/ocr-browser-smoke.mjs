@@ -21,6 +21,7 @@ import { verifyNurseryBottle } from './nursery-bottle-browser.mjs';
 import { verifyBreastfeedingRecovery } from './breastfeeding-recovery-browser.mjs';
 import { verifyNurseryUndo } from './nursery-undo-browser.mjs';
 import { verifyNurserySleepRecovery } from './nursery-sleep-browser.mjs';
+import { verifyMedicineDoseRecovery } from './medicine-dose-recovery-browser.mjs';
 const require = createRequire(import.meta.url);
 const { PrismaClient } = require('@prisma/client');
 const { createPrismaAdapter } = require('../prisma/prisma-adapter.js');
@@ -351,6 +352,8 @@ try {
   report.nurseryUndoChecksPassed = true;
   report.checks.push(...await verifyNurserySleepRecovery({ base, db, secret, context, scratch, browserExecutable: browserServer.process().spawnfile }));
   report.nurserySleepRecoveryChecksPassed = true;
+  report.checks.push(...await verifyMedicineDoseRecovery({ base, db, scratch, reportDir }));
+  report.medicineDoseRecoveryChecksPassed = true;
   const userToken = jwt.sign({ id: caretaker.id, name: caretaker.name, role: 'USER', familyId: family.id, familySlug: family.slug }, secret, { expiresIn: '5m' });
   const denied = await fetch(`${base}/api/ocr/documents?babyId=${baby.id}`, { headers: { Authorization: `Bearer ${userToken}` }, signal: AbortSignal.timeout(5000) });
   assert.equal(denied.status, 403); await denied.body?.cancel();

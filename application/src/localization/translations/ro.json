@@ -3267,5 +3267,22 @@
   "This browser cannot safely coordinate saved care actions. Keep this page open and use a browser with Web Locks support before saving.": "Acest browser nu poate coordona în siguranță acțiunile de îngrijire salvate. Păstrați pagina deschisă și folosiți un browser cu suport Web Locks înainte de a salva.",
   "This browser could not read its saved care action. Keep this page open and check browser storage before logging again.": "Browserul nu a putut citi acțiunea de îngrijire salvată. Păstrați pagina deschisă și verificați stocarea browserului înainte de a înregistra din nou.",
   "This browser could not save the care action. Keep this page open and check browser storage. No request was sent on this attempt.": "Browserul nu a putut salva acțiunea de îngrijire. Păstrați pagina deschisă și verificați stocarea browserului. Nu s-a trimis nicio solicitare la această încercare.",
-  "This saved care action changed or was removed. Review the care log before dismissing the saved action.": "Această acțiune de îngrijire salvată a fost modificată sau eliminată. Verificați jurnalul de îngrijire înainte de a renunța la acțiunea salvată."
+  "This saved care action changed or was removed. Review the care log before dismissing the saved action.": "Această acțiune de îngrijire salvată a fost modificată sau eliminată. Verificați jurnalul de îngrijire înainte de a renunța la acțiunea salvată.",
+  "Saving this dose could not be confirmed. Its original details are kept. Retry the saved request.": "Salvarea acestei doze nu a putut fi confirmată. Detaliile inițiale sunt păstrate. Reîncercați cererea salvată.",
+  "This browser could not keep the dose request. Keep this page open and restore storage before saving.": "Acest browser nu a putut păstra cererea pentru doză. Mențineți pagina deschisă și restabiliți accesul la stocare înainte de salvare.",
+  "This browser could not coordinate the saved dose. Keep this page open and retry when storage access is available.": "Acest browser nu a putut coordona doza salvată. Mențineți pagina deschisă și reîncercați când stocarea este disponibilă.",
+  "The caregiver or child changed. Return to the original caregiver and child before retrying this dose.": "Îngrijitorul sau copilul s-a schimbat. Reveniți la îngrijitorul și copilul inițiali înainte de a reîncerca această doză.",
+  "Another saved dose has changed on this browser. Review it before continuing.": "O altă doză salvată s-a schimbat în acest browser. Verificați-o înainte de a continua.",
+  "Sign in again as the original caregiver to confirm this dose. The saved request has been kept.": "Autentificați-vă din nou ca îngrijitorul inițial pentru a confirma această doză. Cererea salvată a fost păstrată.",
+  "The saved dose needs review because the record changed or was removed.": "Doza salvată trebuie verificată deoarece înregistrarea a fost modificată sau eliminată.",
+  "The server rejected this dose. Its details are kept for review.": "Serverul a respins această doză. Detaliile sunt păstrate pentru verificare.",
+  "Saving the dose request timed out. Its original details are kept.": "Timpul de salvare a cererii pentru doză a expirat. Detaliile inițiale sunt păstrate.",
+  "Review the dose details before saving.": "Verificați detaliile dozei înainte de salvare.",
+  "Dose awaiting confirmation": "Doză în așteptarea confirmării",
+  "Retry saved dose": "Reîncercați doza salvată",
+  "Dismiss saved dose": "Renunțați la doza salvată",
+  "Check saved dose again": "Verificați din nou doza salvată",
+  "A dose is waiting for confirmation on this browser.": "O doză așteaptă confirmarea în acest browser.",
+  "Review saved dose": "Verificați doza salvată",
+  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "Această doză poate fi deja în jurnalul de îngrijire. Verificați-l înainte de a renunța la cererea salvată în acest browser. Nicio înregistrare de îngrijire nu va fi ștearsă. Continuați?"
 }

@@ -45,6 +45,7 @@ const MedicineForm: React.FC<MedicineFormProps> = ({
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
   const [showGiveMedicineForm, setShowGiveMedicineForm] = useState(false);
   const [isSupplementMode, setIsSupplementMode] = useState(false);
+  const [hasPendingDose, setHasPendingDose] = useState(false);
 
   // Function to refresh data in all tabs
   const refreshData = useCallback(() => {
@@ -99,6 +100,7 @@ const MedicineForm: React.FC<MedicineFormProps> = ({
           onGiveMedicine={handleOpenGiveMedicine}
           onGiveSupplement={handleOpenGiveSupplement}
           refreshTrigger={refreshTrigger}
+          hasPendingDose={hasPendingDose}
         />
       ),
     },
@@ -158,6 +160,7 @@ const MedicineForm: React.FC<MedicineFormProps> = ({
         refreshData={refreshData}
         activity={activity}
         isSupplement={isSupplementMode}
+        onPendingChange={setHasPendingDose}
       />
     </>
   );

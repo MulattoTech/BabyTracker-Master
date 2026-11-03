@@ -4,7 +4,8 @@ import { ApiResponse, MedicineLogCreate, MedicineLogResponse } from '../types';
 import { withAuthContext, AuthResult } from '../utils/auth';
 import { toUTC, formatForResponse } from '../utils/timezone';
 import { checkWritePermission } from '../utils/writeProtection';
-import { careFields, readCareWrite, CareWriteError } from '../utils/care-write';
+import { careFields, careIdentifier, readCareWrite, CareWriteError } from '../utils/care-write';
+import { createMedicineDose, type MedicineDoseCreate } from './request';
 import { notifyActivityCreated, resetTimerNotificationState } from '@/src/lib/notifications/activityHook';
 
 // Keep the owned dose visible when a legacy relationship needs review, without
@@ -38,36 +39,15 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
   }
 
   try {
-    const { familyId: userFamilyId, caretakerId } = authContext;
+    const { familyId: userFamilyId } = authContext;
     if (!userFamilyId) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'User is not associated with a family.' }, { status: 403 });
     }
 
-    const body = await readCareWrite<MedicineLogCreate>(req, careFields.medicineLog, ['babyId', 'medicineId', 'time', 'doseAmount']);
-
-    const [baby, medicine] = await Promise.all([
-      prisma.baby.findFirst({ where: { id: body.babyId, familyId: userFamilyId, deletedAt: null } }),
-      prisma.medicine.findFirst({ where: { id: body.medicineId, familyId: userFamilyId, deletedAt: null } })
-    ]);
-
-    if (!baby) {
-      return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Baby not found in this family.' }, { status: 404 });
-    }
-
-    if (!medicine) {
-      return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Medicine not found in this family.' }, { status: 404 });
-    }
-
-    const timeUTC = toUTC(body.time);
-    
-    const medicineLog = await prisma.medicineLog.create({
-      data: {
-        ...body,
-        time: timeUTC,
-        caretakerId: caretakerId,
-        familyId: userFamilyId,
-      },
-    });
+    const body = await readCareWrite<MedicineDoseCreate>(req, {
+      ...careFields.medicineLog, requestId: careIdentifier, expectedScope: careIdentifier,
+    }, ['babyId', 'medicineId', 'time', 'doseAmount']);
+    const { medicineLog, medicine, created } = await createMedicineDose(prisma, authContext, body);
 
     // Format dates for response
     const response: MedicineLogResponse = {
@@ -80,12 +60,15 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
 
     // Notify subscribers about activity creation (non-blocking)
     const activityType = medicine?.isSupplement ? 'supplement' : 'medicine';
-    notifyActivityCreated(medicineLog.babyId, activityType, { accountId: authContext.accountId, caretakerId: authContext.caretakerId }, { medicineId: body.medicineId, medicineName: medicine?.name }).catch(console.error);
-    resetTimerNotificationState(medicineLog.babyId, 'medicine').catch(console.error);
+    if (created) {
+      notifyActivityCreated(medicineLog.babyId, activityType, { accountId: authContext.accountId, caretakerId: authContext.caretakerId }, { medicineId: body.medicineId, medicineName: medicine?.name }).catch(console.error);
+      resetTimerNotificationState(medicineLog.babyId, 'medicine').catch(console.error);
+    }
 
-    return NextResponse.json<ApiResponse<MedicineLogResponse>>({
+    return NextResponse.json({
       success: true,
       data: response,
+      ...(body.requestId ? { requestId: body.requestId } : {}),
     });
   } catch (error) {
     if (error instanceof CareWriteError) return error.response();
