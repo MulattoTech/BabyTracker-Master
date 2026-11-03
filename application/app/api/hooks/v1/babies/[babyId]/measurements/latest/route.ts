@@ -20,7 +20,7 @@ async function handleGet(req: NextRequest, ctx: ApiKeyContext, routeContext: any
   await Promise.all(
     MEASUREMENT_TYPES.map(async (type) => {
       const m = await prisma.measurement.findFirst({
-        where: { babyId, type, deletedAt: null },
+        where: { babyId, familyId: ctx.familyId, type, deletedAt: null },
         orderBy: { date: 'desc' },
       });
       if (m) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '../../db';
+import { caretakerNameRelation, foodDisplayRelation, medicineNameForFamily, medicineNameRelation } from '../../utils/careReadScope';
 import { ApiResponse } from '../../types';
 import { withAuthContext, AuthResult } from '../../utils/auth';
 import { toUTC, formatForResponse } from '../../utils/timezone';
@@ -364,7 +365,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
       );
     }
 
-    const familyId = baby.familyId;
+    const familyId = userFamilyId;
 
     // Load translations
     const translations = loadTranslations(language);
@@ -390,7 +391,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
             ]
           } : {}),
         },
-        include: { caretaker: true },
+        include: { caretaker: caretakerNameRelation(familyId) },
         orderBy: { startTime: 'desc' },
       }) : emptyPromise,
       shouldFetch('feed') ? prisma.feedLog.findMany({
@@ -398,7 +399,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           babyId, familyId,
           ...(startDateUTC && endDateUTC ? { time: { gte: startDateUTC, lte: endDateUTC } } : {}),
         },
-        include: { caretaker: true },
+        include: { caretaker: caretakerNameRelation(familyId) },
         orderBy: { time: 'desc' },
       }) : emptyPromise,
       shouldFetch('diaper') ? prisma.diaperLog.findMany({
@@ -406,7 +407,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           babyId, familyId,
           ...(startDateUTC && endDateUTC ? { time: { gte: startDateUTC, lte: endDateUTC } } : {}),
         },
-        include: { caretaker: true },
+        include: { caretaker: caretakerNameRelation(familyId) },
         orderBy: { time: 'desc' },
       }) : emptyPromise,
       shouldFetch('note') ? prisma.note.findMany({
@@ -414,7 +415,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           babyId, familyId,
           ...(startDateUTC && endDateUTC ? { time: { gte: startDateUTC, lte: endDateUTC } } : {}),
         },
-        include: { caretaker: true },
+        include: { caretaker: caretakerNameRelation(familyId) },
         orderBy: { time: 'desc' },
       }) : emptyPromise,
       shouldFetch('bath') ? prisma.bathLog.findMany({
@@ -422,7 +423,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           babyId, familyId,
           ...(startDateUTC && endDateUTC ? { time: { gte: startDateUTC, lte: endDateUTC } } : {}),
         },
-        include: { caretaker: true },
+        include: { caretaker: caretakerNameRelation(familyId) },
         orderBy: { time: 'desc' },
       }) : emptyPromise,
       shouldFetch('pump') ? prisma.pumpLog.findMany({
@@ -430,7 +431,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           babyId, familyId,
           ...(startDateUTC && endDateUTC ? { startTime: { gte: startDateUTC, lte: endDateUTC } } : {}),
         },
-        include: { caretaker: true },
+        include: { caretaker: caretakerNameRelation(familyId) },
         orderBy: { startTime: 'desc' },
       }) : emptyPromise,
       shouldFetch('play') ? prisma.playLog.findMany({
@@ -438,7 +439,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           babyId, familyId,
           ...(startDateUTC && endDateUTC ? { startTime: { gte: startDateUTC, lte: endDateUTC } } : {}),
         },
-        include: { caretaker: true },
+        include: { caretaker: caretakerNameRelation(familyId) },
         orderBy: { startTime: 'desc' },
       }) : emptyPromise,
       shouldFetch('milestone') ? prisma.milestone.findMany({
@@ -446,7 +447,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           babyId, familyId,
           ...(startDateUTC && endDateUTC ? { date: { gte: startDateUTC, lte: endDateUTC } } : {}),
         },
-        include: { caretaker: true },
+        include: { caretaker: caretakerNameRelation(familyId) },
         orderBy: { date: 'desc' },
       }) : emptyPromise,
       shouldFetch('measurement') ? prisma.measurement.findMany({
@@ -454,7 +455,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           babyId, familyId,
           ...(startDateUTC && endDateUTC ? { date: { gte: startDateUTC, lte: endDateUTC } } : {}),
         },
-        include: { caretaker: true },
+        include: { caretaker: caretakerNameRelation(familyId) },
         orderBy: { date: 'desc' },
       }) : emptyPromise,
       shouldFetch('medicine') ? prisma.medicineLog.findMany({
@@ -462,7 +463,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           babyId, familyId,
           ...(startDateUTC && endDateUTC ? { time: { gte: startDateUTC, lte: endDateUTC } } : {}),
         },
-        include: { caretaker: true, medicine: true },
+        include: { caretaker: caretakerNameRelation(familyId), medicine: medicineNameRelation },
         orderBy: { time: 'desc' },
       }) : emptyPromise,
       shouldFetch('breast-milk-adjustment') ? prisma.breastMilkAdjustment.findMany({
@@ -470,7 +471,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           babyId, familyId, deletedAt: null,
           ...(startDateUTC && endDateUTC ? { time: { gte: startDateUTC, lte: endDateUTC } } : {}),
         },
-        include: { caretaker: true },
+        include: { caretaker: caretakerNameRelation(familyId) },
         orderBy: { time: 'desc' },
       }) : emptyPromise,
       shouldFetch('vaccine') ? prisma.vaccineLog.findMany({
@@ -478,7 +479,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           babyId, familyId,
           ...(startDateUTC && endDateUTC ? { time: { gte: startDateUTC, lte: endDateUTC } } : {}),
         },
-        include: { caretaker: true },
+        include: { caretaker: caretakerNameRelation(familyId) },
         orderBy: { time: 'desc' },
       }) : emptyPromise,
       shouldFetch('food') ? prisma.foodLog.findMany({
@@ -486,7 +487,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           babyId, familyId, deletedAt: null,
           ...(startDateUTC && endDateUTC ? { time: { gte: startDateUTC, lte: endDateUTC } } : {}),
         },
-        include: { caretaker: true, food: { select: { id: true, name: true, commonAllergen: true } } },
+        include: { caretaker: caretakerNameRelation(familyId), food: foodDisplayRelation(familyId) },
         orderBy: { time: 'desc' },
       }) : emptyPromise,
     ]);
@@ -502,7 +503,8 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
         }
       }
       formatted.caretakerName = caretaker?.name || '';
-      if (medicine) formatted.medicine = medicine;
+      const medicineName = medicineNameForFamily(medicine, familyId);
+      if (medicineName !== null) formatted.medicine = { name: medicineName };
       return formatted;
     };
 

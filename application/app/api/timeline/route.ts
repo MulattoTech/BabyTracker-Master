@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '../db';
+import { foodDisplayRelation } from '../utils/careReadScope';
 import { ApiResponse, SleepLogResponse, FeedLogResponse, DiaperLogResponse, NoteResponse, BathLogResponse, PumpLogResponse, PlayLogResponse, MilestoneResponse, MeasurementResponse, MedicineLogResponse, MedicineResponse, BreastMilkAdjustmentResponse, VaccineLogResponse, FoodLogResponse, PhotoLogResponse, TimelinePhotoInfo } from '../types';
 import { withAuthContext, AuthResult } from '../utils/auth';
 import { toUTC, formatForResponse } from '../utils/timezone';
@@ -164,7 +165,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
         );
     }
 
-    const familyId = baby.familyId; // Use the verified family ID for all queries
+    const familyId = caretakerFamilyId; // The child lookup verified this authenticated family.
     // Legacy records may contain an inconsistent relation. Keep the care event,
     // but fetch only badge fields from a caretaker in this verified family.
     const scopedCaretaker = {
@@ -463,9 +464,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
         },
         include: {
           caretaker: scopedCaretaker,
-          food: {
-            select: { id: true, name: true, commonAllergen: true }
-          }
+          food: foodDisplayRelation(familyId)
         },
         orderBy: { time: 'desc' }
       }) : emptyPromise,
@@ -761,7 +760,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
         for (const log of foodLogs as any[]) {
           const items = expandFoodItems(log);
           log.foodItems = items.map(item => {
-            const meta = catalogById.get(item.foodId) || (log.food?.id === item.foodId ? log.food : undefined);
+            const meta = catalogById.get(item.foodId);
             return {
               foodId: item.foodId,
               hadReaction: item.hadReaction === true,

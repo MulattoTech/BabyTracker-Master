@@ -47,7 +47,7 @@ function isDisplayCased(loc: string): boolean {
 
 async function getSleepLocations(babyId: string, familyId: string) {
   const customLocations = await prisma.sleepLog.findMany({
-    where: { babyId, deletedAt: null, location: { not: null } },
+    where: { babyId, familyId, deletedAt: null, location: { not: null } },
     select: { location: true },
     distinct: ['location'],
   });
@@ -95,8 +95,8 @@ async function getUnits() {
   });
 }
 
-async function getPlayCategories(babyId: string, playType?: string) {
-  const where: any = { babyId, deletedAt: null, activities: { not: null } };
+async function getPlayCategories(babyId: string, familyId: string, playType?: string) {
+  const where: any = { babyId, familyId, deletedAt: null, activities: { not: null } };
   if (playType) where.type = playType;
 
   const rows = await prisma.playLog.findMany({
@@ -136,7 +136,7 @@ async function handleGet(req: NextRequest, ctx: ApiKeyContext, routeContext: any
     data.sleepLocations = await getSleepLocations(babyId, ctx.familyId);
   }
   if (!typeParam || typeParam === 'play-categories') {
-    data.playCategories = await getPlayCategories(babyId, playType);
+    data.playCategories = await getPlayCategories(babyId, ctx.familyId, playType);
   }
   if (!typeParam || typeParam === 'feed-types') {
     data.feedTypes = FEED_TYPES;
