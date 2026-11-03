@@ -375,14 +375,81 @@ export async function verifyLogoutLifecycle({ base, db, scratch, reportDir }) {
     }
     {
       const f = await fixture('explicit-retry-and-navigation-recovery');
-      await f.page.clock.install({ time: new Date() });
-      const nav = { ready: deferred(), release: deferred(), finished: deferred(), evidence: {} }; f.holds.push(nav);
+      // Use native timers here. New evaluations and locator actions can wait
+      // behind pending navigation, so observe the retained document from a
+      // callback installed before navigation and consume its reports in Node.
+      const navigationUI = { timer: 'native', phaseAllowanceMs: 15_100, observationBudgetMs: 15_000, samples: [] };
+      f.evidence.navigationUI = navigationUI;
+      let latestSnapshot, lastSignature, snapshotSequence = 0;
+      const snapshotWaiters = new Set(), trustedReturn = deferred();
+      await f.page.exposeBinding('__recordLogoutNavigationUI', (_, event) => {
+        if (event.kind === 'click') {
+          navigationUI.click = { ...event, observedAt: new Date().toISOString() };
+          trustedReturn.resolve(navigationUI.click); persist(); return;
+        }
+        latestSnapshot = { ...event, sequence: ++snapshotSequence, observedAt: new Date().toISOString() };
+        const signature = JSON.stringify([event.documentId, event.regionCount, event.regionVisible,
+          event.loginFormCount, event.childSelectorCount, event.alertTexts, event.buttons]);
+        if (signature !== lastSignature) {
+          lastSignature = signature; navigationUI.samples.push(latestSnapshot); persist();
+        }
+        for (const inspect of snapshotWaiters) inspect();
+      });
+      await f.page.evaluate(() => {
+        const report = event => { void window.__recordLogoutNavigationUI(event).catch(() => {}); };
+        const visible = node => {
+          if (!node) return false;
+          const rect = node.getBoundingClientRect(), style = getComputedStyle(node);
+          return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden'
+            && style.display !== 'none' && Number(style.opacity) > 0;
+        };
+        const snapshot = () => {
+          const regions = [...document.querySelectorAll('section[aria-label="Signing out..."]')], region = regions[0];
+          report({ kind: 'snapshot', documentId: window.__logoutLifecycleProbe.documentId, browserTime: Date.now(),
+            regionCount: regions.length, regionVisible: visible(region),
+            loginFormCount: document.querySelectorAll('.login-container').length,
+            childSelectorCount: document.querySelectorAll('[aria-label="Select Baby"]').length,
+            alertTexts: [...(region?.querySelectorAll('[role="alert"]') || [])].map(node => node.textContent.trim()),
+            viewport: { width: innerWidth, height: innerHeight },
+            buttons: [...(region?.querySelectorAll('button') || [])].map(button => {
+              const rect = button.getBoundingClientRect(), x = rect.x + rect.width / 2, y = rect.y + rect.height / 2;
+              const hit = document.elementFromPoint(x, y);
+              return { text: button.textContent.trim(), disabled: button.disabled, visible: visible(button),
+                center: { x, y }, bounds: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+                centerHitMatches: Boolean(hit && (hit === button || button.contains(hit))) };
+            }) });
+        };
+        new MutationObserver(snapshot).observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true });
+        setInterval(snapshot, 250); snapshot();
+        document.addEventListener('click', event => {
+          const button = event.target instanceof Element ? event.target.closest('button') : null;
+          if (button?.closest('section[aria-label="Signing out..."]') && button.textContent.trim() === 'Return to sign-in') {
+            report({ kind: 'click', documentId: window.__logoutLifecycleProbe.documentId, browserTime: Date.now(),
+              trusted: event.isTrusted, targetText: button.textContent.trim(), disabled: button.disabled,
+              point: { x: event.clientX, y: event.clientY } });
+          }
+        }, true);
+      });
+      const waitSnapshot = async (predicate, label, milliseconds = 15_000) => {
+        const ready = deferred(), inspect = () => { if (latestSnapshot && predicate(latestSnapshot)) ready.resolve(latestSnapshot); };
+        snapshotWaiters.add(inspect); inspect();
+        try { return await bounded(ready.promise, label, milliseconds); } finally { snapshotWaiters.delete(inspect); }
+      };
+      const assertBlockedSnapshot = snapshot => {
+        assert.equal(snapshot.documentId, f.initialDocument); assert.equal(snapshot.regionCount, 1);
+        assert.equal(snapshot.regionVisible, true); assert.equal(snapshot.loginFormCount, 0); assert.equal(snapshot.childSelectorCount, 0);
+      };
+      await waitSnapshot(snapshot => snapshot.documentId === f.initialDocument, 'prearmed original-document observer');
+      const nav = { ready: deferred(), recovery: deferred(), release: deferred(), finished: deferred(), evidence: {} }; f.holds.push(nav);
       const captureFailure = deferred();
       let navigationCount = 0, responses = 0;
       await f.page.route(`${base}/${f.family.slug}?*`, async route => {
-        if (!route.request().isNavigationRequest()) return route.continue();
+        if (!route.request().isNavigationRequest() || route.request().frame() !== f.page.mainFrame()) return route.continue();
         navigationCount++;
-        if (navigationCount > 1) return route.continue();
+        const destination = new URL(route.request().url());
+        const request = { number: navigationCount, path: destination.pathname, reason: destination.searchParams.get('src'), observedAtMs: Date.now() };
+        if (navigationCount > 1) { nav.recovery.resolve(request); return route.continue(); }
+        nav.evidence.firstRequest = request; nav.startedAt = Date.now(); nav.snapshotFloor = snapshotSequence;
         nav.ready.resolve(); await nav.release.promise;
         try { await route.continue(); nav.evidence.continueReturned = true; }
         catch { nav.evidence.cancelledByReturnNavigation = true; }
@@ -407,14 +474,42 @@ export async function verifyLogoutLifecycle({ base, db, scratch, reportDir }) {
       await blocked(f);
       assert.equal(f.counts.logout, 1); assert.equal(await token(f.page) === f.ownerToken, true); await assertPending(f);
       await signOut(f.page).getByRole('button', { name: 'Retry sign-out', exact: true }).click({ noWaitAfter: true });
-      await Promise.race([bounded(nav.ready.promise, 'destination navigation held after retry'), captureFailure.promise]); await blocked(f);
-      assert.equal(await documentId(f.page) === f.initialDocument, true); assert.equal(f.counts.logout, 2);
-      await f.page.clock.runFor(15_100);
-      await signOut(f.page).getByRole('alert').filter({ hasText: 'The sign-in page did not open. Try again.' }).waitFor();
-      assert.equal(await signOut(f.page).getByRole('button', { name: 'Retry sign-out', exact: true }).count(), 0);
-      await signOut(f.page).getByRole('button', { name: 'Return to sign-in', exact: true }).click({ noWaitAfter: true });
+      await Promise.race([bounded(nav.ready.promise, 'destination navigation held after retry'), captureFailure.promise]);
+      const fresh = snapshot => snapshot.sequence > nav.snapshotFloor && snapshot.browserTime > nav.startedAt
+        && snapshot.documentId === f.initialDocument;
+      const blockedState = await waitSnapshot(fresh, 'fresh blocked original-document observation');
+      assertBlockedSnapshot(blockedState); navigationUI.blocked = blockedState; assert.equal(f.counts.logout, 2);
+      // Preserve the prior 15.1s phase advance plus 15s observation allowance,
+      // now elapsed natively. This does not change the application's 15s timer.
+      const watchdogDeadline = nav.startedAt + navigationUI.phaseAllowanceMs + navigationUI.observationBudgetMs;
+      const watchdogState = await waitSnapshot(snapshot => fresh(snapshot) && snapshot.sequence > blockedState.sequence
+        && snapshot.alertTexts.includes('The sign-in page did not open. Try again.'), 'native navigation watchdog observation', Math.max(0, watchdogDeadline - Date.now()));
+      assertBlockedSnapshot(watchdogState); navigationUI.watchdog = watchdogState;
+      navigationUI.elapsedToWatchdogMs = Date.now() - nav.startedAt;
+      const clickState = await waitSnapshot(snapshot => fresh(snapshot) && snapshot.sequence > watchdogState.sequence,
+        'fresh visible recovery control');
+      assertBlockedSnapshot(clickState);
+      assert.deepEqual(clickState.alertTexts, ['The sign-in page did not open. Try again.']);
+      assert.equal(clickState.buttons.filter(button => button.text === 'Retry sign-out').length, 0);
+      const buttons = clickState.buttons.filter(button => button.text === 'Return to sign-in');
+      assert.equal(buttons.length, 1); assert.equal(clickState.buttons.length, 1); const button = buttons[0];
+      assert.equal(button.disabled, false); assert.equal(button.visible, true); assert.equal(button.centerHitMatches, true);
+      assert.ok(Number.isFinite(button.center.x) && Number.isFinite(button.center.y)
+        && button.center.x > 0 && button.center.x < clickState.viewport.width
+        && button.center.y > 0 && button.center.y < clickState.viewport.height);
+      assert.equal(navigationCount, 1); navigationUI.beforeClick = clickState; persist();
+      await bounded(f.page.mouse.click(button.center.x, button.center.y), 'trusted Return to sign-in pointer action');
+      const action = await bounded(trustedReturn.promise, 'original-document trusted Return click');
+      assert.equal(action.trusted, true); assert.equal(action.documentId, f.initialDocument);
+      assert.equal(action.targetText, 'Return to sign-in'); assert.equal(action.disabled, false);
+      const recoveryRequest = await bounded(nav.recovery.promise, 'Return-triggered second main-frame navigation');
+      assert.equal(navigationCount, 2); assert.equal(recoveryRequest.number, 2);
+      assert.equal(recoveryRequest.path, `/${f.family.slug}`); assert.equal(recoveryRequest.reason, 'logout-user');
+      assert.ok(recoveryRequest.observedAtMs >= action.browserTime);
+      nav.evidence.recoveryRequest = recoveryRequest;
       await release(nav); await newLoginDocument(f); assert.equal(f.counts.logout, 2, 'Navigation recovery must not send another logout');
       await login(f, f.actors[1]); await verifyNewOwner(f, await captureNewOwner(f));
+      assert.equal(navigationCount, 2);
       f.evidence.firstRealLogoutStatus = 200; f.evidence.injectedFirstResponseStatus = 500;
       f.evidence.realLogoutResponses = responses; f.evidence.destinationRequests = navigationCount; f.evidence.navigationRecovery = nav.evidence;
       await finishCase(f, 'Explicit Retry retains the first bearer after a failed confirmation; held-navigation recovery returns to sign-in without resending logout or deleting pending care');
