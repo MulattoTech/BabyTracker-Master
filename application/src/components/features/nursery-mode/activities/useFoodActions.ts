@@ -95,6 +95,12 @@ export function useFoodActions({ babyId, toUTCString, onLog, onUndoable }: Activ
     setPhase('idle'); remember(null); setError('');
   }, [owner.scope, owner.epoch]);
 
+  // A saved quick action owns the interaction until it is resolved. Do not
+  // reopen its old picker or enjoyment prompt after a later local dismissal.
+  useEffect(() => {
+    if (recovery.reviewing) { setPhase('idle'); remember(null); }
+  }, [recovery.reviewing]);
+
   // A stale search query shouldn't greet the next visit to the picker.
   useEffect(() => {
     if (phase !== 'picking') setQuery('');
