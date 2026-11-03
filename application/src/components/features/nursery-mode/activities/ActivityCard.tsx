@@ -62,7 +62,7 @@ export function ActivityCard({ view, log, iconColor, iconShape, dimmed = false }
       layout={!prefersReducedMotion}
       animate={{ opacity: dimmed ? 0 : 1 }}
       transition={{ duration: prefersReducedMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }}
-      className={`nursery-card${active ? ' active' : ''}${question ? ' question' : ''}`}
+      className={`nursery-card${active ? ' active' : ''}${question ? ' question' : ''}${view.wrapStatus ? ' wrap-status' : ''}`}
       style={{ '--active-glow': iconColor, pointerEvents: dimmed ? 'none' : undefined } as CSSProperties}
     >
       <div className="nursery-card-h">

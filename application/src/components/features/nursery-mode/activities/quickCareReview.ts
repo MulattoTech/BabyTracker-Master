@@ -4,7 +4,7 @@ import type { useQuickCareRecovery, QuickCareConfirmation } from './useQuickCare
 /** Shared presentation keeps the same recovery controls in Cards and Big Tiles. */
 export function quickCareReview(recovery: ReturnType<typeof useQuickCareRecovery>,
   t: (text: string) => string, language: string, timezone: string,
-  confirm: (value: QuickCareConfirmation | null) => void): Pick<ActivityView, 'statusText' | 'errorText' | 'buttons' | 'buttonsWrap' | 'showStatusInDialog'> {
+  confirm: (value: QuickCareConfirmation | null) => void): Pick<ActivityView, 'statusText' | 'errorText' | 'buttons' | 'buttonsWrap' | 'showStatusInDialog' | 'wrapStatus'> {
   const intent = recovery.pending;
   let at = '';
   if (intent) {
@@ -17,6 +17,7 @@ export function quickCareReview(recovery: ReturnType<typeof useQuickCareRecovery
     statusText: intent ? `${t('Saved care action')} · ${detail} · ${at}` : t('Care action needs review'),
     errorText: recovery.error ? t(recovery.error) : null,
     showStatusInDialog: true,
+    wrapStatus: true,
     buttonsWrap: true,
     buttons: [
       ...(intent ? [{ key: 'retryQuickCare', label: t('Retry saved care action'),
