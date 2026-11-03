@@ -80,16 +80,48 @@ export async function verifyMedicineDoseRecovery({ base, db, scratch, reportDir 
     context = await chromium.launchPersistentContext(profile, { headless: true,
       executablePath: process.env.BABYTRACKER_TEST_BROWSER_PATH || undefined,
       serviceWorkers: 'block', timezoneId: 'UTC', viewport: { width: 1440, height: 1100 } });
+    await context.addInitScript(() => {
+      const fonts = document.fonts, ready = fonts.ready;
+      let release;
+      const gate = new Promise(resolve => { release = resolve; });
+      window.__doseLoginFonts = { reads: 0, released: false, release: () => {
+        window.__doseLoginFonts.released = true; release();
+      } };
+      Object.defineProperty(fonts, 'ready', { configurable: true, get: () => {
+        window.__doseLoginFonts.reads++;
+        return ready.then(() => gate).then(() => fonts);
+      } });
+    });
     page = track(context.pages()[0] || await context.newPage()); activePage = page;
   };
   const login = async (target, actor, navigate = true) => {
     activePage = target;
     if (navigate) await target.goto(`${base}/${family.slug}`, { waitUntil: 'networkidle' });
-    await target.getByRole('heading', { name: 'Login ID & Security PIN', exact: true }).waitFor();
-    for (const digit of actor.loginId + actor.securityPin) await target.getByRole('button', { name: digit, exact: true }).click();
+    const panel = target.locator('.login-container');
+    await panel.getByRole('heading', { name: 'Login ID & Security PIN', exact: true }).waitFor();
+    const loginId = panel.getByLabel('Login ID', { exact: true });
+    const pin = panel.getByLabel('Security PIN', { exact: true });
+    if (await target.evaluate(() => window.__doseLoginFonts?.released === false)) {
+      await target.waitForFunction(() => window.__doseLoginFonts.reads > 0);
+    }
+    for (let index = 0; index < actor.loginId.length; index++) {
+      await panel.getByRole('button', { name: actor.loginId[index], exact: true }).click();
+      if (index === 0 && await target.evaluate(() => window.__doseLoginFonts?.released === false)) {
+        // A real delayed layout update must preserve the first committed digit.
+        await until(async () => await loginId.inputValue() === actor.loginId[0], 'first login ID digit committed');
+        await target.evaluate(() => window.__doseLoginFonts.release());
+        await target.waitForFunction(() => document.querySelector('.login-container .login-title')?.style.opacity === '1');
+        await target.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      }
+      assert.equal(await loginId.inputValue(), actor.loginId.slice(0, index + 1));
+    }
+    for (let index = 0; index < actor.securityPin.length; index++) {
+      await panel.getByRole('button', { name: actor.securityPin[index], exact: true }).click();
+      assert.equal(await pin.inputValue(), actor.securityPin.slice(0, index + 1));
+    }
     const [response] = await Promise.all([
       target.waitForResponse(value => new URL(value.url()).pathname === '/api/auth' && value.request().method() === 'POST'),
-      target.getByRole('button', { name: 'Go', exact: true }).click(),
+      panel.getByRole('button', { name: 'Go', exact: true }).click(),
     ]);
     const result = await response.json();
     assert.equal(response.status(), 200); assert.equal(result.data.role, 'USER'); assert.equal(result.data.id, actor.id);
