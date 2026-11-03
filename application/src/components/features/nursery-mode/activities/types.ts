@@ -68,24 +68,11 @@ export interface ActivityView {
 export interface UndoInfo {
   tileId: 'feed' | 'pump' | 'diaper' | 'sleep' | 'food';
   message: string;
+  /** Conditional Nursery actions are bound to their original owner and record. */
+  scope?: string;
+  actionId?: string;
   /** Reverts the just-logged action (delete the entry, or resume a session); resolves true on success. */
   undo: () => Promise<boolean>;
-}
-
-/** Shared undo helper: hard-delete a just-created log entry via its route's DELETE ?id=. */
-export async function undoDeleteLog(endpoint: string, id: string): Promise<boolean> {
-  try {
-    const authToken = localStorage.getItem('authToken');
-    const res = await fetch(`${endpoint}?id=${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: authToken ? `Bearer ${authToken}` : '' },
-    });
-    const data = await res.json();
-    return !!data.success;
-  } catch (err) {
-    console.error('Undo failed:', err);
-    return false;
-  }
 }
 
 export interface ActivityHookArgs {

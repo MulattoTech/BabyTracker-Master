@@ -6,6 +6,8 @@ import { toUTC, formatForResponse } from '../utils/timezone';
 import { checkWritePermission } from '../utils/writeProtection';
 import { careFields, readCareWrite, CareWriteError } from '../utils/care-write';
 import { notifyActivityCreated, resetTimerNotificationState } from '@/src/lib/notifications/activityHook';
+import { makeNurseryUndo, readNurseryCreateScope, readNurseryUndoRequest, NurseryUndoError } from '../utils/nursery-undo';
+import { undoNurseryRows } from '../utils/nursery-undo-mutations';
 
 async function handlePost(req: NextRequest, authContext: AuthResult) {
   // Check write permissions for expired accounts
@@ -20,7 +22,10 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'User is not associated with a family.' }, { status: 403 });
     }
 
-    const body = await readCareWrite<DiaperLogCreate>(req, careFields.diaper, ['babyId', 'time', 'type']);
+    const raw = await req.json().catch(() => null);
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new CareWriteError();
+    const nurseryScope = readNurseryCreateScope(raw, authContext, raw.babyId);
+    const body = await readCareWrite<DiaperLogCreate>({ json: async () => raw }, careFields.diaper, ['babyId', 'time', 'type']);
 
     const baby = await prisma.baby.findFirst({
       where: { id: body.babyId, familyId: userFamilyId, deletedAt: null },
@@ -54,11 +59,13 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
     notifyActivityCreated(diaperLog.babyId, 'diaper', { accountId: authContext.accountId, caretakerId: authContext.caretakerId }, { type: body.type }).catch(console.error);
     resetTimerNotificationState(diaperLog.babyId, 'diaper').catch(console.error);
 
-    return NextResponse.json<ApiResponse<DiaperLogResponse>>({
+    return NextResponse.json({
       success: true,
       data: response,
+      ...(nurseryScope ? { undo: makeNurseryUndo('diaper', authContext, [diaperLog]) } : {}),
     });
   } catch (error) {
+    if (error instanceof NurseryUndoError) return error.response();
     if (error instanceof CareWriteError) return error.response();
     console.error('Error creating diaper log:', error);
     return NextResponse.json<ApiResponse<DiaperLogResponse>>(
@@ -260,6 +267,12 @@ async function handleDelete(req: NextRequest, authContext: AuthResult) {
       );
     }
 
+    const undo = await readNurseryUndoRequest(req, 'diaper', id);
+    if (undo) {
+      await undoNurseryRows(prisma, authContext, undo);
+      return NextResponse.json({ success: true });
+    }
+
     const existingDiaperLog = await prisma.diaperLog.findFirst({
       where: { id, familyId: userFamilyId },
     });
@@ -282,6 +295,7 @@ async function handleDelete(req: NextRequest, authContext: AuthResult) {
       success: true,
     });
   } catch (error) {
+    if (error instanceof NurseryUndoError) return error.response();
     console.error('Error deleting diaper log:', error);
     return NextResponse.json<ApiResponse<void>>(
       {

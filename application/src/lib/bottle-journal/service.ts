@@ -1,6 +1,8 @@
 import type { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { bottleInput, BottleInput, journalTotals, journalWindow, JournalError, number, text } from './validation';
+import { journalScope } from './outbox-identity';
+import { makeScopedNurseryUndo } from '@/app/api/utils/nursery-undo';
 
 export interface JournalActor { familyId: string; caretakerId?: string | null; canManage?: boolean; actorKey?: string }
 export async function requireJournalBaby(db: PrismaClient, actor: JournalActor, babyId: string) {
@@ -63,9 +65,10 @@ export async function saveBottle(db: PrismaClient, actor: JournalActor, babyId: 
       if (!sameBottle(existing as unknown as Record<string, unknown>, data, babyId)) throw new JournalError('This request was already saved with different values. Refresh the journal before trying again.', 409);
       return { id, created: false, updated: false };
     }
-    await tx.feedLog.create({ data: { ...data, id, familyId: actor.familyId, babyId, caretakerId: actor.caretakerId || null } });
+    const row = await tx.feedLog.create({ data: { ...data, id, familyId: actor.familyId, babyId, caretakerId: actor.caretakerId || null } });
     await tx.externalImportRecord.create({ data: { id: randomUUID(), familyId: actor.familyId, providerId: 'sat-tracker-journal', sourceEntityType: 'feed', sourceRecordId: id, sourceChildId: babyId, targetEntityType: 'FeedLog', targetRecordId: id } });
-    return { id, created: true, updated: false };
+    return { id, created: true, updated: false,
+      ...(actor.actorKey ? { undo: makeScopedNurseryUndo('bottle', journalScope(actor.familyId, actor.actorKey, babyId), [row]) } : {}) };
   });
 }
 export async function setJournalTarget(db: PrismaClient, actor: JournalActor, babyId: string, value: unknown) {

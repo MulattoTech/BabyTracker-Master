@@ -6,6 +6,8 @@ import { formatForResponse } from '../utils/timezone';
 import { checkWritePermission } from '../utils/writeProtection';
 import { startBreastfeedSession, updateBreastfeedSession, endBreastfeedSession, SESSION_UPDATE_ACTIONS, SessionUpdateAction, resolveRequestedStartTime, BreastfeedSessionConflict, BreastfeedSessionInputError } from '../utils/activeBreastFeed';
 import { journalScope } from '@/src/lib/bottle-journal/outbox-identity';
+import { makeNurseryUndo } from '../utils/nursery-undo';
+import type { NurseryUndo } from '@/src/utils/nursery/undo';
 
 function formatActiveBreastFeed(record: any): ActiveBreastFeedResponse {
   return {
@@ -203,6 +205,7 @@ async function handleDelete(req: NextRequest, authContext: AuthResult) {
     const body = await optionalSessionBody(req);
     checkSessionScope(body.expectedScope, session.babyId, authContext);
 
+    let undo: NurseryUndo | null = null;
     const { feedLogs } = await endBreastfeedSession(session, {
       familyId: userFamilyId,
       caretakerId,
@@ -211,11 +214,13 @@ async function handleDelete(req: NextRequest, authContext: AuthResult) {
       rightDuration: body.rightDuration,
       pauseDuration: body.pauseDuration,
       expectedUpdatedAt: body.expectedUpdatedAt,
+      onCreated: (rows, sessionId) => { if (body.expectedScope !== undefined && rows.length) undo = makeNurseryUndo('breast', authContext, rows, { sessionId }); },
     });
 
-    return NextResponse.json<ApiResponse<{ feedLogsCreated: number; feedLogIds: string[] }>>({
+    return NextResponse.json({
       success: true,
       data: { feedLogsCreated: feedLogs.length, feedLogIds: feedLogs.map(log => log.id) },
+      ...(undo ? { undo } : {}),
     });
   } catch (error) {
     if (error instanceof BreastfeedSessionConflict) return NextResponse.json({ success: false, code: 'BREASTFEED_CONFLICT', error: error.message }, { status: 409 });

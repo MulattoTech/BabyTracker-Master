@@ -19,6 +19,7 @@ import { verifyCareContactEditors } from './care-contact-editor-browser.mjs';
 import { verifyNurseryPumpRecovery } from './nursery-pump-browser.mjs';
 import { verifyNurseryBottle } from './nursery-bottle-browser.mjs';
 import { verifyBreastfeedingRecovery } from './breastfeeding-recovery-browser.mjs';
+import { verifyNurseryUndo } from './nursery-undo-browser.mjs';
 import { verifyNurserySleepRecovery } from './nursery-sleep-browser.mjs';
 import { verifyMedicineDoseRecovery } from './medicine-dose-recovery-browser.mjs';
 const require = createRequire(import.meta.url);
@@ -347,6 +348,8 @@ try {
   report.nurseryBottleChecksPassed = true;
   report.checks.push(...await verifyBreastfeedingRecovery({ base, db, family, baby, caretaker, token, secret, context }));
   report.breastfeedingRecoveryChecksPassed = true;
+  report.checks.push(...await verifyNurseryUndo({ base, db, family, secret, context }));
+  report.nurseryUndoChecksPassed = true;
   report.checks.push(...await verifyNurserySleepRecovery({ base, db, secret, context, scratch, browserExecutable: browserServer.process().spawnfile }));
   report.nurserySleepRecoveryChecksPassed = true;
   report.checks.push(...await verifyMedicineDoseRecovery({ base, db, scratch, reportDir }));

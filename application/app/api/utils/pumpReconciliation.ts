@@ -2,6 +2,8 @@ import type { FeedLog, Prisma, PrismaClient, PumpLog } from '@prisma/client';
 import { autoPumpFeedNotes, shouldHaveAutoPumpFeed } from '@/src/utils/breastMilkInventory';
 import { representablePumpAmount } from '@/src/utils/pump-validation';
 import { normalizeVolumeUnit } from '@/src/utils/unit-conversion';
+import type { UndoRecord } from '@/src/utils/nursery/undo';
+import { careRevision, careSnapshot } from './care-revision';
 
 export class PumpReconciliationConflict extends Error {
   constructor(message = 'This pumping record changed while you were saving. Review the latest pumping and feeding records before trying again.',
@@ -17,6 +19,25 @@ const ownershipConflict = () => new PumpReconciliationConflict(
 const removedPumpConflict = () => new PumpReconciliationConflict(
   'This pumping record was removed. Review the care history before changing it.', 'PUMP_RECONCILIATION_REQUIRED',
 );
+
+function isPumpContention(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  if ('code' in error && ['P2034', 'P1008', 'P2028'].includes(String(error.code))) return true;
+  const cause = 'cause' in error ? error.cause : null;
+  return !!cause && typeof cause === 'object' && 'originalCode' in cause
+    && ['SQLITE_BUSY', 'SQLITE_BUSY_SNAPSHOT', 'SQLITE_LOCKED'].includes(String(cause.originalCode));
+}
+
+async function pumpTransaction<T>(db: PrismaClient, action: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+  try {
+    // Keep the operation bounded while allowing SQLite's default5s writer wait
+    // to settle before Prisma aborts the owning transaction. Never auto-replay.
+    return await db.$transaction(action, { timeout: 15_000 });
+  } catch (error) {
+    if (isPumpContention(error)) throw new PumpReconciliationConflict();
+    throw error;
+  }
+}
 
 // Claim every scalar, not only updatedAt: two writers may share a timestamp.
 // The caller validated its patch against this exact authenticated snapshot.
@@ -94,7 +115,7 @@ async function reconcileFeed(tx: Prisma.TransactionClient, pump: PumpLog, previo
 }
 
 export async function createPumpWithFeed(db: PrismaClient, data: Prisma.PumpLogUncheckedCreateInput) {
-  return db.$transaction(async tx => {
+  return pumpTransaction(db, async tx => {
     const pump = await tx.pumpLog.create({ data });
     await reconcileFeed(tx, pump);
     return pump;
@@ -102,7 +123,7 @@ export async function createPumpWithFeed(db: PrismaClient, data: Prisma.PumpLogU
 }
 
 export async function updatePumpWithFeed(db: PrismaClient, previous: PumpLog, data: Prisma.PumpLogUncheckedUpdateManyInput) {
-  return db.$transaction(async tx => {
+  return pumpTransaction(db, async tx => {
     if (previous.deletedAt) throw removedPumpConflict();
     const claimed = await tx.pumpLog.updateMany({ where: snapshotWhere(previous), data: {
       ...data, updatedAt: new Date(Math.max(Date.now(), previous.updatedAt.getTime() + 1)),
@@ -114,11 +135,29 @@ export async function updatePumpWithFeed(db: PrismaClient, previous: PumpLog, da
   });
 }
 
+/** Nursery supplies the original linked-feed revision (or explicit absence).
+ * Ordinary manual deletes retain their existing conservative reconciliation. */
+export async function deletePumpSnapshot(tx: Prisma.TransactionClient, previous: PumpLog, expectedFeed?: UndoRecord | null) {
+  if (previous.deletedAt) throw removedPumpConflict();
+  // Claim first: SQLite must acquire its writer before reading related rows.
+  // A later relationship conflict rolls this deletion back with the feed.
+  const deleted = await tx.pumpLog.deleteMany({ where: snapshotWhere(previous) });
+  if (deleted.count !== 1) throw new PumpReconciliationConflict();
+  let feed: FeedLog | null = null;
+  if (expectedFeed !== undefined) {
+    const linked = await tx.feedLog.findMany({ where: { sourcePumpId: previous.id } });
+    if (expectedFeed === null ? linked.length !== 0 : linked.length !== 1
+      || linked[0].id !== expectedFeed.id || linked[0].familyId !== previous.familyId || linked[0].babyId !== previous.babyId
+      || linked[0].deletedAt !== null || careRevision('feed', linked[0]) !== expectedFeed.revision) throw ownershipConflict();
+    feed = linked[0] ?? null;
+  }
+  if (expectedFeed === undefined) await reconcileFeed(tx, previous, previous, true);
+  else if (feed) {
+    const removed = await tx.feedLog.deleteMany({ where: careSnapshot('feed', feed) as Prisma.FeedLogWhereInput });
+    if (removed.count !== 1) throw new PumpReconciliationConflict();
+  }
+}
+
 export async function deletePumpWithFeed(db: PrismaClient, previous: PumpLog) {
-  return db.$transaction(async tx => {
-    if (previous.deletedAt) throw removedPumpConflict();
-    const deleted = await tx.pumpLog.deleteMany({ where: snapshotWhere(previous) });
-    if (deleted.count !== 1) throw new PumpReconciliationConflict();
-    await reconcileFeed(tx, previous, previous, true);
-  });
+  return pumpTransaction(db, tx => deletePumpSnapshot(tx, previous));
 }

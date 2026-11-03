@@ -14,7 +14,8 @@ import type { BottlePayload } from '@/src/components/BottleJournal/types';
 import { journalScopeFromToken } from '@/src/lib/bottle-journal/outbox-identity';
 import { cacheDefaultBottleUnit, readCachedDefaultBottleUnit, type BottleUnit } from '@/src/utils/defaultBottleUnit';
 import { formatFeedNote } from '@/src/utils/nursery/activityDetail';
-import { undoDeleteLog, type ActivityHookArgs } from './types';
+import { type ActivityHookArgs } from './types';
+import { conditionalUndo } from './conditionalUndo';
 import '@/src/components/BottleJournal/bottle-journal.css';
 import './nursery-bottle.css';
 
@@ -59,7 +60,7 @@ export function useNurseryBottle({ babyId, onLog, onUndoable }: Pick<ActivityHoo
     return () => { active = false; window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', foreground); };
   }, [readScope, authenticatedFetch]);
 
-  const outbox = useJournalOutbox(babyId, row => {
+  const outbox = useJournalOutbox(babyId, (row, undo) => {
     if (row.scope !== currentScope.current()) return;
     setNotice('Bottle saved.');
     onLog('feed', formatFeedNote({ type: 'BOTTLE', amount: row.bottle.amount,
@@ -67,7 +68,7 @@ export function useNurseryBottle({ babyId, onLog, onUndoable }: Pick<ActivityHoo
       breast: t('Breast'), bottle: t('Bottle'), formula: t('Formula'), pumpedBottle: t('Pumped Bottle'), food: t('Food'),
       left: t('Left'), right: t('Right'),
     }), row.bottle.time);
-    onUndoable({ tileId: 'feed', message: t('Bottle logged'), undo: () => undoDeleteLog('/api/feed-log', row.requestId) });
+    if (undo) onUndoable(conditionalUndo(undo, t('Bottle logged'), () => currentScope.current()));
   });
 
   const open = () => {

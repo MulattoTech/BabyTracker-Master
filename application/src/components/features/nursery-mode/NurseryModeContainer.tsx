@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useBaby } from '@/app/context/baby';
 import { useTimezone } from '@/app/context/timezone';
 import { useLocalization } from '@/src/context/localization';
+import { useFamily } from '@/src/context/family';
 import { useWakeLock } from '@/src/hooks/useWakeLock';
 import { useFullscreen } from '@/src/hooks/useFullscreen';
 import { useNurserySettings } from '@/src/hooks/useNurserySettings';
@@ -27,6 +28,8 @@ import { ActivityCard } from './activities/ActivityCard';
 import { BigTile } from './activities/BigTile';
 import { UndoToast } from './activities/UndoToast';
 import { UndoInfo } from './activities/types';
+import { useNurseryOwner, type NurseryOwnerCapture } from './activities/useNurseryOwner';
+import { NurseryUndoFailure, undoUnconfirmed } from '@/src/utils/nursery/undoRequest';
 import './nursery.css';
 
 export function NurseryModeContainer() {
@@ -34,6 +37,9 @@ export function NurseryModeContainer() {
   const params = useParams();
   const slug = params?.slug as string;
   const { selectedBaby, setSelectedBaby } = useBaby();
+  const { family } = useFamily();
+  const owner = useNurseryOwner(selectedBaby?.id ?? '');
+  const callbackOwner = owner.capture();
   const selectedBabyRef = useRef(selectedBaby);
   selectedBabyRef.current = selectedBaby;
   const { toUTCString, timeFormat } = useTimezone();
@@ -45,6 +51,11 @@ export function NurseryModeContainer() {
   const [entries, setEntries] = useState<Record<string, TileEntry>>({});
   const [babies, setBabies] = useState<Baby[]>([]);
   const [undo, setUndo] = useState<UndoInfo | null>(null);
+  const undoRef = useRef(undo), undoOwner = useRef<NurseryOwnerCapture | null>(null), undoBusy = useRef<UndoInfo | null>(null);
+  const undoNeedsReview = useRef(false);
+  const [undoState, setUndoState] = useState({ busy: false, error: '', retryable: false });
+  const tileVersions = useRef<Record<string, number>>({});
+  const pollRequest = useRef(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [enableBreastMilkTracking, setEnableBreastMilkTracking] = useState(true);
   const [photosEnabled, setPhotosEnabled] = useState(false);
@@ -64,6 +75,12 @@ export function NurseryModeContainer() {
   const lastSeenRef = useRef<Record<string, string>>({});
   const lastSeenDayRef = useRef<string>('');
   const fetchActivityRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    undoRef.current = null; undoOwner.current = null; undoBusy.current = null; undoNeedsReview.current = false;
+    setUndo(null); setUndoState({ busy: false, error: '', retryable: false });
+    setEntries({}); lastSeenRef.current = {}; tileVersions.current = {}; pollRequest.current++;
+  }, [owner.scope, owner.epoch]);
 
   // Listen for orientation changes
   useLayoutEffect(() => {
@@ -142,12 +159,15 @@ export function NurseryModeContainer() {
 
   useEffect(() => {
     if (!selectedBaby) return;
+    let active = true;
+    const capturedOwner = owner.capture();
 
     // A switched baby (or a newly enabled activity) must repopulate every tile,
     // so drop the dedup cache and let the immediate refetch rebuild the entries.
     lastSeenRef.current = {};
 
     const fetchRecentActivity = async () => {
+      const request = ++pollRequest.current, versions = { ...tileVersions.current };
       try {
         const authToken = localStorage.getItem('authToken');
         const headers: Record<string, string> = authToken ? { Authorization: `Bearer ${authToken}` } : {};
@@ -168,6 +188,8 @@ export function NurseryModeContainer() {
           pumpRes.ok ? pumpRes.json() : null,
           foodRes && foodRes.ok ? foodRes.json() : null,
         ]);
+        if (!active || request !== pollRequest.current || !owner.isCurrent(capturedOwner)
+          || Object.keys(tileVersions.current).some(tile => tileVersions.current[tile] !== versions[tile])) return;
 
         // A tile's meta line shows a clock time with no date, so an entry from days
         // ago reads like a recent one — null means "hide this tile's line" (#250).
@@ -180,6 +202,9 @@ export function NurseryModeContainer() {
           lastSeenRef.current = {};
         }
         const newEntries: Record<string, TileEntry | null> = {};
+        for (const [tileId, data] of Object.entries({ feed: feedData, diaper: diaperData, sleep: sleepData, pump: pumpData, food: foodData })) {
+          if (data?.success && Array.isArray(data.data) && data.data.length === 0) newEntries[tileId] = null;
+        }
 
         // Latest feed
         if (feedData?.success && feedData.data?.length > 0) {
@@ -270,6 +295,7 @@ export function NurseryModeContainer() {
         }
 
         if (Object.keys(newEntries).length > 0) {
+          for (const tileId of Object.keys(newEntries)) tileVersions.current[tileId] = (tileVersions.current[tileId] || 0) + 1;
           setEntries(prev => {
             const next = { ...prev };
             let changed = false;
@@ -298,44 +324,82 @@ export function NurseryModeContainer() {
     pollRef.current = setInterval(fetchRecentActivity, 10000);
 
     return () => {
+      active = false;
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [selectedBaby?.id, settings.acts.food]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedBaby?.id, settings.acts.food, owner.scope, owner.epoch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Localized here rather than in the poller: non-English bundles lazy-load, so
   // strings frozen at poll time stayed English for the life of the entry.
   const logs = useMemo(() => formatTileLogs(entries, timeFormat, t), [entries, timeFormat, t]);
 
   const handleLog = useCallback((tileId: string, note: string, at?: string) => {
+    if (!owner.isCurrent(callbackOwner)) return;
+    tileVersions.current[tileId] = (tileVersions.current[tileId] || 0) + 1;
     // A queued bottle keeps its actual feeding time. A later delivery must not
     // make an older bottle look new or replace a more recent activity summary.
     setEntries(prev => {
       if (at && (!isWithinTileWindow(at, Date.now()) || Date.parse(prev[tileId]?.at || '') > Date.parse(at))) return prev;
       return { ...prev, [tileId]: { kind: 'note', at: at || new Date().toISOString(), note } };
     });
-  }, []);
+  }, [owner.scope, owner.epoch, owner.isCurrent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Stable identity: the container re-renders every second while an activity
   // timer runs, and UndoToast's auto-dismiss effect depends on this callback —
   // an inline arrow would re-arm the 6s timeout on every tick.
-  const dismissUndo = useCallback(() => setUndo(null), []);
-
-  const handleUndoConfirmed = useCallback((tileId: string) => {
-    setEntries(prev => {
-      const next = { ...prev };
-      delete next[tileId];
-      return next;
-    });
-    lastSeenRef.current[tileId] = '';
-    if (fetchActivityRef.current) fetchActivityRef.current();
+  const dismissUndo = useCallback((target: UndoInfo) => {
+    if (undoRef.current !== target || undoBusy.current === target) return;
+    undoRef.current = null; undoOwner.current = null; undoNeedsReview.current = false;
+    setUndo(null); setUndoState({ busy: false, error: '', retryable: false });
   }, []);
 
+  const handleUndoable = useCallback((next: UndoInfo) => {
+    if (!owner.isCurrent(callbackOwner) || (next.scope && next.scope !== callbackOwner?.scope)) return;
+    // A later save may update its tile, but must not discard the original
+    // descriptor while its Undo is in flight or still needs review.
+    if (undoBusy.current || undoNeedsReview.current) return;
+    undoRef.current = next; undoOwner.current = callbackOwner; undoBusy.current = null;
+    setUndo(next); setUndoState({ busy: false, error: '', retryable: false });
+  }, [owner.scope, owner.epoch, owner.isCurrent]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sleep's explicit retry uses this same callback after its original toast
+  // expires. Its own closure checks owner/epoch; this also guards the view.
+  const handleUndoConfirmed = useCallback((tileId: string, expectedVersion?: number) => {
+    if (!owner.isCurrent(callbackOwner)) return;
+    if (expectedVersion === undefined || (tileVersions.current[tileId] || 0) === expectedVersion) {
+      tileVersions.current[tileId] = (tileVersions.current[tileId] || 0) + 1;
+      setEntries(prev => { const next = { ...prev }; delete next[tileId]; return next; });
+    }
+    lastSeenRef.current[tileId] = '';
+    if (fetchActivityRef.current) fetchActivityRef.current();
+  }, [owner.scope, owner.epoch, owner.isCurrent]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleUndo = useCallback(async () => {
-    if (!undo) return;
-    const ok = await undo.undo();
-    if (ok) handleUndoConfirmed(undo.tileId);
-    setUndo(null);
-  }, [undo, handleUndoConfirmed]);
+    const action = undoRef.current, captured = undoOwner.current;
+    if (!action || undoBusy.current === action || !owner.isCurrent(captured)) return;
+    const version = tileVersions.current[action.tileId] || 0;
+    undoBusy.current = action; setUndoState({ busy: true, error: '', retryable: false });
+    try {
+      const ok = await action.undo();
+      if (undoRef.current !== action || !owner.isCurrent(captured)) return;
+      if (ok) handleUndoConfirmed(action.tileId, version);
+      // Sleep owns its retained review UI and keeps its boolean callback.
+      if (ok || !action.scope) { undoBusy.current = null; dismissUndo(action); }
+      else { undoNeedsReview.current = true; setUndoState({ busy: false, error: undoUnconfirmed, retryable: true }); }
+    } catch (failure) {
+      if (undoRef.current === action && owner.isCurrent(captured)) {
+        undoNeedsReview.current = true;
+        setUndoState({ busy: false, error: failure instanceof NurseryUndoFailure ? failure.message : undoUnconfirmed,
+          retryable: failure instanceof NurseryUndoFailure ? failure.retryable : true });
+      }
+    } finally {
+      if (undoBusy.current === action) undoBusy.current = null;
+    }
+  }, [owner.isCurrent, handleUndoConfirmed, dismissUndo]);
+
+  const reviewUndo = useCallback(() => {
+    if (owner.isCurrent(undoOwner.current) && family?.slug) window.open(`/${encodeURIComponent(family.slug)}/full-log`, '_blank', 'noopener,noreferrer');
+  }, [owner.isCurrent, family?.slug]);
 
   const handleExit = useCallback(() => {
     wakeLock.release();
@@ -352,7 +416,8 @@ export function NurseryModeContainer() {
   }, [babies, setSelectedBaby]);
 
   // Activity hooks — always called unconditionally (rules of hooks)
-  const hookArgs = { babyId: selectedBaby?.id ?? '', toUTCString, onLog: handleLog, onUndoable: setUndo, onUndoConfirmed: handleUndoConfirmed, enableBreastMilkTracking, sleepLocations: settings.sleep.locations };
+  const hookArgs = { babyId: selectedBaby?.id ?? '', toUTCString, onLog: handleLog, onUndoable: handleUndoable,
+    onUndoConfirmed: handleUndoConfirmed, enableBreastMilkTracking, sleepLocations: settings.sleep.locations };
   const feedView = useFeedActions(hookArgs);
   const pumpView = usePumpActions(hookArgs);
   const diaperView = useDiaperActions(hookArgs);
@@ -445,7 +510,8 @@ export function NurseryModeContainer() {
         </div>
       )}
 
-      <UndoToast undo={undo} onUndo={handleUndo} onDismiss={dismissUndo} />
+      <UndoToast undo={owner.isCurrent(undoOwner.current) ? undo : null} onUndo={handleUndo} onDismiss={dismissUndo}
+        busy={undoState.busy} error={undoState.error} retryable={undoState.retryable} onReview={reviewUndo} />
       {feedView.overlay}
 
       <SettingsDrawer

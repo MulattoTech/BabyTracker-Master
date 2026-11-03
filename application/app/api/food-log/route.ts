@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import type { Prisma } from '@prisma/client';
+import type { Prisma, FoodEnjoyment } from '@prisma/client';
 import prisma from '../db';
 import { ApiResponse, FoodLogCreate, FoodLogItemInput, FoodLogResponse } from '../types';
 import { withAuthContext, AuthResult } from '../utils/auth';
 import { toUTC, formatForResponse } from '../utils/timezone';
 import { checkWritePermission } from '../utils/writeProtection';
+import { makeNurseryUndo, readNurseryCreateScope, readNurseryUndoRequest, NurseryUndoError } from '../utils/nursery-undo';
+import { undoNurseryRows, updateNurseryFood } from '../utils/nursery-undo-mutations';
+import { readNurseryUndo } from '@/src/utils/nursery/undo';
 import {
   buildFoodLogFoodFields,
   expandFoodItems,
@@ -175,7 +178,10 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'User is not associated with a family.' }, { status: 403 });
     }
 
-    const body: FoodLogCreate = await req.json();
+    const raw = await req.json();
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new FoodLogWriteError('Invalid food log fields.', 400);
+    const nurseryScope = readNurseryCreateScope(raw, authContext, raw.babyId);
+    const body: FoodLogCreate = raw;
     const feedLogId = parseFeedLogId(body.feedLogId);
 
     const baby = await prisma.baby.findFirst({
@@ -243,11 +249,13 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       items.map(i => i.foodId)
     );
 
-    return NextResponse.json<ApiResponse<FoodLogResponse>>({
+    return NextResponse.json({
       success: true,
       data: formatFoodLog(foodLog, catalog),
+      ...(nurseryScope ? { undo: makeNurseryUndo('food', authContext, [foodLog]) } : {}),
     });
   } catch (error) {
+    if (error instanceof NurseryUndoError) return error.response();
     if (error instanceof FoodLogWriteError) {
       return NextResponse.json({ success: false, error: error.message }, { status: error.status });
     }
@@ -279,7 +287,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    const body: Partial<FoodLogCreate> = await req.json();
+    const body: Partial<FoodLogCreate> & { nurseryUndo?: unknown } = await req.json();
     const feedLogId = parseFeedLogId(body.feedLogId);
 
     if (!id) {
@@ -290,6 +298,17 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
         },
         { status: 400 }
       );
+    }
+
+    if (Object.hasOwn(body, 'nurseryUndo')) {
+      const undo = readNurseryUndo(body.nurseryUndo);
+      if (!undo || undo.kind !== 'food' || undo.records[0].id !== id || Object.keys(body).length !== 2
+        || !Object.hasOwn(body, 'enjoyment') || !isValidEnjoyment(body.enjoyment)) {
+        throw new NurseryUndoError('Invalid Undo request. Review the care log.', 400, 'NURSERY_UNDO_INVALID');
+      }
+      const row = await updateNurseryFood(prisma, authContext, undo, body.enjoyment as FoodEnjoyment);
+      const catalog = await loadCatalogMap(userFamilyId, expandFoodItems(row).map(item => item.foodId));
+      return NextResponse.json({ success: true, data: formatFoodLog(row, catalog), undo: makeNurseryUndo('food', authContext, [row]) });
     }
 
     const items = normalizeItemInputs(body);
@@ -362,6 +381,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       data: formatFoodLog(foodLog, catalog),
     });
   } catch (error) {
+    if (error instanceof NurseryUndoError) return error.response();
     if (error instanceof FoodLogWriteError) {
       return NextResponse.json({ success: false, error: error.message }, { status: error.status });
     }
@@ -497,6 +517,12 @@ async function handleDelete(req: NextRequest, authContext: AuthResult) {
       );
     }
 
+    const undo = await readNurseryUndoRequest(req, 'food', id);
+    if (undo) {
+      await undoNurseryRows(prisma, authContext, undo);
+      return NextResponse.json({ success: true });
+    }
+
     const existingFoodLog = await prisma.foodLog.findFirst({
       where: { id, familyId: userFamilyId },
     });
@@ -520,6 +546,7 @@ async function handleDelete(req: NextRequest, authContext: AuthResult) {
       success: true,
     });
   } catch (error) {
+    if (error instanceof NurseryUndoError) return error.response();
     console.error('Error deleting food log:', error);
     return NextResponse.json<ApiResponse>(
       {

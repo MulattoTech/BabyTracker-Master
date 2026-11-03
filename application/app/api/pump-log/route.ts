@@ -16,6 +16,9 @@ import { preparePumpFields } from './fields';
 import { createPumpOnce, pumpRequestIdentity, PumpRequestError } from './request';
 import { checkPumpRevision } from '@/src/utils/pumpRevision';
 import { deletePumpWithFeed, PumpReconciliationConflict, updatePumpWithFeed } from '../utils/pumpReconciliation';
+import { makeNurseryUndo, readNurseryUndoRequest, NurseryUndoError } from '../utils/nursery-undo';
+import { undoNurseryRows } from '../utils/nursery-undo-mutations';
+import type { NurseryUndo } from '@/src/utils/nursery/undo';
 
 async function handlePost(req: NextRequest, authContext: AuthResult) {
   // Check write permissions for expired accounts
@@ -81,6 +84,7 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       caretakerId,
       familyId: userFamilyId,
     };
+    let undo: NurseryUndo | null = null;
     const { pumpLog, created } = await createPumpOnce(prisma, identity, createData, trackingEnabled, async (tx) => {
       const createdPumpLog = await tx.pumpLog.create({
         data: createData,
@@ -88,8 +92,9 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
 
       // Keep the feeding record for reports, but link it to the pump so it can
       // be synchronized and excluded from stored-inventory consumption.
+      let feed = null;
       if (shouldHaveAutoPumpFeed({ trackingEnabled, pumpAction, totalAmount })) {
-        await tx.feedLog.create({
+        feed = await tx.feedLog.create({
           data: {
             time: startTimeUTC,
             type: 'BOTTLE',
@@ -105,6 +110,7 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
         });
       }
 
+      if (identity) undo = makeNurseryUndo('pump', authContext, [createdPumpLog], { feed });
       return createdPumpLog;
     });
 
@@ -125,6 +131,7 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       success: true,
       data: response,
       ...(identity ? { requestId: identity.requestId } : {}),
+      ...(created && undo ? { undo } : {}),
     });
   } catch (error) {
     if (error instanceof PumpRequestError) {
@@ -378,6 +385,12 @@ async function handleDelete(req: NextRequest, authContext: AuthResult) {
       );
     }
 
+    const undo = await readNurseryUndoRequest(req, 'pump', id);
+    if (undo) {
+      await undoNurseryRows(prisma, authContext, undo);
+      return NextResponse.json({ success: true });
+    }
+
     const existingPumpLog = await prisma.pumpLog.findFirst({
       where: { id, familyId: userFamilyId },
     });
@@ -398,6 +411,7 @@ async function handleDelete(req: NextRequest, authContext: AuthResult) {
       success: true,
     });
   } catch (error) {
+    if (error instanceof NurseryUndoError) return error.response();
     if (error instanceof PumpReconciliationConflict) {
       return NextResponse.json({ success: false, error: error.message, code: error.code }, { status: 409 });
     }

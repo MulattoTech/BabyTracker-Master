@@ -6,7 +6,9 @@ import { useFamily } from '@/src/context/family';
 import { journalScopeFromToken } from '@/src/lib/bottle-journal/outbox-identity';
 import { formatPumpNote } from '@/src/utils/nursery/activityDetail';
 import { loadPumpSession, readPumpSession, mutatePumpSession, clearPumpSession, pumpSessionKey, preparePumpSubmission, type PumpSessionSnapshot, type PumpSessionSide } from '@/src/utils/nursery/pumpSession';
-import { ActivityHookArgs, ActivityView, ActionButton, AmountPrompt, formatMMSS, undoDeleteLog } from './types';
+import { ActivityHookArgs, ActivityView, ActionButton, AmountPrompt, formatMMSS } from './types';
+import { readNurseryUndo } from '@/src/utils/nursery/undo';
+import { conditionalUndo } from './conditionalUndo';
 import { cacheDefaultBottleUnit, readCachedDefaultBottleUnit, type BottleUnit } from '@/src/utils/defaultBottleUnit';
 import type { PumpAction } from '@/src/utils/pumpAction';
 
@@ -230,7 +232,10 @@ export function usePumpActions({ babyId, onLog, onUndoable, enableBreastMilkTrac
         rightAmount: pending.rightAmount ?? null, unitAbbr: pending.unitAbbr,
         durationSeconds: stopped.sideDuration.left + stopped.sideDuration.right + stopped.elapsed, action: pending.pumpAction },
       { left: t('Left'), right: t('Right'), both: t('Both'), stored: t('Stored'), fed: t('Fed'), discarded: t('Discarded'), unknown: t('Needs review') }));
-      onUndoable({ tileId: 'pump', message: t('Pump logged'), undo: () => undoDeleteLog('/api/pump-log', data.data.id) });
+      const undo = readNurseryUndo(data.undo);
+      if (undo?.kind === 'pump' && undo.scope === scope && undo.records[0].id === data.data.id) {
+        onUndoable(conditionalUndo(undo, t('Pump logged'), () => currentScope.current()));
+      }
     } catch (failure) {
       const localFailure = failure instanceof Error && [storageError, lockingError].includes(failure.message);
       if (pending && !localFailure && adoptChangedDraft()) return;
