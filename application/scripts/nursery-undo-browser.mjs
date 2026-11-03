@@ -333,14 +333,24 @@ export async function verifyNurseryUndo({ base, db, family: enclosingFamily, sec
     assert.deepEqual(await db.externalImportRecord.findMany({ where: { familyId: family.id } }), receipts);
   });
   await run('A bottle replay confirms the existing save without inventing a fresh Undo', async f => {
-    const { dialog, form } = await openBottle(f); let original;
+    const { dialog, form } = await openBottle(f); let original, resolveCapture, rejectCapture;
+    const captured = new Promise((resolve, reject) => { resolveCapture = resolve; rejectCapture = reject; });
+    // Pending controls render before delivery finishes. Capture failures must
+    // reach the bounded assertion even if they occur before it starts waiting.
+    void captured.catch(() => {});
     const lose = async route => {
       if (route.request().method() !== 'POST') return route.continue();
-      const response = await route.fetch(); assert.equal(response.status(), 200); original = await response.json(); await route.abort('failed');
+      try {
+        const response = await route.fetch(); assert.equal(response.status(), 200);
+        original = await response.json(); assert.equal(original.success, true);
+        assert.ok(original.data?.id); assert.ok(original.data?.undo);
+        await route.abort('failed'); resolveCapture();
+      } catch (error) { rejectCapture(error); }
     };
     await f.page.route('**/api/bottle-journal', lose); await form.getByRole('button', { name: 'Save bottle', exact: true }).click();
     const pending = dialog.getByRole('region', { name: 'Pending bottles on this browser', exact: true });
     await pending.getByRole('button', { name: 'Retry this entry', exact: true }).waitFor();
+    await bounded(captured, 'Capture and drop the original successful bottle response');
     assert.ok(original.data.undo); await f.page.unroute('**/api/bottle-journal', lose);
     const replay = f.response('/api/bottle-journal', 'POST'); await pending.getByRole('button', { name: 'Retry this entry', exact: true }).click();
     const replayed = await replay; assert.equal(replayed.status(), 200); const body = await replayed.json();
