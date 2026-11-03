@@ -8,6 +8,7 @@ import { careFields, readCareWrite, CareWriteError } from '../utils/care-write';
 import { notifyActivityCreated, resetTimerNotificationState } from '@/src/lib/notifications/activityHook';
 import { makeNurseryUndo, readNurseryCreateScope, readNurseryUndoRequest, NurseryUndoError } from '../utils/nursery-undo';
 import { undoNurseryRows } from '../utils/nursery-undo-mutations';
+import { createNurseryQuickCare, readQuickCareRequest } from '../utils/nursery-quick-care';
 
 async function handlePost(req: NextRequest, authContext: AuthResult) {
   // Check write permissions for expired accounts
@@ -24,6 +25,7 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
 
     const raw = await req.json().catch(() => null);
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new CareWriteError();
+    const quickRequest = readQuickCareRequest(raw, 'diaper', authContext);
     const nurseryScope = readNurseryCreateScope(raw, authContext, raw.babyId);
     const body = await readCareWrite<DiaperLogCreate>({ json: async () => raw }, careFields.diaper, ['babyId', 'time', 'type']);
 
@@ -37,7 +39,8 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
     
     const timeUTC = toUTC(body.time);
     
-    const diaperLog = await prisma.diaperLog.create({
+    const saved = quickRequest ? await createNurseryQuickCare(prisma, authContext, quickRequest) : null;
+    const diaperLog = saved?.row ?? await prisma.diaperLog.create({
       data: {
         ...body,
         time: timeUTC,
@@ -56,13 +59,16 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
     };
 
     // Notify subscribers about activity creation (non-blocking)
-    notifyActivityCreated(diaperLog.babyId, 'diaper', { accountId: authContext.accountId, caretakerId: authContext.caretakerId }, { type: body.type }).catch(console.error);
-    resetTimerNotificationState(diaperLog.babyId, 'diaper').catch(console.error);
+    if (saved?.created !== false) {
+      notifyActivityCreated(diaperLog.babyId, 'diaper', { accountId: authContext.accountId, caretakerId: authContext.caretakerId }, { type: body.type }).catch(console.error);
+      resetTimerNotificationState(diaperLog.babyId, 'diaper').catch(console.error);
+    }
 
     return NextResponse.json({
       success: true,
       data: response,
-      ...(nurseryScope ? { undo: makeNurseryUndo('diaper', authContext, [diaperLog]) } : {}),
+      ...(saved ? { undo: saved.undo, replayed: !saved.created }
+        : nurseryScope ? { undo: makeNurseryUndo('diaper', authContext, [diaperLog]) } : {}),
     });
   } catch (error) {
     if (error instanceof NurseryUndoError) return error.response();

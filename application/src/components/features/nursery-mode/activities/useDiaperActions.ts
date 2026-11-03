@@ -1,61 +1,28 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
 import { useLocalization } from '@/src/context/localization';
+import { useTimezone } from '@/app/context/timezone';
 import { ActivityHookArgs, ActivityView } from './types';
-import { readNurseryUndo } from '@/src/utils/nursery/undo';
 import { useNurseryOwner } from './useNurseryOwner';
 import { conditionalUndo } from './conditionalUndo';
+import { useQuickCareRecovery, type QuickCareConfirmation } from './useQuickCareRecovery';
+import { quickCareReview } from './quickCareReview';
 
 /**
- * Diaper activity — transplanted 1:1 from DiaperTile.tsx.
- * Instant POST /api/diaper-log with one-tap undo support.
+ * Quick diaper actions retain their first intent until the save is confirmed.
+ * Undo still claims the original server-issued full row revision.
  */
 export function useDiaperActions({ babyId, toUTCString, onLog, onUndoable }: ActivityHookArgs): ActivityView {
-  const { t } = useLocalization();
-  const [submitting, setSubmitting] = useState(false);
-  const owner = useNurseryOwner(babyId), busy = useRef(false), requestId = useRef(0);
-  useEffect(() => { requestId.current++; busy.current = false; setSubmitting(false); }, [owner.scope, owner.epoch]);
-
-  const submitDiaper = useCallback(async (type: string) => {
-    const captured = owner.capture();
-    if (busy.current || !owner.isCurrent(captured)) return;
-    const request = ++requestId.current;
-    busy.current = true;
-    setSubmitting(true);
-    try {
-      const authToken = localStorage.getItem('authToken');
-      const now = toUTCString(new Date());
-      const res = await fetch('/api/diaper-log', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: authToken ? `Bearer ${authToken}` : '',
-        },
-        body: JSON.stringify({ babyId, time: now, type, nurseryScope: captured!.scope }),
-      });
-      const data = await res.json();
-      if (!owner.isCurrent(captured) || request !== requestId.current) return;
-      if (res.ok && data.success && data.data?.id) {
-        const labels: Record<string, string> = { WET: t('Wet'), DIRTY: t('Dirty'), BOTH: t('Both'), DRY: t('Dry') };
-        onLog('diaper', labels[type] || type, data.data.time);
-        const undo = readNurseryUndo(data.undo);
-        if (undo?.kind === 'diaper' && undo.scope === captured!.scope && undo.records[0].id === data.data.id) {
-          const messages: Record<string, string> = {
-            WET: t('Wet diaper logged'),
-            DIRTY: t('Dirty diaper logged'),
-            BOTH: t('Diaper logged'),
-            DRY: t('Dry diaper logged'),
-          };
-          onUndoable(conditionalUndo(undo, messages[type] || t('Diaper logged'), owner.scopeNow, () => owner.isCurrent(captured)));
-        }
-      }
-    } catch (err) {
-      console.error('Error logging diaper:', err);
-    } finally {
-      if (owner.isCurrent(captured) && request === requestId.current) { busy.current = false; setSubmitting(false); }
-    }
-  }, [babyId, toUTCString, onLog, onUndoable, owner.capture, owner.isCurrent, owner.scopeNow, t]);
+  const { t, language } = useLocalization(), { userTimezone } = useTimezone();
+  const owner = useNurseryOwner(babyId), recovery = useQuickCareRecovery('diaper', babyId, owner);
+  function announce(saved: QuickCareConfirmation | null) {
+    if (!saved || saved.intent.kind !== 'diaper' || !owner.isCurrent(saved.owner)) return;
+    const labels = { WET: 'Wet', DIRTY: 'Dirty', BOTH: 'Both', DRY: 'Dry' };
+    const messages = { WET: 'Wet diaper logged', DIRTY: 'Dirty diaper logged', BOTH: 'Diaper logged', DRY: 'Dry diaper logged' };
+    onLog('diaper', t(labels[saved.intent.type]), saved.time);
+    onUndoable(conditionalUndo(saved.undo, t(messages[saved.intent.type]), owner.scopeNow, () => owner.isCurrent(saved.owner)));
+  }
+  const submitDiaper = async (type: string) => announce(await recovery.create({ type, time: toUTCString(new Date()) }));
 
   return {
     id: 'diaper',
@@ -69,10 +36,11 @@ export function useDiaperActions({ babyId, toUTCString, onLog, onUndoable }: Act
     // overflowing past the card with no scroll affordance.
     buttonsWrap: true,
     buttons: [
-      { key: 'wet', label: t('Wet'), onClick: () => submitDiaper('WET'), disabled: submitting },
-      { key: 'dirty', label: t('Dirty'), onClick: () => submitDiaper('DIRTY'), disabled: submitting },
-      { key: 'both', label: t('Both'), onClick: () => submitDiaper('BOTH'), disabled: submitting },
-      { key: 'dry', label: t('Dry'), onClick: () => submitDiaper('DRY'), disabled: submitting },
+      { key: 'wet', label: t('Wet'), onClick: () => submitDiaper('WET'), disabled: recovery.busy, keepOpen: true },
+      { key: 'dirty', label: t('Dirty'), onClick: () => submitDiaper('DIRTY'), disabled: recovery.busy, keepOpen: true },
+      { key: 'both', label: t('Both'), onClick: () => submitDiaper('BOTH'), disabled: recovery.busy, keepOpen: true },
+      { key: 'dry', label: t('Dry'), onClick: () => submitDiaper('DRY'), disabled: recovery.busy, keepOpen: true },
     ],
+    ...(recovery.reviewing ? quickCareReview(recovery, t, language, userTimezone, announce) : {}),
   };
 }

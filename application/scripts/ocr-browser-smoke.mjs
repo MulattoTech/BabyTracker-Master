@@ -22,6 +22,7 @@ import { verifyBreastfeedingRecovery } from './breastfeeding-recovery-browser.mj
 import { verifyNurseryUndo } from './nursery-undo-browser.mjs';
 import { verifyNurserySleepRecovery } from './nursery-sleep-browser.mjs';
 import { verifyMedicineDoseRecovery } from './medicine-dose-recovery-browser.mjs';
+import { verifyNurseryQuickCare } from './nursery-quick-care-browser.mjs';
 import { verifyFamilyReadBoundaries } from './family-read-boundary-http.mjs';
 const require = createRequire(import.meta.url);
 const { PrismaClient } = require('@prisma/client');
@@ -355,6 +356,10 @@ try {
   report.nurserySleepRecoveryChecksPassed = true;
   report.checks.push(...await verifyMedicineDoseRecovery({ base, db, scratch, reportDir }));
   report.medicineDoseRecoveryChecksPassed = true;
+  report.checks.push(...await verifyNurseryQuickCare({ base, db, secret, context, scratch, browserExecutable: browserServer.process().spawnfile }));
+  report.nurseryQuickCareRecoveryChecksPassed = true;
+  report.screenshots.push(path.join(reportDir, 'nursery-quick-care-mobile.png'));
+  report.screenshots.push(...['diaper', 'food'].map(kind => path.join(reportDir, `nursery-quick-care-${kind}-cards.png`)));
   report.checks.push(...await verifyFamilyReadBoundaries({ base, db, secret, reportDir }));
   report.familyReadBoundaryChecksPassed = true;
   const userToken = jwt.sign({ id: caretaker.id, name: caretaker.name, role: 'USER', familyId: family.id, familySlug: family.slug }, secret, { expiresIn: '5m' });
