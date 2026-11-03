@@ -29,12 +29,12 @@ const until = async (condition, label) => {
 export async function verifyLogoutLifecycle({ base, db, scratch, reportDir }) {
   assert.match(base, /^http:\/\/127\.0\.0\.1:\d+$/);
   assert.ok(scratch, 'The acceptance runner must own a disposable scratch directory');
-  const runId = process.env.SAT_TRACKER_ACCEPTANCE_RUN_ID || randomUUID(), fixtures = [], checks = [], errors = [], cleanupErrors = [];
+  const runId = process.env.SAT_TRACKER_ACCEPTANCE_RUN_ID || randomUUID(), fixtures = [], checks = [], errors = [], captureErrors = [], cleanupErrors = [];
   const report = { runId, startedAt: new Date().toISOString(), syntheticOnly: true,
     authentication: 'Actual PIN UI, POST /api/auth USER logins and real protected API requests',
     scope: 'One document per transition; old-document cancellation is distinguished from same-document generation unit coverage',
     storageCoverage: 'Exact byte preservation only: synthetic scoped care payloads use real product keys; this module does not restore or dispatch those care requests',
-    checks, evidence: [], errors, cleanup: { errors: cleanupErrors, fixtureIds: [] } };
+    checks, evidence: [], errors, captureErrors, cleanup: { errors: cleanupErrors, fixtureIds: [] } };
   const persist = () => {
     if (!reportDir) return;
     mkdirSync(reportDir, { recursive: true });
@@ -191,22 +191,42 @@ export async function verifyLogoutLifecycle({ base, db, scratch, reportDir }) {
     beginScenario(f, 'post-authentication');
     return f;
   };
+  const abortFailedCapture = async (f, route, stage, error, expectedStatus, actualStatus) => {
+    // Playwright fetch errors may include request headers in their call log.
+    // Record the stage/status/type, never raw response bodies or error logs.
+    const failure = { case: f.name, path: new URL(route.request().url()).pathname, stage,
+      errorName: ['Error', 'AssertionError', 'SyntaxError', 'TypeError', 'TimeoutError'].includes(error?.name) ? error.name : 'Error',
+      expectedStatus, actualStatus: actualStatus ?? null, observedAt: new Date().toISOString() };
+    captureErrors.push(failure); persist();
+    try { await route.abort('failed'); failure.requestAborted = true; }
+    catch { failure.abortAfterTerminalRequest = true; }
+    persist();
+    return new Error(`Unexpected ${stage} failure while capturing ${failure.path} (${failure.errorName}; expected ${expectedStatus}, received ${actualStatus ?? 'no response'})`);
+  };
   const holdActual = async (f, url, expectedStatus, validate = body => assert.equal(body.success, true)) => {
     const h = { ready: deferred(), release: deferred(), finished: deferred(), evidence: {} };
     f.holds.push(h);
     h.handler = async route => {
+      let stage = 'fetch', actualStatus;
       try {
-        h.response = await route.fetch(); h.body = await h.response.json();
-        assert.equal(h.response.status(), expectedStatus); validate(h.body);
+        h.response = await route.fetch(); actualStatus = h.response.status();
+        stage = 'body'; h.body = await h.response.json();
+        stage = 'status'; assert.equal(h.response.status(), expectedStatus);
+        stage = 'body-validation'; validate(h.body);
         h.evidence.status = h.response.status(); h.evidence.bodyValidated = true;
         h.evidence.clearsRefreshCookie = /refreshToken=;.*Max-Age=0/i.test(h.response.headers()['set-cookie'] ?? '');
         h.ready.resolve(); await h.release.promise;
         try { await route.fulfill({ response: h.response }); h.evidence.fulfillReturned = true; }
         catch { h.evidence.fulfillRejectedAfterNavigationOrAbort = true; }
-      } catch (error) { h.error = error; h.ready.reject(error); }
+      } catch (error) {
+        h.error = await abortFailedCapture(f, route, stage, error, expectedStatus, actualStatus);
+        h.ready.reject(h.error);
+      }
       finally { h.finished.resolve(); }
     };
-    await f.page.route(url, h.handler); return h;
+    // Retiring this registration does not cancel its captured in-flight route:
+    // that response can still be released after navigation/native abort.
+    await f.page.route(url, h.handler, { times: 1 }); return h;
   };
   const release = async h => {
     h.release.resolve(); await bounded(h.finished.promise, 'held response terminal');
@@ -357,6 +377,7 @@ export async function verifyLogoutLifecycle({ base, db, scratch, reportDir }) {
       const f = await fixture('explicit-retry-and-navigation-recovery');
       await f.page.clock.install({ time: new Date() });
       const nav = { ready: deferred(), release: deferred(), finished: deferred(), evidence: {} }; f.holds.push(nav);
+      const captureFailure = deferred();
       let navigationCount = 0, responses = 0;
       await f.page.route(`${base}/${f.family.slug}?*`, async route => {
         if (!route.request().isNavigationRequest()) return route.continue();
@@ -368,15 +389,25 @@ export async function verifyLogoutLifecycle({ base, db, scratch, reportDir }) {
         finally { nav.finished.resolve(); }
       });
       await f.page.route(`${base}/api/auth/logout`, async route => {
-        const response = await route.fetch(), body = await response.json();
-        assert.equal(response.status(), 200); assert.equal(body.success, true); responses++;
-        if (responses === 1) return route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ success: false, error: 'Synthetic lost logout confirmation' }) });
-        return route.fulfill({ response });
+        let stage = 'fetch', actualStatus;
+        try {
+          const response = await route.fetch(); actualStatus = response.status();
+          stage = 'body'; const body = await response.json();
+          stage = 'status'; assert.equal(response.status(), 200);
+          stage = 'body-validation'; assert.equal(body.success, true); responses++;
+          stage = 'fulfill';
+          if (responses === 1) await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ success: false, error: 'Synthetic lost logout confirmation' }) });
+          else await route.fulfill({ response });
+        } catch (error) {
+          captureFailure.reject(await abortFailedCapture(f, route, stage, error, 200, actualStatus));
+        }
       });
-      await manualLogout(f); await signOut(f.page).getByRole('button', { name: 'Retry sign-out', exact: true }).waitFor(); await blocked(f);
+      await manualLogout(f);
+      await Promise.race([signOut(f.page).getByRole('button', { name: 'Retry sign-out', exact: true }).waitFor(), captureFailure.promise]);
+      await blocked(f);
       assert.equal(f.counts.logout, 1); assert.equal(await token(f.page) === f.ownerToken, true); await assertPending(f);
       await signOut(f.page).getByRole('button', { name: 'Retry sign-out', exact: true }).click({ noWaitAfter: true });
-      await bounded(nav.ready.promise, 'destination navigation held after retry'); await blocked(f);
+      await Promise.race([bounded(nav.ready.promise, 'destination navigation held after retry'), captureFailure.promise]); await blocked(f);
       assert.equal(await documentId(f.page) === f.initialDocument, true); assert.equal(f.counts.logout, 2);
       await f.page.clock.runFor(15_100);
       await signOut(f.page).getByRole('alert').filter({ hasText: 'The sign-in page did not open. Try again.' }).waitFor();
@@ -389,6 +420,7 @@ export async function verifyLogoutLifecycle({ base, db, scratch, reportDir }) {
       await finishCase(f, 'Explicit Retry retains the first bearer after a failed confirmation; held-navigation recovery returns to sign-in without resending logout or deleting pending care');
     }
     assert.equal(checks.length, 5); assert.deepEqual(errors, [], 'Logout lifecycle browser JavaScript errors');
+    assert.deepEqual(captureErrors, [], 'Logout lifecycle route capture errors');
     report.status = 'PASS';
   } catch (error) {
     report.status = 'FAIL'; report.error = { message: error.message, stack: error.stack };
@@ -423,11 +455,12 @@ export async function verifyLogoutLifecycle({ base, db, scratch, reportDir }) {
       } catch (error) { cleanupErrors.push({ resource: 'owned synthetic family', id: f.family.id, message: error.message }); }
     }
     report.cleanup.ownedFamiliesRemoved = await db.family.count({ where: { id: { in: report.cleanup.fixtureIds } } }) === 0;
-    if (cleanupErrors.length || !report.cleanup.ownedFamiliesRemoved) {
-      report.status = 'FAIL'; report.error ??= { message: 'Owned logout lifecycle cleanup did not complete' };
+    if (captureErrors.length || cleanupErrors.length || !report.cleanup.ownedFamiliesRemoved) {
+      report.status = 'FAIL'; report.error ??= { message: captureErrors.length ? 'Unexpected browser route capture failure' : 'Owned logout lifecycle cleanup did not complete' };
     }
     report.completedAt = new Date().toISOString(); persist();
   }
+  assert.deepEqual(captureErrors, [], 'Logout lifecycle route capture errors');
   assert.deepEqual(cleanupErrors, [], 'Logout lifecycle owned-resource cleanup');
   assert.equal(report.cleanup.ownedFamiliesRemoved, true);
   return checks;
