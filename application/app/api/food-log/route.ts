@@ -8,6 +8,8 @@ import { checkWritePermission } from '../utils/writeProtection';
 import { makeNurseryUndo, readNurseryCreateScope, readNurseryUndoRequest, NurseryUndoError } from '../utils/nursery-undo';
 import { undoNurseryRows, updateNurseryFood } from '../utils/nursery-undo-mutations';
 import { readNurseryUndo } from '@/src/utils/nursery/undo';
+import { CareWriteError } from '../utils/care-write';
+import { createNurseryQuickCare, readQuickCareRequest } from '../utils/nursery-quick-care';
 import {
   buildFoodLogFoodFields,
   expandFoodItems,
@@ -180,7 +182,13 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
 
     const raw = await req.json();
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new FoodLogWriteError('Invalid food log fields.', 400);
+    const quickRequest = readQuickCareRequest(raw, 'food', authContext);
     const nurseryScope = readNurseryCreateScope(raw, authContext, raw.babyId);
+    if (quickRequest) {
+      const saved = await createNurseryQuickCare(prisma, authContext, quickRequest);
+      const catalog = await loadCatalogMap(userFamilyId, [quickRequest.foodId]);
+      return NextResponse.json({ success: true, data: formatFoodLog(saved.row, catalog), undo: saved.undo, replayed: !saved.created });
+    }
     const body: FoodLogCreate = raw;
     const feedLogId = parseFeedLogId(body.feedLogId);
 
@@ -255,6 +263,7 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       ...(nurseryScope ? { undo: makeNurseryUndo('food', authContext, [foodLog]) } : {}),
     });
   } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
     if (error instanceof NurseryUndoError) return error.response();
     if (error instanceof FoodLogWriteError) {
       return NextResponse.json({ success: false, error: error.message }, { status: error.status });

@@ -3251,5 +3251,21 @@
   "Retry Undo": "Retry Undo",
   "Dismiss Undo review": "Dismiss Undo review",
   "This food entry changed or its enjoyment update was not confirmed. Review the care log.": "This food entry changed or its enjoyment update was not confirmed. Review the care log.",
-  "Dismiss review": "Dismiss review"
+  "Dismiss review": "Dismiss review",
+  "Another tab is updating the saved care action. Keep this page open and retry.": "Another tab is updating the saved care action. Keep this page open and retry.",
+  "Care action needs review": "Care action needs review",
+  "Dismiss saved care action": "Dismiss saved care action",
+  "Reload saved action": "Reload saved action",
+  "Retry saved care action": "Retry saved care action",
+  "Saved care action": "Saved care action",
+  "Sign in again as the original caregiver before retrying the saved care action.": "Sign in again as the original caregiver before retrying the saved care action.",
+  "Sign in as a caregiver for this child before logging care.": "Sign in as a caregiver for this child before logging care.",
+  "The care action could not be prepared. Reload before trying again.": "The care action could not be prepared. Reload before trying again.",
+  "The care action was not confirmed. Its original details are kept. Retry the saved action or review the care log.": "The care action was not confirmed. Its original details are kept. Retry the saved action or review the care log.",
+  "The care action was saved, but this browser could not clear its review. Check the care log before dismissing it.": "The care action was saved, but this browser could not clear its review. Check the care log before dismissing it.",
+  "The saved care action changed in another tab. Its current state has been kept. Reload the saved action before continuing.": "The saved care action changed in another tab. Its current state has been kept. Reload the saved action before continuing.",
+  "This browser cannot safely coordinate saved care actions. Keep this page open and use a browser with Web Locks support before saving.": "This browser cannot safely coordinate saved care actions. Keep this page open and use a browser with Web Locks support before saving.",
+  "This browser could not read its saved care action. Keep this page open and check browser storage before logging again.": "This browser could not read its saved care action. Keep this page open and check browser storage before logging again.",
+  "This browser could not save the care action. Keep this page open and check browser storage. No request was sent on this attempt.": "This browser could not save the care action. Keep this page open and check browser storage. No request was sent on this attempt.",
+  "This saved care action changed or was removed. Review the care log before dismissing the saved action.": "This saved care action changed or was removed. Review the care log before dismissing the saved action."
 }

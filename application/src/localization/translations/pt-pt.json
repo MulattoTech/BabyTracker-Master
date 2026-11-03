@@ -3251,5 +3251,21 @@
   "Retry Undo": "Tentar anular novamente",
   "Dismiss Undo review": "Fechar revisão da anulação",
   "This food entry changed or its enjoyment update was not confirmed. Review the care log.": "Esta entrada de alimentação foi alterada ou a atualização da apreciação não foi confirmada. Consulte o registo de cuidados.",
-  "Dismiss review": "Fechar revisão"
+  "Dismiss review": "Fechar revisão",
+  "Another tab is updating the saved care action. Keep this page open and retry.": "Outro separador está a atualizar a ação de cuidado guardada. Mantenha esta página aberta e tente novamente.",
+  "Care action needs review": "A ação de cuidado precisa de revisão",
+  "Dismiss saved care action": "Descartar ação de cuidado guardada",
+  "Reload saved action": "Recarregar ação guardada",
+  "Retry saved care action": "Repetir ação de cuidado guardada",
+  "Saved care action": "Ação de cuidado guardada",
+  "Sign in again as the original caregiver before retrying the saved care action.": "Inicie sessão novamente como o cuidador original antes de repetir a ação de cuidado guardada.",
+  "Sign in as a caregiver for this child before logging care.": "Inicie sessão como cuidador desta criança antes de registar cuidados.",
+  "The care action could not be prepared. Reload before trying again.": "Não foi possível preparar a ação de cuidado. Recarregue antes de tentar novamente.",
+  "The care action was not confirmed. Its original details are kept. Retry the saved action or review the care log.": "A ação de cuidado não foi confirmada. Os detalhes originais foram mantidos. Repita a ação guardada ou consulte o registo de cuidados.",
+  "The care action was saved, but this browser could not clear its review. Check the care log before dismissing it.": "A ação de cuidado foi guardada, mas este navegador não conseguiu encerrar a revisão. Consulte o registo de cuidados antes de a descartar.",
+  "The saved care action changed in another tab. Its current state has been kept. Reload the saved action before continuing.": "A ação de cuidado guardada mudou noutro separador. O estado atual foi mantido. Recarregue a ação guardada antes de continuar.",
+  "This browser cannot safely coordinate saved care actions. Keep this page open and use a browser with Web Locks support before saving.": "Este navegador não consegue coordenar as ações de cuidado guardadas em segurança. Mantenha esta página aberta e utilize um navegador com suporte para Web Locks antes de guardar.",
+  "This browser could not read its saved care action. Keep this page open and check browser storage before logging again.": "Este navegador não conseguiu ler a ação de cuidado guardada. Mantenha esta página aberta e verifique o armazenamento do navegador antes de voltar a registar.",
+  "This browser could not save the care action. Keep this page open and check browser storage. No request was sent on this attempt.": "Este navegador não conseguiu guardar a ação de cuidado. Mantenha esta página aberta e verifique o armazenamento do navegador. Não foi enviado nenhum pedido nesta tentativa.",
+  "This saved care action changed or was removed. Review the care log before dismissing the saved action.": "Esta ação de cuidado guardada foi alterada ou removida. Consulte o registo de cuidados antes de descartar a ação guardada."
 }

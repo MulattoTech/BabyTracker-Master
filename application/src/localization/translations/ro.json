@@ -3251,5 +3251,21 @@
   "Retry Undo": "Reîncercați anularea",
   "Dismiss Undo review": "Închideți verificarea anulării",
   "This food entry changed or its enjoyment update was not confirmed. Review the care log.": "Această înregistrare alimentară s-a modificat sau actualizarea aprecierii nu a fost confirmată. Consultați jurnalul de îngrijire.",
-  "Dismiss review": "Închideți verificarea"
+  "Dismiss review": "Închideți verificarea",
+  "Another tab is updating the saved care action. Keep this page open and retry.": "O altă filă actualizează acțiunea de îngrijire salvată. Păstrați această pagină deschisă și încercați din nou.",
+  "Care action needs review": "Acțiunea de îngrijire necesită verificare",
+  "Dismiss saved care action": "Renunțați la acțiunea de îngrijire salvată",
+  "Reload saved action": "Reîncărcați acțiunea salvată",
+  "Retry saved care action": "Reîncercați acțiunea de îngrijire salvată",
+  "Saved care action": "Acțiune de îngrijire salvată",
+  "Sign in again as the original caregiver before retrying the saved care action.": "Autentificați-vă din nou ca îngrijitorul inițial înainte de a reîncerca acțiunea de îngrijire salvată.",
+  "Sign in as a caregiver for this child before logging care.": "Autentificați-vă ca îngrijitor al acestui copil înainte de a înregistra îngrijirea.",
+  "The care action could not be prepared. Reload before trying again.": "Acțiunea de îngrijire nu a putut fi pregătită. Reîncărcați înainte de a încerca din nou.",
+  "The care action was not confirmed. Its original details are kept. Retry the saved action or review the care log.": "Acțiunea de îngrijire nu a fost confirmată. Detaliile inițiale sunt păstrate. Reîncercați acțiunea salvată sau verificați jurnalul de îngrijire.",
+  "The care action was saved, but this browser could not clear its review. Check the care log before dismissing it.": "Acțiunea de îngrijire a fost salvată, dar browserul nu a putut închide verificarea. Consultați jurnalul de îngrijire înainte de a renunța la ea.",
+  "The saved care action changed in another tab. Its current state has been kept. Reload the saved action before continuing.": "Acțiunea de îngrijire salvată s-a modificat într-o altă filă. Starea actuală a fost păstrată. Reîncărcați acțiunea salvată înainte de a continua.",
+  "This browser cannot safely coordinate saved care actions. Keep this page open and use a browser with Web Locks support before saving.": "Acest browser nu poate coordona în siguranță acțiunile de îngrijire salvate. Păstrați pagina deschisă și folosiți un browser cu suport Web Locks înainte de a salva.",
+  "This browser could not read its saved care action. Keep this page open and check browser storage before logging again.": "Browserul nu a putut citi acțiunea de îngrijire salvată. Păstrați pagina deschisă și verificați stocarea browserului înainte de a înregistra din nou.",
+  "This browser could not save the care action. Keep this page open and check browser storage. No request was sent on this attempt.": "Browserul nu a putut salva acțiunea de îngrijire. Păstrați pagina deschisă și verificați stocarea browserului. Nu s-a trimis nicio solicitare la această încercare.",
+  "This saved care action changed or was removed. Review the care log before dismissing the saved action.": "Această acțiune de îngrijire salvată a fost modificată sau eliminată. Verificați jurnalul de îngrijire înainte de a renunța la acțiunea salvată."
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocalization } from '@/src/context/localization';
 import { useFamily } from '@/src/context/family';
+import { useTimezone } from '@/app/context/timezone';
 import {
   FOOD_ENJOYMENT_DISPLAY_ORDER,
   FOOD_ENJOYMENT_ICON_SRC,
@@ -14,6 +15,9 @@ import { ActivityHookArgs, ActivityView, ActionButton } from './types';
 import { readNurseryUndo, type NurseryUndo } from '@/src/utils/nursery/undo';
 import { useNurseryOwner, type NurseryOwnerCapture } from './useNurseryOwner';
 import { conditionalUndo } from './conditionalUndo';
+import { useQuickCareRecovery, type QuickCareConfirmation } from './useQuickCareRecovery';
+import { quickCareReview } from './quickCareReview';
+import { requestQuickCareJSON } from '@/src/utils/nursery/quickCareRequest';
 
 type FoodPhase = 'idle' | 'picking' | 'enjoyment';
 interface LoggedFood { id: string; name: string; at: string; undo: NurseryUndo; owner: NurseryOwnerCapture }
@@ -29,9 +33,11 @@ const ENJOYMENT_PROMPT_MS = 10000;
  * stay in the full FoodForm.
  */
 export function useFoodActions({ babyId, toUTCString, onLog, onUndoable }: ActivityHookArgs): ActivityView {
-  const { t } = useLocalization();
+  const { t, language } = useLocalization();
+  const { userTimezone } = useTimezone();
   const { family } = useFamily();
   const owner = useNurseryOwner(babyId);
+  const recovery = useQuickCareRecovery('food', babyId, owner);
   const [phase, setPhase] = useState<FoodPhase>('idle');
   const [catalog, setCatalog] = useState<NurseryFoodItem[]>([]);
   const [query, setQuery] = useState('');
@@ -58,10 +64,9 @@ export function useFoodActions({ babyId, toUTCString, onLog, onUndoable }: Activ
     const captured = owner.capture(), request = ++catalogRequest.current;
     try {
       const authToken = localStorage.getItem('authToken');
-      const res = await fetch('/api/food', {
+      const { data } = await requestQuickCareJSON(fetch, '/api/food', {
         headers: { Authorization: authToken ? `Bearer ${authToken}` : '' },
       });
-      const data = await res.json();
       if (owner.isCurrent(captured) && request === catalogRequest.current && data.success && Array.isArray(data.data)) {
         setCatalog(sortFoodsByName(data.data));
       }
@@ -105,36 +110,16 @@ export function useFoodActions({ babyId, toUTCString, onLog, onUndoable }: Activ
     return () => clearTimeout(timeout);
   }, [phase, submitting, error]);
 
+  function confirmFood(saved: QuickCareConfirmation | null) {
+    if (!saved || saved.intent.kind !== 'food' || !owner.isCurrent(saved.owner)) return;
+    const name = saved.intent.foodName;
+    onLog('food', formatFoodLogNote({ foodName: name }), saved.time);
+    remember({ id: saved.id, name, at: saved.time, undo: saved.undo, owner: saved.owner });
+    announceUndo(saved.undo, saved.owner); setError(''); setPhase('enjoyment');
+  }
   const submitFood = async (food: NurseryFoodItem) => {
-    const captured = owner.capture();
-    if (busy.current || !owner.isCurrent(captured)) return;
-    const request = ++requestId.current;
-    busy.current = true; setSubmitting(true); setError('');
-    try {
-      const res = await fetch('/api/food-log', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ babyId, foodId: food.id, time: toUTCString(new Date()), nurseryScope: captured!.scope }),
-      });
-      const data = await res.json();
-      if (!owner.isCurrent(captured) || request !== requestId.current) return;
-      if (res.ok && data.success && data.data?.id) {
-        const logId = data.data.id;
-        onLog('food', formatFoodLogNote({ foodName: food.name }), data.data.time);
-        const undo = readNurseryUndo(data.undo);
-        if (undo?.kind === 'food' && undo.scope === captured!.scope && undo.records[0].id === logId) {
-          remember({ id: logId, name: food.name, at: data.data.time, undo, owner: captured! });
-          announceUndo(undo, captured!); setPhase('enjoyment');
-        } else { remember(null); setPhase('idle'); }
-      } else {
-        setPhase('idle');
-      }
-    } catch (err) {
-      console.error('Error logging food:', err);
-      if (owner.isCurrent(captured) && request === requestId.current) setPhase('idle');
-    } finally {
-      if (owner.isCurrent(captured) && request === requestId.current) { busy.current = false; setSubmitting(false); }
-    }
+    if (busy.current) return;
+    confirmFood(await recovery.create({ foodId: food.id, foodName: food.name, time: toUTCString(new Date()) }));
   };
 
   const submitEnjoyment = async (value: FoodEnjoymentValue) => {
@@ -143,12 +128,11 @@ export function useFoodActions({ babyId, toUTCString, onLog, onUndoable }: Activ
     const request = ++requestId.current;
     busy.current = true; setSubmitting(true);
     try {
-      const res = await fetch(`/api/food-log?id=${encodeURIComponent(entry.id)}`, {
+      const { response: res, data } = await requestQuickCareJSON(fetch, `/api/food-log?id=${encodeURIComponent(entry.id)}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify({ enjoyment: value, nurseryUndo: entry.undo }),
       });
-      const data = await res.json();
       if (!owner.isCurrent(entry.owner) || request !== requestId.current || last.current?.id !== entry.id) return;
       const undo = readNurseryUndo(data.undo);
       if (res.ok && data.success && undo?.kind === 'food' && undo.scope === entry.owner.scope && undo.records[0].id === entry.id) {
@@ -226,5 +210,6 @@ export function useFoodActions({ babyId, toUTCString, onLog, onUndoable }: Activ
     buttonsWrap: phase === 'picking',
     searchPrompt,
     buttons,
+    ...(recovery.reviewing ? { ...quickCareReview(recovery, t, language, userTimezone, confirmFood), searchPrompt: null, question: false } : {}),
   };
 }

@@ -3255,5 +3255,21 @@
   "Retry Undo": "Ponów cofnięcie",
   "Dismiss Undo review": "Zamknij sprawdzanie cofnięcia",
   "This food entry changed or its enjoyment update was not confirmed. Review the care log.": "Ten wpis dotyczący jedzenia został zmieniony lub aktualizacja oceny nie została potwierdzona. Sprawdź dziennik opieki.",
-  "Dismiss review": "Zamknij sprawdzanie"
+  "Dismiss review": "Zamknij sprawdzanie",
+  "Another tab is updating the saved care action. Keep this page open and retry.": "Inna karta aktualizuje zapisane działanie opiekuńcze. Pozostaw tę stronę otwartą i spróbuj ponownie.",
+  "Care action needs review": "Działanie opiekuńcze wymaga sprawdzenia",
+  "Dismiss saved care action": "Odrzuć zapisane działanie opiekuńcze",
+  "Reload saved action": "Wczytaj zapisane działanie ponownie",
+  "Retry saved care action": "Ponów zapisane działanie opiekuńcze",
+  "Saved care action": "Zapisane działanie opiekuńcze",
+  "Sign in again as the original caregiver before retrying the saved care action.": "Zaloguj się ponownie jako pierwotny opiekun, zanim ponowisz zapisane działanie opiekuńcze.",
+  "Sign in as a caregiver for this child before logging care.": "Zaloguj się jako opiekun tego dziecka, zanim zapiszesz opiekę.",
+  "The care action could not be prepared. Reload before trying again.": "Nie udało się przygotować działania opiekuńczego. Wczytaj ponownie przed kolejną próbą.",
+  "The care action was not confirmed. Its original details are kept. Retry the saved action or review the care log.": "Nie potwierdzono działania opiekuńczego. Zachowano jego pierwotne dane. Ponów zapisane działanie lub sprawdź dziennik opieki.",
+  "The care action was saved, but this browser could not clear its review. Check the care log before dismissing it.": "Działanie opiekuńcze zostało zapisane, ale przeglądarka nie mogła zamknąć jego przeglądu. Sprawdź dziennik opieki przed odrzuceniem działania.",
+  "The saved care action changed in another tab. Its current state has been kept. Reload the saved action before continuing.": "Zapisane działanie opiekuńcze zmieniło się w innej karcie. Zachowano jego aktualny stan. Wczytaj zapisane działanie ponownie, zanim przejdziesz dalej.",
+  "This browser cannot safely coordinate saved care actions. Keep this page open and use a browser with Web Locks support before saving.": "Ta przeglądarka nie może bezpiecznie koordynować zapisanych działań opiekuńczych. Pozostaw tę stronę otwartą i przed zapisem użyj przeglądarki obsługującej Web Locks.",
+  "This browser could not read its saved care action. Keep this page open and check browser storage before logging again.": "Przeglądarka nie mogła odczytać zapisanego działania opiekuńczego. Pozostaw tę stronę otwartą i sprawdź pamięć przeglądarki przed kolejnym zapisem.",
+  "This browser could not save the care action. Keep this page open and check browser storage. No request was sent on this attempt.": "Przeglądarka nie mogła zapisać działania opiekuńczego. Pozostaw tę stronę otwartą i sprawdź pamięć przeglądarki. Podczas tej próby nie wysłano żądania.",
+  "This saved care action changed or was removed. Review the care log before dismissing the saved action.": "To zapisane działanie opiekuńcze zostało zmienione lub usunięte. Sprawdź dziennik opieki przed odrzuceniem zapisanego działania."
 }
