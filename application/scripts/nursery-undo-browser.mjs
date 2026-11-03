@@ -213,10 +213,26 @@ export async function verifyNurseryUndo({ base, db, family: enclosingFamily, sec
     await f.card('Diaper').getByRole('button', { name: 'Wet', exact: true }).click(); await bounded(held.arrived, 'Saved diaper arrival');
     await f.select(other); held.release(); await rendered(f.page, await response);
     assert.equal(await f.toast().count(), 0); assert.equal(await f.card('Diaper').locator('.nursery-card-meta .d').count(), 0);
-    assert.equal((await db.diaperLog.findUniqueOrThrow({ where: { id: held.saved.data.id } })).babyId, f.baby.id);
+    const original = await db.diaperLog.findUniqueOrThrow({ where: { id: held.saved.data.id } });
+    assert.equal(original.babyId, f.baby.id);
     assert.equal(await db.diaperLog.count({ where: { babyId: other.id } }), 0);
-    await f.select(f.baby); await f.card('Diaper').locator('.nursery-card-meta .d').filter({ hasText: 'Wet' }).waitFor();
-    assert.equal(await f.toast().count(), 0, 'Returning to history does not invent an Undo descriptor');
+    await f.select(f.baby);
+    // The stale response cannot acknowledge the first intent. Returning to its
+    // child must retain review until an explicit replay confirms that snapshot.
+    const retry = f.card('Diaper').getByRole('button', { name: 'Retry saved care action', exact: true });
+    await retry.waitFor();
+    await f.card('Diaper').locator('.nursery-card-meta').filter({ hasText: 'Saved care action · Wet' }).waitFor();
+    assert.equal(await f.toast().count(), 0, 'Returning to the original child does not invent an Undo descriptor');
+    const pending = await f.page.evaluate(key => JSON.parse(localStorage.getItem(key)), `nurseryQuickCareIntentV1:diaper:${f.scope}`);
+    assert.equal(pending.requestId, held.requests[0].requestId); assert.equal(pending.time, held.requests[0].time);
+    await f.page.unroute('**/api/diaper-log', held.handler);
+    const repeated = f.response('/api/diaper-log', 'POST'); await retry.click();
+    const confirmed = await repeated; assert.equal(confirmed.status(), 200); const body = await confirmed.json();
+    assert.deepEqual(confirmed.request().postDataJSON(), held.requests[0]);
+    assert.equal(body.replayed, true); assert.deepEqual(body.undo, held.saved.undo);
+    await f.toast().getByRole('button', { name: 'Undo', exact: true }).waitFor();
+    assert.deepEqual(await db.diaperLog.findUnique({ where: { id: original.id } }), original);
+    assert.equal(await db.diaperLog.count({ where: { babyId: f.baby.id } }), 1);
   });
   await run('A held Undo retains its descriptor while a newer same-child save keeps the winning summary', async f => {
     const first = await diaper(f), held = await hold(f, '/api/diaper-log', 'DELETE'), response = f.response('/api/diaper-log', 'DELETE');
