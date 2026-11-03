@@ -192,6 +192,13 @@ export async function verifyNurseryQuickCare({ base, db, secret, context, scratc
       await f.page.clock.fastForward(120_000); await f.page.reload({ waitUntil: 'networkidle' });
       await f.card(kind).getByRole('button', { name: 'Retry saved care action', exact: true }).waitFor();
       assert.equal(await f.card(kind).evaluate(element => element.scrollWidth <= element.clientWidth + 1), true, 'Saved recovery controls fit their card after reload');
+      // Scroll only the activity scroller; scrolling every ancestor can move
+      // the fixed Nursery stage and hide the very layout being verified.
+      await f.card(kind).evaluate(element => {
+        const scroller = element.closest('.nursery-actscroll');
+        scroller.scrollTop += element.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 30;
+      });
+      await f.page.screenshot({ path: `test-results/nursery-quick-care-${kind}-cards.png`, fullPage: true });
       assert.deepEqual(await f.saved(kind), saved); const repeated = await retry(f, kind);
       assert.deepEqual(repeated.payload, first.payload); assert.equal(repeated.body.replayed, false); assert.equal((await f.rows(kind)).length, 1);
     }, { phone: true });

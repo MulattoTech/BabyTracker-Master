@@ -358,6 +358,7 @@ try {
   report.checks.push(...await verifyNurseryQuickCare({ base, db, secret, context, scratch, browserExecutable: browserServer.process().spawnfile }));
   report.nurseryQuickCareRecoveryChecksPassed = true;
   report.screenshots.push(path.join(reportDir, 'nursery-quick-care-mobile.png'));
+  report.screenshots.push(...['diaper', 'food'].map(kind => path.join(reportDir, `nursery-quick-care-${kind}-cards.png`)));
   const userToken = jwt.sign({ id: caretaker.id, name: caretaker.name, role: 'USER', familyId: family.id, familySlug: family.slug }, secret, { expiresIn: '5m' });
   const denied = await fetch(`${base}/api/ocr/documents?babyId=${baby.id}`, { headers: { Authorization: `Bearer ${userToken}` }, signal: AbortSignal.timeout(5000) });
   assert.equal(denied.status, 403); await denied.body?.cancel();
