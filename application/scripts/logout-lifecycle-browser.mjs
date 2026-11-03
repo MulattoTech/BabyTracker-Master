@@ -88,6 +88,14 @@ export async function verifyLogoutLifecycle({ base, db, scratch, reportDir }) {
     assert.equal(response.status(), 200); assert.equal(body.success, true);
     assert.equal(body.data.id, actor.id); assert.equal(body.data.role, 'USER');
     await f.page.getByLabel('Select Baby', { exact: true }).waitFor();
+    // The selector can render while the initial root-to-log-entry navigation
+    // and its second wave of API loads are still running. Fault injection must
+    // start after those actual requests finish, not at that early UI marker.
+    await f.page.waitForURL(url => url.pathname === `/${f.family.slug}/log-entry`);
+    await f.page.waitForLoadState('networkidle');
+    await until(() => f.activeApiRequests.size === 0, 'authenticated initial API requests completed');
+    f.evidence.loginBoundaries.push({ path: new URL(f.page.url()).pathname,
+      activeApiRequests: f.activeApiRequests.size, refreshPosts: f.counts.refresh });
     assert.equal(await independentStatus(f, await token(f.page)), 200);
     f.evidence.realUserLogins++;
   };
@@ -114,8 +122,8 @@ export async function verifyLogoutLifecycle({ base, db, scratch, reportDir }) {
   };
   const fixture = async name => {
     const id = `logout-${runId}-${fixtures.length}`;
-    const f = { name, id, holds: [], logoutBearers: [], counts: { auth: 0, refresh: 0, logout: 0 },
-      evidence: { name, realUserLogins: 0, failedRequests: [], documentsRequested: [] } };
+    const f = { name, id, holds: [], logoutBearers: [], activeApiRequests: new Set(), counts: { auth: 0, refresh: 0, logout: 0 },
+      evidence: { name, realUserLogins: 0, loginBoundaries: [], failedRequests: [], documentsRequested: [] } };
     fixtures.push(f); activeFixture = f; report.evidence.push(f.evidence);
     f.family = await db.family.create({ data: { id, slug: id, name: `Synthetic logout ${name}`, setupStage: 3 } });
     report.cleanup.fixtureIds.push(id);
@@ -150,9 +158,14 @@ export async function verifyLogoutLifecycle({ base, db, scratch, reportDir }) {
     });
     f.page = await f.context.newPage(); f.page.setDefaultTimeout(15_000); f.page.setDefaultNavigationTimeout(25_000);
     f.page.on('pageerror', error => errors.push({ case: name, message: error.message }));
-    f.page.on('requestfailed', request => f.evidence.failedRequests.push({ path: new URL(request.url()).pathname, error: request.failure()?.errorText }));
+    f.page.on('requestfinished', request => f.activeApiRequests.delete(request));
+    f.page.on('requestfailed', request => {
+      f.activeApiRequests.delete(request);
+      f.evidence.failedRequests.push({ path: new URL(request.url()).pathname, error: request.failure()?.errorText });
+    });
     f.page.on('request', request => {
       const url = new URL(request.url());
+      if (url.origin === base && url.pathname.startsWith('/api/')) f.activeApiRequests.add(request);
       if (request.method() === 'POST') {
         if (url.pathname === '/api/auth') f.counts.auth++;
         if (url.pathname === '/api/auth/refresh-token') f.counts.refresh++;
@@ -248,11 +261,17 @@ export async function verifyLogoutLifecycle({ base, db, scratch, reportDir }) {
 
     {
       const f = await fixture('manual-automatic-deduplication');
+      assert.equal(f.counts.refresh, 0, 'Initial authenticated loads must finish before introducing the single failed refresh');
+      await f.page.clock.install({ time: new Date() }); await f.page.clock.pauseAt(new Date());
+      const failedRefresh = await holdActual(f, `${base}/api/auth/refresh-token`, 401, body => assert.equal(body.success, false));
+      const held = await holdActual(f, `${base}/api/auth/logout`, 200);
       await revokeBearer(f, f.ownerToken); await f.context.clearCookies({ name: 'refreshToken' });
       assert.equal(await refreshCookie(f.context), null);
-      await f.page.clock.install({ time: new Date() }); await f.page.clock.pauseAt(new Date());
-      const held = await holdActual(f, `${base}/api/auth/logout`, 200);
       await triggerProtected(f, 'failed-refresh');
+      await bounded(failedRefresh.ready.promise, 'single actual failed refresh captured');
+      assert.equal(f.counts.refresh, 1); assert.equal(f.counts.logout, 0);
+      await release(failedRefresh);
+      await f.page.unroute(`${base}/api/auth/refresh-token`, failedRefresh.handler);
       await until(() => f.page.evaluate(() => window.__logoutLifecycleProbe.protected?.status === 401), 'protected 401 with the browser clock paused');
       assert.equal(f.counts.refresh, 1); assert.equal(f.counts.logout, 0);
       await manualLogout(f); await bounded(held.ready.promise, 'manual logout committed'); await blocked(f);
@@ -260,7 +279,8 @@ export async function verifyLogoutLifecycle({ base, db, scratch, reportDir }) {
       assert.equal(await documentId(f.page) === f.initialDocument, true);
       await f.page.clock.resume(); await release(held); await newLoginDocument(f); await login(f, f.actors[1]);
       await verifyNewOwner(f, await captureNewOwner(f)); assert.equal(f.counts.logout, 1);
-      f.evidence.heldLogout = held.evidence; f.evidence.automaticTimerWindowAdvancedWhileManualClaimed = true;
+      f.evidence.failedRefresh = failedRefresh.evidence; f.evidence.heldLogout = held.evidence;
+      f.evidence.automaticTimerWindowAdvancedWhileManualClaimed = true;
       await finishCase(f, 'Manual logout and a queued failed-refresh logout share one POST and one full document transition before a real new USER login');
     }
     {
