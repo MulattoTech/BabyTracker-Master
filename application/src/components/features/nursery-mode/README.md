@@ -334,6 +334,54 @@ exercises the real Nursery controls and canonical API with synthetic failure,
 restart, expired-auth, response-loss and two-tab scenarios. The release browser
 gate requires these checks.
 
+### Quick diaper and food recovery
+
+Each Nursery diaper tap and food selection freezes its original care time,
+payload and UUID before sending. The browser keeps one pending action per kind,
+family, authenticated actor and child in localStorage. Refresh, closing a tab and
+restarting the same browser profile at the same origin retain that action when
+storage is available. This does not provide recovery on another device or after
+browser storage is cleared. A failed first persistence keeps the input visible
+and sends no care request; unreadable saved state blocks new quick actions.
+
+Short Web Locks serialize synchronous create, verify and remove operations.
+Network requests never hold these locks. Retry requires the exact existing saved
+intent and cannot recreate an action another tab cleared. A late acknowledgement
+cannot clear another tab's newer action. If a write succeeded but its read-back
+failed, the action is treated as possibly persisted and must also be verified
+before delivery. A twenty-second outer deadline bounds authentication refresh,
+delivery and response reading; uncertain results keep the original details.
+
+Cards and Big Tiles show the frozen diaper type or food name and the original
+time in the configured app timezone, with retry, reload and care-log review.
+Local dismissal becomes available after opening review; it does not delete a
+canonical record or claim that an uncertain save failed. Owner and request
+generations prevent late results from changing another child's UI or Undo.
+Deliberate new UUID actions remain distinct even when their times and contents
+match. Time/content similarity is never used to infer a duplicate event.
+
+Only POSTs with the optional strict request identity use this recovery contract.
+Their quick payload is limited to child/time/diaper type or child/time/food ID;
+manual and older scope-only clients preserve their existing behavior. A
+write-first Serializable transaction saves the canonical row and a durable
+ExternalImportRecord receipt together, validates live relationships before
+commit, and returns a controlled conflict during database contention. The receipt
+survives deletion. Replay reconstructs every original persisted scalar from the
+canonical first payload and receipt timestamp, then compares the full generated
+revision inventory. An unchanged replay returns the same original Undo
+descriptor. Changed, moved, deleted or revised rows require review and never gain
+a fresh Undo baseline or a replacement record. Notifications occur only on the
+first diaper creation. Food's optional enjoyment action retains its separate
+conditional Undo contract below.
+
+`tests/nurseryQuickCare.integration.test.ts` uses real ordinary-caregiver login,
+migrated disposable SQLite, receipt failure rollback and separate connections,
+including subsequent writes and reads through both adapters after contention.
+`nursery-quick-care-intent.test.ts` and `nursery-quick-care-request.test.ts` cover
+immutable storage, owner isolation, exact acknowledgement and complete deadlines.
+The compiled `scripts/nursery-quick-care-browser.mjs` gate exercises the actual
+controls and lost-success-response recovery; it uses synthetic care only.
+
 ### Conditional Undo
 
 Nursery diaper, food, bottle, completed breastfeeding and pumping writes return
