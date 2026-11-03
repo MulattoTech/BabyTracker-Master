@@ -4,7 +4,10 @@ import { ApiResponse, SleepLogCreate, SleepLogResponse } from '../types';
 import { withAuthContext, AuthResult } from '../utils/auth';
 import { toUTC, formatForResponse, calculateDurationMinutes } from '../utils/timezone';
 import { checkWritePermission } from '../utils/writeProtection';
-import { careFields, readCareWrite, CareWriteError, requireCareBaby } from '../utils/care-write';
+import { CareWriteError, requireCareBaby } from '../utils/care-write';
+import { readSleepWrite, assertSleepScope } from './request';
+import { sleepRevision } from './revision';
+import { createNurserySleep, updateSleepSnapshot, deleteSleepSnapshot } from './mutations';
 import { notifyActivityCreated } from '@/src/lib/notifications/activityHook';
 import { DEFAULT_SLEEP_LOCATIONS } from '@/src/constants/sleepLocations';
 
@@ -21,7 +24,10 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'User is not associated with a family.' }, { status: 403 });
     }
 
-    const body = await readCareWrite<SleepLogCreate>(req, careFields.sleep, ['babyId', 'startTime', 'type']);
+    const parsed = await readSleepWrite(req, 'POST');
+    const body = parsed.body as SleepLogCreate;
+    const request = parsed.request;
+    assertSleepScope(request, authContext, body.babyId);
 
     const baby = await prisma.baby.findFirst({
       where: { id: body.babyId, familyId: userFamilyId, deletedAt: null },
@@ -38,20 +44,19 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
     // Calculate duration if both start and end times are present
     const duration = endTimeUTC ? calculateDurationMinutes(startTimeUTC, endTimeUTC) : undefined;
 
-    const sleepLog = await prisma.sleepLog.create({
-      data: {
-        ...body,
-        startTime: startTimeUTC,
-        ...(endTimeUTC && { endTime: endTimeUTC }),
-        duration,
-        caretakerId: caretakerId,
-        familyId: userFamilyId,
-      },
-    });
+    const data = {
+      ...body, startTime: startTimeUTC, ...(endTimeUTC && { endTime: endTimeUTC }),
+      duration, caretakerId, familyId: userFamilyId,
+    };
+    const saved = request?.action === 'start'
+      ? await createNurserySleep(prisma, authContext, request, data)
+      : { row: await prisma.sleepLog.create({ data }), created: true };
+    const sleepLog = saved.row;
 
     // Format dates as ISO strings for response
     const response: SleepLogResponse = {
       ...sleepLog,
+      revision: sleepRevision(sleepLog),
       startTime: formatForResponse(sleepLog.startTime) || '',
       endTime: formatForResponse(sleepLog.endTime) || null,
       createdAt: formatForResponse(sleepLog.createdAt) || '',
@@ -60,7 +65,7 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
     };
 
     // Notify subscribers about activity creation (non-blocking)
-    notifyActivityCreated(sleepLog.babyId, 'sleep', { accountId: authContext.accountId, caretakerId: authContext.caretakerId }, { type: body.type }).catch(console.error);
+    if (saved.created) notifyActivityCreated(sleepLog.babyId, 'sleep', { accountId: authContext.accountId, caretakerId: authContext.caretakerId }, { type: body.type }).catch(console.error);
 
     return NextResponse.json<ApiResponse<SleepLogResponse>>({
       success: true,
@@ -94,7 +99,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    const body = await readCareWrite<Partial<SleepLogCreate>>(req, careFields.sleep);
+    const { body, request } = await readSleepWrite(req, 'PUT');
 
     if (!id) {
       return NextResponse.json<ApiResponse<SleepLogResponse>>(
@@ -107,7 +112,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
     }
 
     const existingSleepLog = await prisma.sleepLog.findFirst({
-      where: { id, familyId: userFamilyId },
+      where: { id, familyId: userFamilyId, deletedAt: null },
     });
 
     if (!existingSleepLog) {
@@ -119,6 +124,8 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
         { status: 404 }
       );
     }
+
+    assertSleepScope(request, authContext, existingSleepLog.babyId);
 
     if (body.babyId !== undefined && body.babyId !== existingSleepLog.babyId) {
       await requireCareBaby(prisma, body.babyId, userFamilyId);
@@ -133,15 +140,14 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       ? calculateDurationMinutes(startTimeUTC || existingSleepLog.startTime, endTimeUTC) 
       : undefined;
 
-    const sleepLog = await prisma.sleepLog.update({
-      where: { id, familyId: userFamilyId },
-      data: {
-        ...body,
-        ...(startTimeUTC && { startTime: startTimeUTC }),
-        ...(endTimeUTC && { endTime: endTimeUTC }),
-        ...(duration !== undefined && { duration }),
-      },
-    });
+    if (request?.action === 'wake' && (!endTimeUTC || endTimeUTC < existingSleepLog.startTime
+      || duration === undefined || !Number.isInteger(duration) || duration > 2_147_483_647)) {
+      throw new CareWriteError('Review the sleep times before waking this timer.');
+    }
+    const sleepLog = await updateSleepSnapshot(prisma, existingSleepLog, {
+      ...body, ...(startTimeUTC && { startTime: startTimeUTC }),
+      ...(endTimeUTC && { endTime: endTimeUTC }), ...(duration !== undefined && { duration }),
+    }, request);
 
     // Notify when baby wakes up (endTime set for the first time)
     if (endTimeUTC && !existingSleepLog.endTime) {
@@ -151,6 +157,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
     // Format dates as ISO strings for response
     const response: SleepLogResponse = {
       ...sleepLog,
+      revision: sleepRevision(sleepLog),
       startTime: formatForResponse(sleepLog.startTime) || '',
       endTime: formatForResponse(sleepLog.endTime) || null,
       createdAt: formatForResponse(sleepLog.createdAt) || '',
@@ -244,6 +251,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
     const queryParams: any = {
       familyId: userFamilyId,
       ...(babyId && { babyId }),
+      ...(searchParams.get('activeOnly') === 'true' && { endTime: null, deletedAt: null }),
       ...(startDate && endDate && {
         startTime: {
           gte: toUTC(startDate),
@@ -273,6 +281,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
       // Format dates as ISO strings for response
       const response: SleepLogResponse = {
         ...sleepLog,
+        revision: sleepRevision(sleepLog),
         startTime: formatForResponse(sleepLog.startTime) || '',
         endTime: formatForResponse(sleepLog.endTime) || null,
         createdAt: formatForResponse(sleepLog.createdAt) || '',
@@ -296,6 +305,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
     // Format dates as ISO strings for response
     const response: SleepLogResponse[] = sleepLogs.map(sleepLog => ({
       ...sleepLog,
+      revision: sleepRevision(sleepLog),
       startTime: formatForResponse(sleepLog.startTime) || '',
       endTime: formatForResponse(sleepLog.endTime) || null,
       createdAt: formatForResponse(sleepLog.createdAt) || '',
@@ -346,7 +356,7 @@ async function handleDelete(req: NextRequest, authContext: AuthResult) {
     }
 
     const existingSleepLog = await prisma.sleepLog.findFirst({
-      where: { id, familyId: userFamilyId },
+      where: { id, familyId: userFamilyId, deletedAt: null },
     });
 
     if (!existingSleepLog) {
@@ -359,14 +369,15 @@ async function handleDelete(req: NextRequest, authContext: AuthResult) {
       );
     }
 
-    await prisma.sleepLog.delete({
-      where: { id },
-    });
+    const { request } = await readSleepWrite(req, 'DELETE');
+    assertSleepScope(request, authContext, existingSleepLog.babyId);
+    await deleteSleepSnapshot(prisma, existingSleepLog, request);
 
     return NextResponse.json<ApiResponse<void>>({
       success: true,
     });
   } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
     console.error('Error deleting sleep log:', error);
     return NextResponse.json<ApiResponse<void>>(
       {

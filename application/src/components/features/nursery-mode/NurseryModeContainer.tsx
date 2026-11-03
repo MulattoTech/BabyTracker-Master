@@ -320,20 +320,22 @@ export function NurseryModeContainer() {
   // an inline arrow would re-arm the 6s timeout on every tick.
   const dismissUndo = useCallback(() => setUndo(null), []);
 
+  const handleUndoConfirmed = useCallback((tileId: string) => {
+    setEntries(prev => {
+      const next = { ...prev };
+      delete next[tileId];
+      return next;
+    });
+    lastSeenRef.current[tileId] = '';
+    if (fetchActivityRef.current) fetchActivityRef.current();
+  }, []);
+
   const handleUndo = useCallback(async () => {
     if (!undo) return;
     const ok = await undo.undo();
-    if (ok) {
-      setEntries(prev => {
-        const next = { ...prev };
-        delete next[undo.tileId];
-        return next;
-      });
-      lastSeenRef.current[undo.tileId] = '';
-      if (fetchActivityRef.current) fetchActivityRef.current();
-    }
+    if (ok) handleUndoConfirmed(undo.tileId);
     setUndo(null);
-  }, [undo]);
+  }, [undo, handleUndoConfirmed]);
 
   const handleExit = useCallback(() => {
     wakeLock.release();
@@ -350,7 +352,7 @@ export function NurseryModeContainer() {
   }, [babies, setSelectedBaby]);
 
   // Activity hooks — always called unconditionally (rules of hooks)
-  const hookArgs = { babyId: selectedBaby?.id ?? '', toUTCString, onLog: handleLog, onUndoable: setUndo, enableBreastMilkTracking, sleepLocations: settings.sleep.locations };
+  const hookArgs = { babyId: selectedBaby?.id ?? '', toUTCString, onLog: handleLog, onUndoable: setUndo, onUndoConfirmed: handleUndoConfirmed, enableBreastMilkTracking, sleepLocations: settings.sleep.locations };
   const feedView = useFeedActions(hookArgs);
   const pumpView = usePumpActions(hookArgs);
   const diaperView = useDiaperActions(hookArgs);

@@ -93,6 +93,8 @@ export interface ActivityHookArgs {
   toUTCString: (d: Date | null | undefined) => string | null;
   onLog: (tileId: string, note: string, at?: string) => void;
   onUndoable: (u: UndoInfo) => void; // instant logs only (bottle, diaper)
+  /** Clear a local summary after a previously unconfirmed Undo is explicitly retried. */
+  onUndoConfirmed?: (tileId: string) => void;
   enableBreastMilkTracking?: boolean;
   /** Locations offered by useSleepActions' location picker; defaults to ['Crib', 'Contact']. */
   sleepLocations?: string[];
