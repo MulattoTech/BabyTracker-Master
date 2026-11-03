@@ -346,7 +346,7 @@ try {
   report.nurseryBottleChecksPassed = true;
   report.checks.push(...await verifyBreastfeedingRecovery({ base, db, family, baby, caretaker, token, secret, context }));
   report.breastfeedingRecoveryChecksPassed = true;
-  report.checks.push(...await verifyNurserySleepRecovery({ base, db, secret, context, scratch }));
+  report.checks.push(...await verifyNurserySleepRecovery({ base, db, secret, context, scratch, browserExecutable: browserServer.process().spawnfile }));
   report.nurserySleepRecoveryChecksPassed = true;
   const userToken = jwt.sign({ id: caretaker.id, name: caretaker.name, role: 'USER', familyId: family.id, familySlug: family.slug }, secret, { expiresIn: '5m' });
   const denied = await fetch(`${base}/api/ocr/documents?babyId=${baby.id}`, { headers: { Authorization: `Bearer ${userToken}` }, signal: AbortSignal.timeout(5000) });
