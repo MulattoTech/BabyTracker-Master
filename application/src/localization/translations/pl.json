@@ -3246,5 +3246,22 @@
   "This tab could not clear the stop review. Keep this page open and check browser storage.": "Ta karta nie mogła usunąć weryfikacji zakończenia. Pozostaw stronę otwartą i sprawdź pamięć przeglądarki.",
   "This tab could not read its saved stop review. Keep this page open and check the care log and browser storage.": "Ta karta nie mogła odczytać zapisanej weryfikacji zakończenia. Pozostaw stronę otwartą i sprawdź dziennik opieki oraz pamięć przeglądarki.",
   "This tab could not save the stop time. Keep this page open and check browser storage before retrying. No request was sent on this attempt.": "Ta karta nie mogła zapisać czasu zakończenia. Pozostaw stronę otwartą i sprawdź pamięć przeglądarki przed ponowieniem. W tej próbie nie wysłano żadnego żądania.",
-  "Your first stop time is kept. Reload to inspect the current session. Using the current timer discards this stop time.": "Czas pierwszej próby zakończenia jest zachowany. Wczytaj ponownie, aby sprawdzić bieżącą sesję. Użycie bieżącego licznika odrzuci ten czas zakończenia."
+  "Your first stop time is kept. Reload to inspect the current session. Using the current timer discards this stop time.": "Czas pierwszej próby zakończenia jest zachowany. Wczytaj ponownie, aby sprawdzić bieżącą sesję. Użycie bieżącego licznika odrzuci ten czas zakończenia.",
+  "Saving this dose could not be confirmed. Its original details are kept. Retry the saved request.": "Nie udało się potwierdzić zapisania tej dawki. Pierwotne dane zostały zachowane. Ponów zapisane żądanie.",
+  "This browser could not keep the dose request. Keep this page open and restore storage before saving.": "Ta przeglądarka nie mogła zachować żądania dawki. Pozostaw tę stronę otwartą i przywróć dostęp do pamięci przed zapisaniem.",
+  "This browser could not coordinate the saved dose. Keep this page open and retry when storage access is available.": "Ta przeglądarka nie mogła uzgodnić zapisanej dawki. Pozostaw tę stronę otwartą i spróbuj ponownie, gdy pamięć będzie dostępna.",
+  "The caregiver or child changed. Return to the original caregiver and child before retrying this dose.": "Opiekun lub dziecko uległo zmianie. Wróć do pierwotnego opiekuna i dziecka przed ponowną próbą zapisania tej dawki.",
+  "Another saved dose has changed on this browser. Review it before continuing.": "Inna zapisana dawka została zmieniona w tej przeglądarce. Sprawdź ją przed kontynuowaniem.",
+  "Sign in again as the original caregiver to confirm this dose. The saved request has been kept.": "Zaloguj się ponownie jako pierwotny opiekun, aby potwierdzić tę dawkę. Zapisane żądanie zostało zachowane.",
+  "The saved dose needs review because the record changed or was removed.": "Zapisana dawka wymaga sprawdzenia, ponieważ wpis został zmieniony lub usunięty.",
+  "The server rejected this dose. Its details are kept for review.": "Serwer odrzucił tę dawkę. Jej dane zostały zachowane do sprawdzenia.",
+  "Saving the dose request timed out. Its original details are kept.": "Upłynął limit czasu zapisywania żądania dawki. Pierwotne dane zostały zachowane.",
+  "Review the dose details before saving.": "Sprawdź dane dawki przed zapisaniem.",
+  "Dose awaiting confirmation": "Dawka oczekuje na potwierdzenie",
+  "Retry saved dose": "Ponów zapisaną dawkę",
+  "Dismiss saved dose": "Odrzuć zapisaną dawkę",
+  "Check saved dose again": "Sprawdź zapisaną dawkę ponownie",
+  "A dose is waiting for confirmation on this browser.": "Dawka oczekuje na potwierdzenie w tej przeglądarce.",
+  "Review saved dose": "Przejrzyj zapisaną dawkę",
+  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "Ta dawka może już znajdować się w dzienniku opieki. Sprawdź go przed odrzuceniem żądania zapisanego w tej przeglądarce. Żadne wpisy opieki nie zostaną usunięte. Kontynuować?"
 }

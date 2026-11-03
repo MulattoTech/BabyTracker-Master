@@ -3242,5 +3242,22 @@
   "This tab could not clear the stop review. Keep this page open and check browser storage.": "Denne fanen kunne ikke fjerne kontrollen av avslutningen. Hold siden åpen og kontroller nettleserlagringen.",
   "This tab could not read its saved stop review. Keep this page open and check the care log and browser storage.": "Denne fanen kunne ikke lese den lagrede kontrollen av avslutningen. Hold siden åpen og kontroller omsorgsloggen og nettleserlagringen.",
   "This tab could not save the stop time. Keep this page open and check browser storage before retrying. No request was sent on this attempt.": "Denne fanen kunne ikke lagre avslutningstidspunktet. Hold siden åpen og kontroller nettleserlagringen før du prøver igjen. Ingen forespørsel ble sendt i dette forsøket.",
-  "Your first stop time is kept. Reload to inspect the current session. Using the current timer discards this stop time.": "Tidspunktet for det første avslutningsforsøket beholdes. Last inn på nytt for å se gjeldende økt. Hvis du bruker gjeldende timer, forkastes dette tidspunktet."
+  "Your first stop time is kept. Reload to inspect the current session. Using the current timer discards this stop time.": "Tidspunktet for det første avslutningsforsøket beholdes. Last inn på nytt for å se gjeldende økt. Hvis du bruker gjeldende timer, forkastes dette tidspunktet.",
+  "Saving this dose could not be confirmed. Its original details are kept. Retry the saved request.": "Lagring av denne dosen kunne ikke bekreftes. De opprinnelige opplysningene er beholdt. Prøv den lagrede forespørselen på nytt.",
+  "This browser could not keep the dose request. Keep this page open and restore storage before saving.": "Denne nettleseren kunne ikke beholde doseforespørselen. Hold denne siden åpen og gjenopprett tilgangen til lagring før du lagrer.",
+  "This browser could not coordinate the saved dose. Keep this page open and retry when storage access is available.": "Denne nettleseren kunne ikke samordne den lagrede dosen. Hold denne siden åpen og prøv igjen når lagring er tilgjengelig.",
+  "The caregiver or child changed. Return to the original caregiver and child before retrying this dose.": "Omsorgspersonen eller barnet er endret. Gå tilbake til den opprinnelige omsorgspersonen og barnet før du prøver denne dosen igjen.",
+  "Another saved dose has changed on this browser. Review it before continuing.": "En annen lagret dose er endret i denne nettleseren. Se gjennom den før du fortsetter.",
+  "Sign in again as the original caregiver to confirm this dose. The saved request has been kept.": "Logg inn igjen som den opprinnelige omsorgspersonen for å bekrefte denne dosen. Den lagrede forespørselen er beholdt.",
+  "The saved dose needs review because the record changed or was removed.": "Den lagrede dosen må gjennomgås fordi oppføringen er endret eller fjernet.",
+  "The server rejected this dose. Its details are kept for review.": "Serveren avviste denne dosen. Opplysningene er beholdt for gjennomgang.",
+  "Saving the dose request timed out. Its original details are kept.": "Tidsfristen for å lagre doseforespørselen er utløpt. De opprinnelige opplysningene er beholdt.",
+  "Review the dose details before saving.": "Se gjennom doseopplysningene før du lagrer.",
+  "Dose awaiting confirmation": "Dose venter på bekreftelse",
+  "Retry saved dose": "Prøv lagret dose på nytt",
+  "Dismiss saved dose": "Forkast lagret dose",
+  "Check saved dose again": "Sjekk lagret dose igjen",
+  "A dose is waiting for confirmation on this browser.": "En dose venter på bekreftelse i denne nettleseren.",
+  "Review saved dose": "Se gjennom lagret dose",
+  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "Denne dosen kan allerede være i omsorgsloggen. Se gjennom loggen før du forkaster forespørselen som er lagret i denne nettleseren. Ingen omsorgsoppføringer blir slettet. Fortsette?"
 }

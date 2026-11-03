@@ -74,6 +74,7 @@ try {
   assert.equal(browser.nurseryBottleChecksPassed, true, 'Explicit nursery bottle quantities, frozen units, durable delivery and recovery must run');
   assert.equal(browser.breastfeedingRecoveryChecksPassed, true, 'Atomic breastfeeding completion, retained stop times, explicit conflict review, storage guards and bounded recovery must run');
   assert.equal(browser.nurserySleepRecoveryChecksPassed, true, 'Original sleep times, durable browser restart, scoped replay, revision-bound Undo and cross-tab recovery must run');
+  assert.equal(browser.medicineDoseRecoveryChecksPassed, true, 'Actual USER dose entry, durable first-request recovery, exact replay, bounded failures and cross-tab owner guards must run');
   assert.deepEqual(browser.cleanup?.errors, [], 'Owned browser/server cleanup must be verified');
   assert.equal(browser.cleanup?.server?.exited, true, 'Synthetic server exit must be verified');
   assert.equal(browser.cleanup?.browser?.exited, true, 'Synthetic browser exit must be verified');

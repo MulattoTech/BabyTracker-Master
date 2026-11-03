@@ -44,6 +44,8 @@ export interface MedicineFormProps {
  * Props for the ActiveDosesTab component
  */
 export interface ActiveDosesTabProps {
+  /** A persisted request can be reviewed without creating another administration. */
+  hasPendingDose?: boolean;
   /**
    * The ID of the baby for whom to show active doses
    */

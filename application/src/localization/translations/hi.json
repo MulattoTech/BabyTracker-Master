@@ -3242,5 +3242,22 @@
   "This tab could not clear the stop review. Keep this page open and check browser storage.": "यह टैब रोकने के प्रयास की समीक्षा हटा नहीं सका। यह पेज खुला रखें और ब्राउज़र स्टोरेज जाँचें।",
   "This tab could not read its saved stop review. Keep this page open and check the care log and browser storage.": "यह टैब रोकने के प्रयास की सहेजी गई समीक्षा पढ़ नहीं सका। यह पेज खुला रखें और देखभाल का रिकॉर्ड तथा ब्राउज़र स्टोरेज जाँचें।",
   "This tab could not save the stop time. Keep this page open and check browser storage before retrying. No request was sent on this attempt.": "यह टैब रोकने का समय सहेज नहीं सका। यह पेज खुला रखें और पुनः प्रयास से पहले ब्राउज़र स्टोरेज जाँचें। इस प्रयास में कोई अनुरोध नहीं भेजा गया।",
-  "Your first stop time is kept. Reload to inspect the current session. Using the current timer discards this stop time.": "रोकने के पहले प्रयास का समय सुरक्षित है। मौजूदा सत्र देखने के लिए फिर लोड करें। मौजूदा टाइमर इस्तेमाल करने पर यह रोकने का समय हटा दिया जाएगा।"
+  "Your first stop time is kept. Reload to inspect the current session. Using the current timer discards this stop time.": "रोकने के पहले प्रयास का समय सुरक्षित है। मौजूदा सत्र देखने के लिए फिर लोड करें। मौजूदा टाइमर इस्तेमाल करने पर यह रोकने का समय हटा दिया जाएगा।",
+  "Saving this dose could not be confirmed. Its original details are kept. Retry the saved request.": "इस खुराक के सहेजे जाने की पुष्टि नहीं हो सकी। उसका मूल विवरण सुरक्षित है। सहेजे गए अनुरोध को फिर से आज़माएँ।",
+  "This browser could not keep the dose request. Keep this page open and restore storage before saving.": "यह ब्राउज़र खुराक का अनुरोध सुरक्षित नहीं रख सका। इस पेज को खुला रखें और सहेजने से पहले स्टोरेज की सुविधा बहाल करें।",
+  "This browser could not coordinate the saved dose. Keep this page open and retry when storage access is available.": "यह ब्राउज़र सहेजी गई खुराक का समन्वय नहीं कर सका। इस पेज को खुला रखें और स्टोरेज उपलब्ध होने पर फिर से प्रयास करें।",
+  "The caregiver or child changed. Return to the original caregiver and child before retrying this dose.": "देखभालकर्ता या बच्चा बदल गया है। इस खुराक को फिर से आज़माने से पहले मूल देखभालकर्ता और बच्चे पर वापस जाएँ।",
+  "Another saved dose has changed on this browser. Review it before continuing.": "इस ब्राउज़र में एक अन्य सहेजी गई खुराक बदल गई है। आगे बढ़ने से पहले उसकी समीक्षा करें।",
+  "Sign in again as the original caregiver to confirm this dose. The saved request has been kept.": "इस खुराक की पुष्टि के लिए मूल देखभालकर्ता के रूप में फिर से साइन इन करें। सहेजा गया अनुरोध सुरक्षित है।",
+  "The saved dose needs review because the record changed or was removed.": "रिकॉर्ड बदलने या हटने के कारण सहेजी गई खुराक की समीक्षा आवश्यक है।",
+  "The server rejected this dose. Its details are kept for review.": "सर्वर ने इस खुराक को अस्वीकार कर दिया। उसका विवरण समीक्षा के लिए सुरक्षित है।",
+  "Saving the dose request timed out. Its original details are kept.": "खुराक का अनुरोध सहेजने की समय सीमा समाप्त हो गई। उसका मूल विवरण सुरक्षित है।",
+  "Review the dose details before saving.": "सहेजने से पहले खुराक के विवरण की समीक्षा करें।",
+  "Dose awaiting confirmation": "खुराक की पुष्टि की प्रतीक्षा है",
+  "Retry saved dose": "सहेजी गई खुराक फिर आज़माएँ",
+  "Dismiss saved dose": "सहेजी गई खुराक का अनुरोध हटाएँ",
+  "Check saved dose again": "सहेजी गई खुराक फिर जाँचें",
+  "A dose is waiting for confirmation on this browser.": "इस ब्राउज़र में एक खुराक की पुष्टि की प्रतीक्षा है।",
+  "Review saved dose": "सहेजी गई खुराक की समीक्षा करें",
+  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "यह खुराक पहले से देखभाल लॉग में हो सकती है। इस ब्राउज़र का सहेजा गया अनुरोध हटाने से पहले लॉग की समीक्षा करें। देखभाल का कोई रिकॉर्ड नहीं हटाया जाएगा। जारी रखें?"
 }
