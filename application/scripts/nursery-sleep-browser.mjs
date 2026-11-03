@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
 import jwt from 'jsonwebtoken';
@@ -19,10 +20,12 @@ const sleepCard = page => page.locator('.nursery-card').filter({ has: page.getBy
 
 // Own the process explicitly so restart evidence includes verified shutdown,
 // not just copying browser storage into another context.
-async function launchProfile(profile) {
+async function launchProfile(profile, browserExecutable) {
   assert.equal(path.basename(profile), 'sleep-recovery-browser-profile');
   assert.match(path.basename(path.dirname(profile)), /^(babytracker-browser-synthetic|sat-sleep-browser)-/);
-  const child = spawn(process.env.BABYTRACKER_TEST_BROWSER_PATH || chromium.executablePath(), [
+  assert.ok(typeof browserExecutable === 'string' && path.isAbsolute(browserExecutable) && existsSync(browserExecutable),
+    'Owned browser executable is unavailable for the Sleep recovery restart');
+  const child = spawn(browserExecutable, [
     '--headless', '--no-sandbox', '--disable-dev-shm-usage', '--disable-background-networking',
     '--no-first-run', '--no-default-browser-check', '--remote-debugging-address=127.0.0.1',
     '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank',
@@ -57,7 +60,7 @@ async function launchProfile(profile) {
   } catch (error) { await close(); throw error; }
 }
 
-export async function verifyNurserySleepRecovery({ base, db, secret, context, scratch }) {
+export async function verifyNurserySleepRecovery({ base, db, secret, context, scratch, browserExecutable }) {
   assert.match(base, /^http:\/\/127\.0\.0\.1:\d+$/);
   const family = await db.family.create({ data: { slug: `synthetic-sleep-${randomUUID().slice(0, 8)}`, name: 'Synthetic Sleep Recovery', setupStage: 3 } });
   const caregiver = await db.caretaker.create({ data: { familyId: family.id, loginId: '01', name: 'Synthetic Ordinary Sleep Caregiver',
@@ -166,7 +169,7 @@ export async function verifyNurserySleepRecovery({ base, db, secret, context, sc
     });
     await scenario('A rejected Wake preserves its original endpoint across a complete owned browser process restart', async () => {
       const baby = await babyRecord('Restart'), now = Math.floor(Date.now() / 60_000) * 60_000, session = await seedSleep(baby, now);
-      const profile = path.join(scratch, 'sleep-recovery-browser-profile'); persistent = await launchProfile(profile); const firstPid = persistent.pid;
+      const profile = path.join(scratch, 'sleep-recovery-browser-profile'); persistent = await launchProfile(profile, browserExecutable); const firstPid = persistent.pid;
       await initialize(persistent.context, baby); let page = await preparePage(persistent.context, now); let f = { page, card: () => sleepCard(page) };
       const bodies = [], block = rejectWrite(bodies); await page.route('**/api/sleep-log*', block);
       await page.goto(`${base}/${family.slug}/nursery-mode`, { waitUntil: 'networkidle' }); await layout(page, 'Cards'); await choose(page, baby);
@@ -174,7 +177,7 @@ export async function verifyNurserySleepRecovery({ base, db, secret, context, sc
       await f.card().getByRole('alert').filter({ hasText: 'was not confirmed' }).waitFor();
       const intent = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), keyFor(baby)); assert.equal(intent.endTime, new Date(now).toISOString());
       assert.equal((await rows(baby))[0].endTime, null); await persistent.close(); persistent = null;
-      persistent = await launchProfile(profile); assert.notEqual(persistent.pid, firstPid); await initialize(persistent.context, baby);
+      persistent = await launchProfile(profile, browserExecutable); assert.notEqual(persistent.pid, firstPid); await initialize(persistent.context, baby);
       page = await preparePage(persistent.context, now + 600_000); f = { page, card: () => sleepCard(page) };
       await page.goto(`${base}/${family.slug}/nursery-mode`, { waitUntil: 'networkidle' }); await retry(f).waitFor();
       assert.deepEqual(await page.evaluate(key => JSON.parse(localStorage.getItem(key)), keyFor(baby)), intent);

@@ -3251,5 +3251,22 @@
   "Retry Undo": "Riprova ad annullare",
   "Dismiss Undo review": "Chiudi verifica annullamento",
   "This food entry changed or its enjoyment update was not confirmed. Review the care log.": "Questa voce alimentare è cambiata o l’aggiornamento del gradimento non è stato confermato. Controlla il registro delle cure.",
-  "Dismiss review": "Chiudi verifica"
+  "Dismiss review": "Chiudi verifica",
+  "Saving this dose could not be confirmed. Its original details are kept. Retry the saved request.": "Non è stato possibile confermare il salvataggio di questa dose. I dettagli originali sono conservati. Riprova la richiesta salvata.",
+  "This browser could not keep the dose request. Keep this page open and restore storage before saving.": "Questo browser non ha potuto conservare la richiesta della dose. Tieni aperta questa pagina e ripristina l’accesso allo spazio di archiviazione prima di salvare.",
+  "This browser could not coordinate the saved dose. Keep this page open and retry when storage access is available.": "Questo browser non ha potuto coordinare la dose salvata. Tieni aperta questa pagina e riprova quando lo spazio di archiviazione sarà accessibile.",
+  "The caregiver or child changed. Return to the original caregiver and child before retrying this dose.": "La persona che presta assistenza o il bambino è cambiato. Torna alla persona e al bambino originali prima di riprovare questa dose.",
+  "Another saved dose has changed on this browser. Review it before continuing.": "Un’altra dose salvata è cambiata in questo browser. Controllala prima di continuare.",
+  "Sign in again as the original caregiver to confirm this dose. The saved request has been kept.": "Accedi di nuovo come la persona che ha registrato la dose per confermarla. La richiesta salvata è stata conservata.",
+  "The saved dose needs review because the record changed or was removed.": "La dose salvata deve essere controllata perché la registrazione è stata modificata o rimossa.",
+  "The server rejected this dose. Its details are kept for review.": "Il server ha rifiutato questa dose. I dettagli sono conservati per il controllo.",
+  "Saving the dose request timed out. Its original details are kept.": "Il tempo per salvare la richiesta della dose è scaduto. I dettagli originali sono conservati.",
+  "Review the dose details before saving.": "Controlla i dettagli della dose prima di salvare.",
+  "Dose awaiting confirmation": "Dose in attesa di conferma",
+  "Retry saved dose": "Riprova la dose salvata",
+  "Dismiss saved dose": "Scarta la dose salvata",
+  "Check saved dose again": "Ricontrolla la dose salvata",
+  "A dose is waiting for confirmation on this browser.": "Una dose è in attesa di conferma in questo browser.",
+  "Review saved dose": "Controlla la dose salvata",
+  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "Questa dose potrebbe essere già nel registro delle cure. Controllalo prima di scartare la richiesta salvata in questo browser. Nessuna registrazione delle cure verrà eliminata. Continuare?"
 }

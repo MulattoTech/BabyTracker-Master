@@ -3251,5 +3251,22 @@
   "Retry Undo": "Réessayer l’annulation",
   "Dismiss Undo review": "Fermer la vérification de l’annulation",
   "This food entry changed or its enjoyment update was not confirmed. Review the care log.": "Cette entrée alimentaire a changé ou la mise à jour de son appréciation n’a pas été confirmée. Consultez le journal de soins.",
-  "Dismiss review": "Fermer la vérification"
+  "Dismiss review": "Fermer la vérification",
+  "Saving this dose could not be confirmed. Its original details are kept. Retry the saved request.": "L’enregistrement de cette dose n’a pas pu être confirmé. Ses détails d’origine sont conservés. Réessayez la demande enregistrée.",
+  "This browser could not keep the dose request. Keep this page open and restore storage before saving.": "Ce navigateur n’a pas pu conserver la demande de dose. Gardez cette page ouverte et rétablissez l’accès au stockage avant d’enregistrer.",
+  "This browser could not coordinate the saved dose. Keep this page open and retry when storage access is available.": "Ce navigateur n’a pas pu coordonner la dose enregistrée. Gardez cette page ouverte et réessayez lorsque le stockage sera accessible.",
+  "The caregiver or child changed. Return to the original caregiver and child before retrying this dose.": "La personne aidante ou l’enfant a changé. Revenez à la personne aidante et à l’enfant d’origine avant de réessayer cette dose.",
+  "Another saved dose has changed on this browser. Review it before continuing.": "Une autre dose enregistrée a changé dans ce navigateur. Vérifiez-la avant de continuer.",
+  "Sign in again as the original caregiver to confirm this dose. The saved request has been kept.": "Reconnectez-vous en tant que personne aidante d’origine pour confirmer cette dose. La demande enregistrée est conservée.",
+  "The saved dose needs review because the record changed or was removed.": "La dose enregistrée doit être vérifiée car l’entrée a été modifiée ou supprimée.",
+  "The server rejected this dose. Its details are kept for review.": "Le serveur a refusé cette dose. Ses détails sont conservés pour vérification.",
+  "Saving the dose request timed out. Its original details are kept.": "Le délai d’enregistrement de la demande de dose a expiré. Ses détails d’origine sont conservés.",
+  "Review the dose details before saving.": "Vérifiez les détails de la dose avant de les enregistrer.",
+  "Dose awaiting confirmation": "Dose en attente de confirmation",
+  "Retry saved dose": "Réessayer la dose enregistrée",
+  "Dismiss saved dose": "Écarter la dose enregistrée",
+  "Check saved dose again": "Revérifier la dose enregistrée",
+  "A dose is waiting for confirmation on this browser.": "Une dose attend une confirmation dans ce navigateur.",
+  "Review saved dose": "Vérifier la dose enregistrée",
+  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "Cette dose figure peut-être déjà dans le journal de soins. Vérifiez-le avant d’écarter la demande enregistrée dans ce navigateur. Aucune entrée de soins ne sera supprimée. Continuer ?"
 }

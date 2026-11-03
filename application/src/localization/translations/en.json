@@ -3251,5 +3251,22 @@
   "Retry Undo": "Retry Undo",
   "Dismiss Undo review": "Dismiss Undo review",
   "This food entry changed or its enjoyment update was not confirmed. Review the care log.": "This food entry changed or its enjoyment update was not confirmed. Review the care log.",
-  "Dismiss review": "Dismiss review"
+  "Dismiss review": "Dismiss review",
+  "Saving this dose could not be confirmed. Its original details are kept. Retry the saved request.": "Saving this dose could not be confirmed. Its original details are kept. Retry the saved request.",
+  "This browser could not keep the dose request. Keep this page open and restore storage before saving.": "This browser could not keep the dose request. Keep this page open and restore storage before saving.",
+  "This browser could not coordinate the saved dose. Keep this page open and retry when storage access is available.": "This browser could not coordinate the saved dose. Keep this page open and retry when storage access is available.",
+  "The caregiver or child changed. Return to the original caregiver and child before retrying this dose.": "The caregiver or child changed. Return to the original caregiver and child before retrying this dose.",
+  "Another saved dose has changed on this browser. Review it before continuing.": "Another saved dose has changed on this browser. Review it before continuing.",
+  "Sign in again as the original caregiver to confirm this dose. The saved request has been kept.": "Sign in again as the original caregiver to confirm this dose. The saved request has been kept.",
+  "The saved dose needs review because the record changed or was removed.": "The saved dose needs review because the record changed or was removed.",
+  "The server rejected this dose. Its details are kept for review.": "The server rejected this dose. Its details are kept for review.",
+  "Saving the dose request timed out. Its original details are kept.": "Saving the dose request timed out. Its original details are kept.",
+  "Review the dose details before saving.": "Review the dose details before saving.",
+  "Dose awaiting confirmation": "Dose awaiting confirmation",
+  "Retry saved dose": "Retry saved dose",
+  "Dismiss saved dose": "Dismiss saved dose",
+  "Check saved dose again": "Check saved dose again",
+  "A dose is waiting for confirmation on this browser.": "A dose is waiting for confirmation on this browser.",
+  "Review saved dose": "Review saved dose",
+  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?"
 }
