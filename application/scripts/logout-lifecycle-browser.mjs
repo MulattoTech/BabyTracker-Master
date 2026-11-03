@@ -120,6 +120,15 @@ export async function verifyLogoutLifecycle({ base, db, scratch, reportDir }) {
     assert.equal(unchanged, true, 'Logout must preserve exact scoped care recovery records');
     f.evidence.pendingCareStoragePreserved = true;
   };
+  const beginScenario = (f, phase) => {
+    assert.equal(f.activeApiRequests.size, 0, 'Scenario baseline requires completed authenticated API loads');
+    assert.equal(f.counts.auth, 1, 'Scenario baseline follows one real USER login');
+    assert.equal(f.counts.logout, 0, 'Bootstrap must not dispatch logout');
+    // Root bootstrap may attempt a cookie-only refresh before any login. Keep
+    // that lifetime count, then measure controlled requests from this boundary.
+    f.scenarioBaseline = { ...f.counts };
+    (f.evidence.scenarioBaselines ??= []).push({ phase, activeApiRequests: 0, counts: { ...f.scenarioBaseline } });
+  };
   const fixture = async name => {
     const id = `logout-${runId}-${fixtures.length}`;
     const f = { name, id, holds: [], logoutBearers: [], activeApiRequests: new Set(), counts: { auth: 0, refresh: 0, logout: 0 },
@@ -179,6 +188,7 @@ export async function verifyLogoutLifecycle({ base, db, scratch, reportDir }) {
       for (const [key, value] of Object.entries(saved.local)) localStorage.setItem(key, value);
       for (const [key, value] of Object.entries(saved.session)) sessionStorage.setItem(key, value);
     }, f.pending);
+    beginScenario(f, 'post-authentication');
     return f;
   };
   const holdActual = async (f, url, expectedStatus, validate = body => assert.equal(body.success, true)) => {
@@ -261,7 +271,6 @@ export async function verifyLogoutLifecycle({ base, db, scratch, reportDir }) {
 
     {
       const f = await fixture('manual-automatic-deduplication');
-      assert.equal(f.counts.refresh, 0, 'Initial authenticated loads must finish before introducing the single failed refresh');
       await f.page.clock.install({ time: new Date() }); await f.page.clock.pauseAt(new Date());
       const failedRefresh = await holdActual(f, `${base}/api/auth/refresh-token`, 401, body => assert.equal(body.success, false));
       const held = await holdActual(f, `${base}/api/auth/logout`, 200);
@@ -269,11 +278,12 @@ export async function verifyLogoutLifecycle({ base, db, scratch, reportDir }) {
       assert.equal(await refreshCookie(f.context), null);
       await triggerProtected(f, 'failed-refresh');
       await bounded(failedRefresh.ready.promise, 'single actual failed refresh captured');
-      assert.equal(f.counts.refresh, 1); assert.equal(f.counts.logout, 0);
+      assert.equal(f.counts.refresh - f.scenarioBaseline.refresh, 1); assert.equal(f.counts.logout, 0);
       await release(failedRefresh);
       await f.page.unroute(`${base}/api/auth/refresh-token`, failedRefresh.handler);
       await until(() => f.page.evaluate(() => window.__logoutLifecycleProbe.protected?.status === 401), 'protected 401 with the browser clock paused');
-      assert.equal(f.counts.refresh, 1); assert.equal(f.counts.logout, 0);
+      assert.equal(f.counts.refresh - f.scenarioBaseline.refresh, 1); assert.equal(f.counts.logout, 0);
+      f.evidence.controlledRefreshPosts = f.counts.refresh - f.scenarioBaseline.refresh;
       await manualLogout(f); await bounded(held.ready.promise, 'manual logout committed'); await blocked(f);
       await f.page.clock.runFor(150); assert.equal(f.counts.logout, 1);
       assert.equal(await documentId(f.page) === f.initialDocument, true);
@@ -302,6 +312,8 @@ export async function verifyLogoutLifecycle({ base, db, scratch, reportDir }) {
       // Recreate app interval handlers under the clock only after a real login.
       await f.page.clock.install({ time: new Date() }); await f.page.reload({ waitUntil: 'networkidle' });
       await f.page.getByLabel('Select Baby', { exact: true }).waitFor(); f.initialDocument = await documentId(f.page);
+      await until(() => f.activeApiRequests.size === 0, 'authenticated reload API requests completed');
+      beginScenario(f, 'after-authenticated-reload');
       const cookie = await refreshCookie(f.context); assert.ok(cookie);
       await revokeBearer(f, f.ownerToken); assert.equal(await refreshCookie(f.context) === cookie, true);
       const refresh = await holdActual(f, `${base}/api/auth/refresh-token`, 200, body => { assert.equal(body.success, true); assert.equal(typeof body.data?.token, 'string'); });
@@ -309,7 +321,8 @@ export async function verifyLogoutLifecycle({ base, db, scratch, reportDir }) {
       await triggerProtected(f, 'held-refresh'); await bounded(refresh.ready.promise, 'real valid-cookie refresh committed');
       const expiry = await f.page.evaluate(() => JSON.parse(atob(localStorage.getItem('authToken').split('.')[1])).exp * 1000);
       await f.page.clock.setSystemTime(new Date(expiry + 1)); await f.page.clock.runFor(2500);
-      assert.equal(f.counts.refresh, 1); assert.equal(f.counts.logout, 0);
+      assert.equal(f.counts.refresh - f.scenarioBaseline.refresh, 1); assert.equal(f.counts.logout, 0);
+      f.evidence.controlledRefreshPosts = f.counts.refresh - f.scenarioBaseline.refresh;
       assert.equal(await signOut(f.page).count(), 0); await f.page.getByLabel('Select Baby', { exact: true }).waitFor();
       assert.equal(await token(f.page) === f.ownerToken, true);
       await manualLogout(f); await blocked(f); assert.equal(f.counts.logout, 0, 'Logout must await the already-started refresh');
