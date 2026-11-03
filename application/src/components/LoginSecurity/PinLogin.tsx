@@ -35,7 +35,7 @@ export default function PinLogin({
   const loginIdInputRef = useRef<HTMLInputElement>(null);
   const pinInputRef = useRef<HTMLInputElement>(null);
 
-  // Reset form when component mounts and check for server-side IP lockout
+  // Reset credentials for the current family and check server-side IP lockout.
   useEffect(() => {
     setPin('');
     setLoginId('');
@@ -68,7 +68,7 @@ export default function PinLogin({
     };
 
     checkIpLockout();
-  }, [onLockoutChange]);
+  }, [familySlug, onLockoutChange]);
 
   // Check authentication type and caretakers
   useEffect(() => {

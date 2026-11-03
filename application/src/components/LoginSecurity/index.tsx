@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useTheme } from '@/src/context/theme';
@@ -46,9 +46,9 @@ export default function LoginSecurity({ onUnlock, familySlug, familyName }: Logi
   }, []);
 
   // Handle lockout changes
-  const handleLockoutChange = (time: number | null) => {
+  const handleLockoutChange = useCallback((time: number | null) => {
     setLockoutTime(time);
-  };
+  }, []);
 
   // Update lockout timer
   useEffect(() => {
