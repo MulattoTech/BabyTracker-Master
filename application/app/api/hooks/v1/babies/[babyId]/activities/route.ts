@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import prisma from '../../../../../db';
+import { caretakerNameRelation, medicineCategoryWhere, medicineNameForFamily, medicineNameRelation } from '@/app/api/utils/careReadScope';
 import { createPumpWithFeed, PumpReconciliationConflict, updatePumpWithFeed } from '@/app/api/utils/pumpReconciliation';
 import { withApiKeyAuth, ApiKeyContext, validateBabyAccess } from '../../../auth';
 import { checkRateLimit } from '../../../rate-limiter';
@@ -114,6 +115,9 @@ async function handleGet(req: NextRequest, ctx: ApiKeyContext, routeContext: any
   const access = await validateBabyAccess(babyId, ctx);
   if (!access.valid) return access.error!;
 
+  const familyId = ctx.familyId;
+  const careScope = { babyId, familyId, deletedAt: null };
+
   const url = new URL(req.url);
   const typeFilter = url.searchParams.get('type') as ActivityType | null;
   const limit = Math.min(Math.max(parseInt(url.searchParams.get('limit') || '10', 10) || 10, 1), 50);
@@ -132,10 +136,10 @@ async function handleGet(req: NextRequest, ctx: ApiKeyContext, routeContext: any
   if (types.includes('feed')) {
     queries.push(
       prisma.feedLog.findMany({
-        where: { babyId, deletedAt: null, time: { gte: since } },
+        where: { ...careScope, time: { gte: since } },
         orderBy: { time: 'desc' },
         take: limit,
-        include: { caretaker: { select: { name: true } }, unit: { select: { unitAbbr: true } } },
+        include: { caretaker: caretakerNameRelation(familyId), unit: { select: { unitAbbr: true } } },
       }).then((rows) => {
         rows.forEach((r) => activities.push({
           activityType: 'feed',
@@ -151,10 +155,10 @@ async function handleGet(req: NextRequest, ctx: ApiKeyContext, routeContext: any
   if (types.includes('diaper')) {
     queries.push(
       prisma.diaperLog.findMany({
-        where: { babyId, deletedAt: null, time: { gte: since } },
+        where: { ...careScope, time: { gte: since } },
         orderBy: { time: 'desc' },
         take: limit,
-        include: { caretaker: { select: { name: true } } },
+        include: { caretaker: caretakerNameRelation(familyId) },
       }).then((rows) => {
         rows.forEach((r) => activities.push({
           activityType: 'diaper',
@@ -170,10 +174,10 @@ async function handleGet(req: NextRequest, ctx: ApiKeyContext, routeContext: any
   if (types.includes('sleep')) {
     queries.push(
       prisma.sleepLog.findMany({
-        where: { babyId, deletedAt: null, startTime: { gte: since } },
+        where: { ...careScope, startTime: { gte: since } },
         orderBy: { startTime: 'desc' },
         take: limit,
-        include: { caretaker: { select: { name: true } } },
+        include: { caretaker: caretakerNameRelation(familyId) },
       }).then((rows) => {
         rows.forEach((r) => activities.push({
           activityType: 'sleep',
@@ -189,10 +193,10 @@ async function handleGet(req: NextRequest, ctx: ApiKeyContext, routeContext: any
   if (types.includes('note')) {
     queries.push(
       prisma.note.findMany({
-        where: { babyId, deletedAt: null, time: { gte: since } },
+        where: { ...careScope, time: { gte: since } },
         orderBy: { time: 'desc' },
         take: limit,
-        include: { caretaker: { select: { name: true } } },
+        include: { caretaker: caretakerNameRelation(familyId) },
       }).then((rows) => {
         rows.forEach((r) => activities.push({
           activityType: 'note',
@@ -208,10 +212,10 @@ async function handleGet(req: NextRequest, ctx: ApiKeyContext, routeContext: any
   if (types.includes('pump')) {
     queries.push(
       prisma.pumpLog.findMany({
-        where: { babyId, deletedAt: null, startTime: { gte: since } },
+        where: { ...careScope, startTime: { gte: since } },
         orderBy: { startTime: 'desc' },
         take: limit,
-        include: { caretaker: { select: { name: true } } },
+        include: { caretaker: caretakerNameRelation(familyId) },
       }).then((rows) => {
         rows.forEach((r) => activities.push({
           activityType: 'pump',
@@ -227,10 +231,10 @@ async function handleGet(req: NextRequest, ctx: ApiKeyContext, routeContext: any
   if (types.includes('bath')) {
     queries.push(
       prisma.bathLog.findMany({
-        where: { babyId, deletedAt: null, time: { gte: since } },
+        where: { ...careScope, time: { gte: since } },
         orderBy: { time: 'desc' },
         take: limit,
-        include: { caretaker: { select: { name: true } } },
+        include: { caretaker: caretakerNameRelation(familyId) },
       }).then((rows) => {
         rows.forEach((r) => activities.push({
           activityType: 'bath',
@@ -246,10 +250,10 @@ async function handleGet(req: NextRequest, ctx: ApiKeyContext, routeContext: any
   if (types.includes('measurement')) {
     queries.push(
       prisma.measurement.findMany({
-        where: { babyId, deletedAt: null, date: { gte: since } },
+        where: { ...careScope, date: { gte: since } },
         orderBy: { date: 'desc' },
         take: limit,
-        include: { caretaker: { select: { name: true } } },
+        include: { caretaker: caretakerNameRelation(familyId) },
       }).then((rows) => {
         rows.forEach((r) => activities.push({
           activityType: 'measurement',
@@ -265,16 +269,16 @@ async function handleGet(req: NextRequest, ctx: ApiKeyContext, routeContext: any
   if (types.includes('medicine')) {
     queries.push(
       prisma.medicineLog.findMany({
-        where: { babyId, deletedAt: null, time: { gte: since }, medicine: { isSupplement: false } },
+        where: { ...careScope, time: { gte: since }, ...medicineCategoryWhere(familyId, false) },
         orderBy: { time: 'desc' },
         take: limit,
-        include: { caretaker: { select: { name: true } }, medicine: { select: { name: true } } },
+        include: { caretaker: caretakerNameRelation(familyId), medicine: medicineNameRelation },
       }).then((rows) => {
         rows.forEach((r) => activities.push({
           activityType: 'medicine',
           id: r.id,
           time: r.time.toISOString(),
-          details: { medicineName: r.medicine?.name, doseAmount: r.doseAmount, unitAbbr: r.unitAbbr, notes: r.notes },
+          details: { medicineName: medicineNameForFamily(r.medicine, familyId), doseAmount: r.doseAmount, unitAbbr: r.unitAbbr, notes: r.notes },
           caretakerName: r.caretaker?.name || null,
         }));
       })
@@ -284,16 +288,16 @@ async function handleGet(req: NextRequest, ctx: ApiKeyContext, routeContext: any
   if (types.includes('supplement')) {
     queries.push(
       prisma.medicineLog.findMany({
-        where: { babyId, deletedAt: null, time: { gte: since }, medicine: { isSupplement: true } },
+        where: { ...careScope, time: { gte: since }, ...medicineCategoryWhere(familyId, true) },
         orderBy: { time: 'desc' },
         take: limit,
-        include: { caretaker: { select: { name: true } }, medicine: { select: { name: true } } },
+        include: { caretaker: caretakerNameRelation(familyId), medicine: medicineNameRelation },
       }).then((rows) => {
         rows.forEach((r) => activities.push({
           activityType: 'supplement',
           id: r.id,
           time: r.time.toISOString(),
-          details: { supplementName: r.medicine?.name, doseAmount: r.doseAmount, unitAbbr: r.unitAbbr, notes: r.notes },
+          details: { supplementName: medicineNameForFamily(r.medicine, familyId), doseAmount: r.doseAmount, unitAbbr: r.unitAbbr, notes: r.notes },
           caretakerName: r.caretaker?.name || null,
         }));
       })
@@ -303,10 +307,10 @@ async function handleGet(req: NextRequest, ctx: ApiKeyContext, routeContext: any
   if (types.includes('play')) {
     queries.push(
       prisma.playLog.findMany({
-        where: { babyId, deletedAt: null, startTime: { gte: since } },
+        where: { ...careScope, startTime: { gte: since } },
         orderBy: { startTime: 'desc' },
         take: limit,
-        include: { caretaker: { select: { name: true } } },
+        include: { caretaker: caretakerNameRelation(familyId) },
       }).then((rows) => {
         rows.forEach((r) => activities.push({
           activityType: 'play',

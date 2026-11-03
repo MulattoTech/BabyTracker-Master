@@ -23,6 +23,7 @@ import { verifyNurseryUndo } from './nursery-undo-browser.mjs';
 import { verifyNurserySleepRecovery } from './nursery-sleep-browser.mjs';
 import { verifyMedicineDoseRecovery } from './medicine-dose-recovery-browser.mjs';
 import { verifyNurseryQuickCare } from './nursery-quick-care-browser.mjs';
+import { verifyFamilyReadBoundaries } from './family-read-boundary-http.mjs';
 const require = createRequire(import.meta.url);
 const { PrismaClient } = require('@prisma/client');
 const { createPrismaAdapter } = require('../prisma/prisma-adapter.js');
@@ -359,6 +360,8 @@ try {
   report.nurseryQuickCareRecoveryChecksPassed = true;
   report.screenshots.push(path.join(reportDir, 'nursery-quick-care-mobile.png'));
   report.screenshots.push(...['diaper', 'food'].map(kind => path.join(reportDir, `nursery-quick-care-${kind}-cards.png`)));
+  report.checks.push(...await verifyFamilyReadBoundaries({ base, db, secret, reportDir }));
+  report.familyReadBoundaryChecksPassed = true;
   const userToken = jwt.sign({ id: caretaker.id, name: caretaker.name, role: 'USER', familyId: family.id, familySlug: family.slug }, secret, { expiresIn: '5m' });
   const denied = await fetch(`${base}/api/ocr/documents?babyId=${baby.id}`, { headers: { Authorization: `Bearer ${userToken}` }, signal: AbortSignal.timeout(5000) });
   assert.equal(denied.status, 403); await denied.body?.cancel();

@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import type { Prisma, PumpLog } from '@prisma/client';
 import prisma from '../../../../../../db';
+import { medicineCategoryWhere, medicineNameForFamily, medicineNameRelation } from '@/app/api/utils/careReadScope';
 import { withApiKeyAuth, ApiKeyContext, validateBabyAccess } from '../../../../auth';
 import { checkRateLimit } from '../../../../rate-limiter';
 import { hookSuccess, hookError } from '../../../../response';
@@ -462,7 +463,7 @@ async function findExistingActivity(type: ActivityType, activityId: string, baby
     case 'medicine':
     case 'supplement': {
       const row = await prisma.medicineLog.findFirst({
-        where: { id: activityId, babyId, familyId, deletedAt: null, medicine: { isSupplement: type === 'supplement' } },
+        where: { id: activityId, babyId, familyId, deletedAt: null, ...medicineCategoryWhere(familyId, type === 'supplement') },
         select: { id: true, babyId: true, time: true },
       });
       return row ? { type, id: row.id, babyId: row.babyId, time: row.time } : null;
@@ -538,9 +539,9 @@ async function updateActivity(type: ActivityType, activityId: string, babyId: st
       const row = await prisma.medicineLog.update({
         where: { id: activityId },
         data: built.data!,
-        include: { medicine: { select: { name: true, isSupplement: true } } },
+        include: { medicine: medicineNameRelation },
       });
-      return { result: summary(type, row.id, row.babyId, 'updated', row.time, { medicineName: row.medicine.name, doseAmount: row.doseAmount, unitAbbr: row.unitAbbr, notes: row.notes }) };
+      return { result: summary(type, row.id, row.babyId, 'updated', row.time, { medicineName: medicineNameForFamily(row.medicine, familyId), doseAmount: row.doseAmount, unitAbbr: row.unitAbbr, notes: row.notes }) };
     }
   }
 }

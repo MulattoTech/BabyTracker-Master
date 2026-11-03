@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import prisma from '../../../../../db';
+import { caretakerNameRelation, medicineCategoryWhere, medicineNameForFamily, medicineNameRelation } from '@/app/api/utils/careReadScope';
 import { withApiKeyAuth, ApiKeyContext, validateBabyAccess } from '../../../auth';
 import { checkRateLimit } from '../../../rate-limiter';
 import { hookSuccess, hookError } from '../../../response';
@@ -63,35 +64,37 @@ async function handleGet(req: NextRequest, ctx: ApiKeyContext, routeContext: any
   const access = await validateBabyAccess(babyId, ctx);
   if (!access.valid) return access.error!;
 
-  const baby = await prisma.baby.findUnique({
-    where: { id: babyId },
+  const familyId = ctx.familyId;
+  const careScope = { babyId, familyId, deletedAt: null };
+  const baby = await prisma.baby.findFirst({
+    where: { id: babyId, familyId },
     select: { id: true, firstName: true, birthDate: true, feedWarningTime: true, diaperWarningTime: true },
   });
+  if (!baby) return hookError('BABY_NOT_FOUND', 'Baby not found in this family', 404, rl.headers);
 
   const today = startOfTodayInTimezone(timezone);
 
   // Fetch last activities in parallel
   const [lastFeed, lastDiaper, lastSleep, lastBath, lastMedicine, lastSupplement, lastPump, activeBreastFeed] = await Promise.all([
-    prisma.feedLog.findFirst({ where: { babyId, deletedAt: null }, orderBy: { time: 'desc' }, include: { caretaker: { select: { name: true } }, unit: { select: { unitAbbr: true } } } }),
-    prisma.diaperLog.findFirst({ where: { babyId, deletedAt: null }, orderBy: { time: 'desc' }, include: { caretaker: { select: { name: true } } } }),
-    prisma.sleepLog.findFirst({ where: { babyId, deletedAt: null }, orderBy: { startTime: 'desc' }, include: { caretaker: { select: { name: true } } } }),
-    prisma.bathLog.findFirst({ where: { babyId, deletedAt: null }, orderBy: { time: 'desc' } }),
-    prisma.medicineLog.findFirst({ where: { babyId, deletedAt: null, medicine: { isSupplement: false } }, orderBy: { time: 'desc' }, include: { medicine: { select: { name: true } } } }),
-    prisma.medicineLog.findFirst({ where: { babyId, deletedAt: null, medicine: { isSupplement: true } }, orderBy: { time: 'desc' }, include: { medicine: { select: { name: true } } } }),
-    prisma.pumpLog.findFirst({ where: { babyId, deletedAt: null }, orderBy: { startTime: 'desc' } }),
-    prisma.activeBreastFeed.findUnique({ where: { babyId } }),
+    prisma.feedLog.findFirst({ where: careScope, orderBy: { time: 'desc' }, include: { caretaker: caretakerNameRelation(familyId), unit: { select: { unitAbbr: true } } } }),
+    prisma.diaperLog.findFirst({ where: careScope, orderBy: { time: 'desc' }, include: { caretaker: caretakerNameRelation(familyId) } }),
+    prisma.sleepLog.findFirst({ where: careScope, orderBy: { startTime: 'desc' } }),
+    prisma.bathLog.findFirst({ where: careScope, orderBy: { time: 'desc' } }),
+    prisma.medicineLog.findFirst({ where: { ...careScope, ...medicineCategoryWhere(familyId, false) }, orderBy: { time: 'desc' }, include: { medicine: medicineNameRelation } }),
+    prisma.medicineLog.findFirst({ where: { ...careScope, ...medicineCategoryWhere(familyId, true) }, orderBy: { time: 'desc' }, include: { medicine: medicineNameRelation } }),
+    prisma.pumpLog.findFirst({ where: careScope, orderBy: { startTime: 'desc' } }),
+    prisma.activeBreastFeed.findFirst({ where: { babyId, familyId } }),
   ]);
 
   // Fetch daily counts in parallel
   const [todaysFeeds, diapers, sleepLogs, bathCount, medicineCount, supplementCount] = await Promise.all([
     // Pre-buffered so a breast session straddling midnight groups with its
     // pre-midnight sibling row (and is then attributed to yesterday)
-    prisma.feedLog.findMany({ where: { babyId, deletedAt: null, time: { gte: new Date(today.getTime() - SESSION_TOLERANCE_MS) } }, select: { type: true, time: true, side: true } }),
-    prisma.diaperLog.findMany({ where: { babyId, deletedAt: null, time: { gte: today } }, select: { type: true } }),
+    prisma.feedLog.findMany({ where: { ...careScope, time: { gte: new Date(today.getTime() - SESSION_TOLERANCE_MS) } }, select: { type: true, time: true, side: true } }),
+    prisma.diaperLog.findMany({ where: { ...careScope, time: { gte: today } }, select: { type: true } }),
     prisma.sleepLog.findMany({
       where: {
-        babyId,
-        deletedAt: null,
+        ...careScope,
         OR: [
           { startTime: { gte: today } },
           { endTime: { gte: today }, startTime: { lt: today } },
@@ -99,9 +102,9 @@ async function handleGet(req: NextRequest, ctx: ApiKeyContext, routeContext: any
       },
       select: { duration: true, type: true, startTime: true, endTime: true },
     }),
-    prisma.bathLog.count({ where: { babyId, deletedAt: null, time: { gte: today } } }),
-    prisma.medicineLog.count({ where: { babyId, deletedAt: null, time: { gte: today }, medicine: { isSupplement: false } } }),
-    prisma.medicineLog.count({ where: { babyId, deletedAt: null, time: { gte: today }, medicine: { isSupplement: true } } }),
+    prisma.bathLog.count({ where: { ...careScope, time: { gte: today } } }),
+    prisma.medicineLog.count({ where: { ...careScope, time: { gte: today }, ...medicineCategoryWhere(familyId, false) } }),
+    prisma.medicineLog.count({ where: { ...careScope, time: { gte: today }, ...medicineCategoryWhere(familyId, true) } }),
   ]);
 
   const diapersByType: Record<string, number> = {};
@@ -175,12 +178,12 @@ async function handleGet(req: NextRequest, ctx: ApiKeyContext, routeContext: any
     medicine: lastMedicine ? {
       time: lastMedicine.time.toISOString(),
       minutesAgo: minutesAgo(lastMedicine.time),
-      medicineName: lastMedicine.medicine?.name || null,
+      medicineName: medicineNameForFamily(lastMedicine.medicine, familyId),
     } : null,
     supplement: lastSupplement ? {
       time: lastSupplement.time.toISOString(),
       minutesAgo: minutesAgo(lastSupplement.time),
-      supplementName: lastSupplement.medicine?.name || null,
+      supplementName: medicineNameForFamily(lastSupplement.medicine, familyId),
     } : null,
     pump: lastPump ? {
       startTime: lastPump.startTime.toISOString(),
